@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Guide - Nan Province</title>
+    <!-- CSS ของ Avatar V1 (ตัวกลม) -->
+    <link rel="stylesheet" href="assets/styles/avatar.css">
+    
+    <!-- Google Fonts สำหรับ Avatar V2 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        /* === ส่วนกลาง: สไตล์สำหรับสลับหน้า (เหมือนเดิม) === */
+        body {
+            font-family: 'Kanit', sans-serif; /* ใช้ฟอนต์ Kanit เป็นหลัก */
+            overflow: hidden;
+            margin: 0;
+            background-color: #121212; /* เปลี่ยนพื้นหลังเป็นสีดำเพื่อให้เข้ากับ V2 */
+        }
+        .toggle-container {
+            position: absolute; top: 30px; z-index: 10;
+            background-color: rgba(255, 255, 255, 0.1); border-radius: 25px;
+            padding: 5px; backdrop-filter: blur(5px);
+        }
+        .toggle-container button {
+            padding: 10px 25px; border: none; background-color: transparent;
+            color: #e0e0e0; font-weight: bold; cursor: pointer; border-radius: 20px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            font-family: 'Kanit', sans-serif;
+        }
+        .toggle-container button.active {
+            background-color: #00A3FF; color: #121212;
+        }
+        .page-container {
+            position: relative; width: 100%; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .page {
+            position: absolute; width: 100%; height: 100%; display: flex;
+            flex-direction: column; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transform: scale(0.95);
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+        }
+        .page.active {
+            opacity: 1; pointer-events: auto; transform: scale(1);
+        }
+
+        /* === ส่วน CSS ของ AVATAR V2 (นำมาใส่และครอบด้วย #page2) === */
+        #page2 {
+            color: #e0e0e0;
+        }
+        #page2 .face-container {
+            width: 600px; height: 300px; display: flex;
+            justify-content: center; align-items: center; position: relative;
+        }
+        
+    </style>
+</head>
+<body>
+
+    <div class="toggle-container">
+        <button id="btn-page1" class="active">Avatar V1</button>
+        <button id="btn-page2">Avatar V2</button>
+    </div>
+
+    <main class="page-container">
+
+        <!-- หน้าที่ 1 (Avatar V1 - ตัวกลม) -->
+        <div id="page1" class="page active">
+            <div class="face" id="avatar-face">
+                <div class="eyes-container"><div class="eye"></div><div class="eye"></div></div>
+                <div class="mouth"></div>
+            </div>
+            <div id="status-text" style="margin-top: 20px; color: white; background: rgba(0,0,0,0.2); padding: 5px 15px; border-radius: 15px;">กำลังเริ่มต้น...</div>
+        </div>
+
+        <!-- หน้าที่ 2 (Avatar V2 - SVG/GSAP) -->
+        <div id="page2" class="page">
+             <div class="face-container">
+                <svg width="500" height="300" viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="eyeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#00D1FF; stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#0075FF; stop-opacity:1" />
+                        </linearGradient>
+                        <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                    </defs>
+                    <g id="face" transform="translate(125, 100)">
+                        <g id="thinkingIcon" opacity="0" transform="translate(125, 200)"><circle class="dot" cx="-45" cy="-13" r="5" fill="#555"/><circle class="dot" cx="-30" cy="-10" r="5" fill="#555"/><circle class="dot" cx="-15" cy="-7" r="5" fill="#555"/><circle class="dot" cx="0" cy="-5" r="5" fill="#555"/><circle class="dot" cx="15" cy="-7" r="5" fill="#555"/><circle class="dot" cx="30" cy="-10" r="5" fill="#555"/><circle class="dot" cx="45" cy="-13" r="5" fill="#555"/></g>
+                        <g id="normalEyes"><g id="leftEye" transform-origin="50 50"><rect x="0" y="0" width="100" height="100" rx="20" ry="20" fill="url(#eyeGradient)"/><rect id="leftHighlight" x="15" y="15" width="30" height="30" rx="10" fill="white" fill-opacity="0.3"/></g><g id="rightEye" transform-origin="200 50"><rect x="150" y="0" width="100" height="100" rx="20" ry="20" fill="url(#eyeGradient)"/><rect id="rightHighlight" x="165" y="15" width="30" height="30" rx="10" fill="white" fill-opacity="0.3"/></g></g>
+                        <g id="thankYouElements" opacity="0"><path d="M 0 50 C 25 20, 75 20, 100 50" stroke="url(#eyeGradient)" stroke-width="15" stroke-linecap="round" fill="none"/><path d="M 150 50 C 175 20, 225 20, 250 50" stroke="url(#eyeGradient)" stroke-width="15" stroke-linecap="round" fill="none"/><path d="M 50 120 Q 125 210, 200 120" stroke="url(#eyeGradient)" stroke-width="10" stroke-linecap="round" fill="none"/><g filter="url(#softGlow)"><circle cx="25" cy="100" r="25" fill="#FFC0CB" fill-opacity="0.8"/><circle cx="225" cy="100" r="25" fill="#FFC0CB" fill-opacity="0.8"/></g></g>
+                    </g>
+                </svg>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Library GSAP (จำเป็นสำหรับ Avatar V2) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    
+    <!-- Logic หลักของ AI (ไฟล์เดิมของคุณ) -->
+    <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/avatar_logic.js"></script>
+    
+    <!-- === ส่วน JS สำหรับสลับหน้า และควบคุม AVATAR V2 === -->
+    <script>
+        // --- ตัวแปรกลางสำหรับเช็คว่ากำลังใช้ Avatar ตัวไหน ---
+        let currentAvatar = 'v1'; 
+
+        // --- ส่วน JS สำหรับสลับหน้า ---
+        const btnPage1 = document.getElementById('btn-page1');
+        const btnPage2 = document.getElementById('btn-page2');
+        const page1 = document.getElementById('page1');
+        const page2 = document.getElementById('page2');
+
+        btnPage1.addEventListener('click', () => {
+            currentAvatar = 'v1'; // <-- อัปเดตตัวแปร
+            page1.classList.add('active');
+            page2.classList.remove('active');
+            btnPage1.classList.add('active');
+            btnPage2.classList.remove('active');
+        });
+
+        btnPage2.addEventListener('click', () => {
+            currentAvatar = 'v2'; // <-- อัปเดตตัวแปร
+            page2.classList.add('active');
+            page1.classList.remove('active');
+            btnPage2.classList.add('active');
+            btnPage1.classList.remove('active');
+        });
+
+        // --- ส่วน JS ของ AVATAR V2 (นำมาใส่ที่นี่) ---
+        const select = gsap.utils.selector("svg");
+        const normalEyes = select("#normalEyes");
+        const leftEye = select("#leftEye");
+        const rightEye = select("#rightEye");
+        const thankYouElements = select("#thankYouElements");
+        const thinkingIcon = select("#thinkingIcon");
+        const dots = select(".dot");
+
+        let masterTimeline = gsap.timeline();
+        let thinkingAnimation;
+
+        function playNeutral() {
+            if (thinkingAnimation) thinkingAnimation.kill();
+            masterTimeline.clear();
+            masterTimeline.to([thinkingIcon, thankYouElements], { opacity: 0, duration: 0.3 })
+                         .to(normalEyes, { opacity: 1, duration: 0.3 }, 0)
+                         .to([leftEye, rightEye], { x: 0, y: 0, scaleY: 1, rotation: 0, duration: 0.6, ease: "elastic.out(1, 0.5)" }, 0);
+        }
+        function playThankYou() {
+            playNeutral();
+            masterTimeline.to(normalEyes, { opacity: 0, duration: 0.3, ease: "power1.in" })
+                         .fromTo(thankYouElements, { y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.7)" }, ">-0.1");
+        }
+        function playThinking() {
+            playNeutral();
+            thinkingAnimation = gsap.timeline({ onComplete: () => thinkingAnimation = null });
+            thinkingAnimation.to(thinkingIcon, { opacity: 1, duration: 0.5 });
+            thinkingAnimation.to(dots, { opacity: 0.5, stagger: 0.2, repeat: -1, yoyo: true, ease: "power1.inOut" }, 0.5);
+            thinkingAnimation.to([leftEye, rightEye], { x: 10, duration: 2, repeat: -1, yoyo: true, ease: "sine.inOut" }, 0.5);
+            thinkingAnimation.to([leftEye, rightEye], { y: -10, duration: 0.8, repeat: -1, yoyo: true, repeatDelay: 2, ease: "power2.inOut" }, 1);
+        }
+        function playIdleAnimation() {
+            if (masterTimeline.isActive() || (thinkingAnimation && thinkingAnimation.isActive())) {
+                setTimeout(playIdleAnimation, 1500); return;
+            }
+            const action = Math.random();
+            if (action < 0.35) {
+                gsap.timeline({ onComplete: scheduleNextIdle }).to([leftEye, rightEye], { scaleY: 0.05, duration: 0.08, transformOrigin: "center center", repeat: 1, yoyo: true });
+            } else if (action < 0.65) {
+                gsap.timeline({ onComplete: scheduleNextIdle }).to([leftEye, rightEye], { x: -8, duration: 0.4, ease: "power1.inOut" }).to([leftEye, rightEye], { delay: 1, x: 8, duration: 0.6, ease: "power1.inOut" }).to([leftEye, rightEye], { delay: 0.8, x: 0, duration: 0.5, ease: "power1.inOut" });
+            } else if (action < 0.85) {
+                 gsap.timeline({ onComplete: scheduleNextIdle }).to([leftEye, rightEye], { scaleY: 0.85, duration: 0.2, ease: "power1.inOut", repeat: 1, yoyo: true, repeatDelay: 0.5 });
+            } else { scheduleNextIdle(); }
+        }
+        function scheduleNextIdle() { setTimeout(playIdleAnimation, Math.random() * 4000 + 2000); }
+        playNeutral();
+        scheduleNextIdle();
+    </script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="th">
+<link rel="stylesheet" href="/assets/styles/admin.css">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - AI Guide น่าน</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        button {
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Admin Panel: จัดการข้อมูลสถานที่</h1>
+    <hr>
+    <h2>รายการข้อมูลทั้งหมด</h2>
+    <h2>นำเข้าข้อมูลอัจฉริยะ (AI Ingestion)</h2>
+    <p>อัปโหลดไฟล์ PDF หรือรูปภาพเพื่อให้ AI ช่วยสกัดข้อมูลและกรอกฟอร์มให้โดยอัตโนมัติ</p>
+    <div id="ai-ingestion-section">
+        <input type="file" id="file-input" accept=".pdf, image/*">
+        <button id="analyze-btn">ประมวลผลด้วย AI</button>
+        <div id="loading-spinner" style="display:none;">
+            <p>กำลังประมวลผล โปรดรอสักครู่...</p>
+            <!-- คุณสามารถใส่รูป spinner.gif สวยๆ ที่นี่ได้ในอนาคต -->
+        </div>
+    </div>
+    <hr>
+
+    <h3>เพิ่มข้อมูลใหม่</h3>
+    <form id="add-location-form">
+        Title: <br>
+        <input type="text" id="form-title" required><br>
+        Summary: <br>
+        <textarea id="form-summary" required></textarea><br>
+        Category: <br>
+        Details (from AI - Read Only): <br>
+        <textarea id="form-details-preview" rows="10" readonly
+            style="width: 100%; background-color: #f0f0f0; border: 1px solid #ccc; padding: 5px; font-family: monospace;">
+    </textarea><br>
+        <input type="text" id="form-category" required><br>
+        Topic: <br>
+        <input type="text" id="form-topic" required><br>
+        Image URL: <br>
+        <input type="text" id="form-image-url"><br><br>
+        <button type="submit">Add Location</button>
+    </form>
+    <hr>
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Edit Location</h2>
+            <form id="edit-location-form">
+                <input type="hidden" id="edit-form-mongo-id">
+                <input type="hidden" id="edit-form-original-id">
+
+                Title: <br>
+                <input type="text" id="edit-form-title" required><br>
+                Summary: <br>
+                <textarea id="edit-form-summary" required></textarea><br>
+                Category: <br>
+                <input type="text" id="edit-form-category" required><br>
+                Topic: <br>
+                <input type="text" id="edit-form-topic" required><br>
+                Image URL: <br>
+                <input type="text" id="edit-form-image-url"><br><br>
+                <button type="submit">Save Changes</button>
+            </form>
+        </div>
+    </div>
+    <table id="locations-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Topic</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- ข้อมูลจะถูกเติมที่นี่โดย JavaScript -->
+        </tbody>
+    </table>
+
+    <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/admin.js"></script>
+</body>
+
+</html>

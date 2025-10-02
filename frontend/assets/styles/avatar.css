@@ -1,0 +1,228 @@
+body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #3b2848; /* Darker purple for background */
+      overflow: hidden;
+      font-family: 'Arial', sans-serif;
+    }
+    .face {
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle at 50% 40%, #e0c3fc, #8ec5fc);
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      box-shadow: 0 0 70px rgba(224, 195, 252, 0.6);
+      transition: transform 0.3s ease;
+    }
+    .face::before {
+      content: '';
+      position: absolute;
+      top: 25px;
+      left: 50px;
+      width: 80px;
+      height: 40px;
+      background: white;
+      opacity: 0.6;
+      border-radius: 50%;
+      transform: rotate(-30deg);
+      filter: blur(10px);
+    }
+    .face::after {
+      content: '';
+      position: absolute;
+      bottom: 80px;
+      width: 250px;
+      height: 50px;
+      background: radial-gradient(circle, rgba(255, 105, 180, 0.5) 0%, rgba(255, 105, 180, 0) 70%);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    .eyes-container {
+      display: flex;
+      margin-bottom: 25px;
+      transition: transform 0.15s ease-out;
+    }
+    .eye {
+      width: 25px;
+      height: 40px;
+      background: #4B0082;
+      border-radius: 50%;
+      margin: 0 35px;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      animation: blink 6s infinite ease-in-out;
+      position: relative;
+    }
+    .eye::before {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: 6px;
+      width: 10px;
+      height: 10px;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.9;
+    }
+    .eye::after {
+      content: '';
+      position: absolute;
+      bottom: 8px;
+      right: 6px;
+      width: 5px;
+      height: 5px;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.7;
+    }
+    @keyframes blink {
+      0%, 95%, 100% { transform: scaleY(1); }
+      97.5% { transform: scaleY(0.1); }
+    }
+    .mouth {
+      width: 40px;
+      height: 6px;
+      background: #4B0082;
+      border-radius: 3px;
+      border-bottom: none;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      margin-top: 25px;
+    }
+    .face::after {
+      opacity: 0;
+    }
+    .face.talking .mouth {
+      width: 35px;
+      height: 35px;
+      border-bottom: none;
+      background: #4B0082;
+      border-radius: 50%;
+      animation: talking-mouth 0.8s infinite ease-in-out;
+    }
+    .face.talking .eye {
+      transform: scaleY(1.05);
+    }
+    @keyframes talking-mouth {
+      0%, 100% {
+        transform: scaleY(1);
+      }
+      50% {
+        transform: scaleY(0.4) scaleX(0.9);
+      }
+    }
+    /* Adjusted thinking state */
+    .face.thinking .mouth {
+      width: 50px;
+      height: 4px;
+      border-radius: 2px;
+      border-bottom: none;
+      background: #4B0082;
+      transform: translateX(-15px) rotate(-5deg);
+    }
+    .face.thinking .eyes-container {
+      transform: translateX(30px) translateY(-10px);
+    }
+    .face.thinking .eye {
+      /* Squinting effect */
+      height: 5px;
+      border-radius: 2.5px;
+      transform: translateY(15px);
+    }
+    .face.thinking::before {
+      content: '';
+      position: absolute;
+      top: -30px;
+      right: 50px;
+      font-size: 48px;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 5px 15px;
+      border-radius: 20px;
+      backdrop-filter: blur(5px);
+      transition: opacity 0.5s ease;
+      animation: fadeIn 0.8s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .face.thinking .eye {
+        /* Squinting effect */
+        height: 8px;
+        border-radius: 4px;
+        transform: translateY(15px);
+    }
+    
+    .face.thinking::after {
+        /* Thought bubble */
+        content: '';
+        position: absolute;
+        top: -20px;
+        left: 50%;
+        width: 15px;
+        height: 15px;
+        background: #fff;
+        border-radius: 50%;
+        transform: translateX(-50%);
+        animation: bubble 1.5s infinite ease-in-out;
+    }
+    
+    .face.thinking::before {
+        /* Main thought bubble */
+        content: '...';
+        position: absolute;
+        top: -60px;
+        left: 50%;
+        font-size: 40px;
+        color: #fff;
+        opacity: 0;
+        transform: translateX(-50%);
+        animation: dots 1.5s infinite steps(1);
+    }
+
+    @keyframes bubble {
+        0%, 100% { transform: scale(0.8); }
+        50% { transform: scale(1.1); }
+    }
+    
+    @keyframes dots {
+        0% { content: ''; opacity: 0; }
+        25% { content: '.'; opacity: 1; }
+        50% { content: '..'; opacity: 1; }
+        75%, 100% { content: '...'; opacity: 1; }
+    }
+    
+    .control-panel {
+      position: fixed;
+      bottom: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      border-radius: 10px;
+      display: flex;
+      gap: 10px;
+      backdrop-filter: blur(5px);
+    }
+    .control-panel button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 5px;
+      background: #e0c3fc;
+      color: #4B0082;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .control-panel button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .control-panel button:active {
+      transform: translateY(-1px);
+    }

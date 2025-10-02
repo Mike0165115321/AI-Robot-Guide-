@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - AI Guide น่าน</title>
+    <style>
+        /* --- General Body & Font Styles --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            background-color: #f0f2f5;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        /* --- Chat Container --- */
+        .chat-container {
+            width: 100%;
+            max-width: 700px;
+            height: 90vh;
+            max-height: 800px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Chat Header --- */
+        .chat-header {
+            background-color: #007bff;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* --- Chat Box (Message Area) --- */
+        .chat-box {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* --- Message Bubbles --- */
+        .message {
+            max-width: 75%;
+            padding: 0.75rem 1rem;
+            border-radius: 18px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .message.user {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot {
+            background-color: #e9e9eb;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        /* --- Input Area --- */
+        .input-area {
+            display: flex;
+            padding: 1rem;
+            border-top: 1px solid #ddd;
+            background-color: #f8f9fa;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            padding: 0.75rem 1.25rem;
+            font-size: 1rem;
+            margin-right: 0.75rem;
+        }
+
+        #user-input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
+        .action-buttons button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.75rem;
+            font-size: 1.5rem;
+            color: #555;
+            transition: color 0.2s;
+        }
+
+        .action-buttons button:hover {
+            color: #007bff;
+        }
+
+        /* --- For loading message --- */
+        .message.bot.thinking {
+            font-style: italic;
+            color: #777;
+        }
+
+        .message.bot img {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            AI Guide จังหวัดน่าน
+        </div>
+        <div class="chat-box" id="chat-box">
+            <!-- Initial greeting message -->
+        </div>
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="พิมพ์คำถามของคุณที่นี่...">
+            <div class="action-buttons">
+                <button id="send-btn" title="Send">▶️</button>
+                <button id="ptt-btn" title="Push to Talk">🎤</button>
+                <button id="convo-btn" title="Conversation Mode">🗣️</button>
+            </div>
+        </div>
+    </div>
+    <div id="avatar-container"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #000; justify-content: center; align-items: center;">
+        <!-- ในเฟสแรก เราจะแสดงข้อความง่ายๆ ก่อน -->
+        <div id="robot-face" style="color: white; font-size: 2rem;">
+            ... Listening ...
+        </div>
+        <button id="close-convo-btn"
+            style="position: absolute; top: 20px; right: 20px; font-size: 2rem; background: none; border: none; color: white; cursor: pointer;">&times;</button>
+    </div>
+
+    <!-- Scripts remain the same -->
+    <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/voice-handler.js"></script>
+    <script src="assets/scripts/chat.js"></script>
+</body>
+
+</html>
