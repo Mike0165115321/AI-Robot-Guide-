@@ -1,39 +1,69 @@
-.vscode/
-env/
-.Robot-Guide/
+# ==================================
+# 1. Python & Backend (FastAPI)
+# ==================================
+
+# Environment (ห้ามอัปเด็ดขาด!)
+.env
+*.env
+
+# Virtual Environment (ห้ามอัป!)
+.venv/
+venv/
+
+# Python cache files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.sqlite3
-*.db
-*.log
-instance/
-.webassets-cache
-.coverage
-htmlcov/
-.tox/
-.nox/
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
+# Testing cache
 .pytest_cache/
-pytestdebug.log
-.ipynb_checkpoints
+
+# ==================================
+# 2. Project-Specific Files (ที่ยังคงต้องห้าม!)
+# ==================================
+
+# (Backend) โฟลเดอร์เก็บไฟล์เสียงชั่วคราว (ยังคงไม่ควรอัป)
+# เพราะไฟล์นี้จะถูกสร้างขึ้นใหม่ตอนรันโปรแกรม
+Back-end/temp_audio/
+
+# (Backend) ไฟล์ฐานข้อมูล SQLite (ถ้าเผลอสร้างไว้)
+*.db
+*.sqlite3
+
+# (Backend) ไฟล์ Log
+*.log
+
+# หมายเหตุ: เรา "จงใจ" ไม่งดเว้น
+# Back-end/core/database/data/ (ไฟล์ .jsonl)
+# และ Back-end/static/ (ไฟล์ .jpg)
+# เพื่อให้เพื่อนในทีมสามารถ clone ไปใช้งานได้เลย
+
+# ==================================
+# 3. Frontend (HTML/CSS/JS)
+# ==================================
+
+# Dependencies (ถ้าอนาคตใช้ npm/yarn)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build output (ถ้าอนาคตใช้ VITE, React, etc.)
+dist/
+build/
+.output/
+
+# ==================================
+# 4. OS & Editor Junk Files
+# ==================================
+
+# macOS
 .DS_Store
-*.pem
-*.key
-*.crt
-*.p12
-*.pfx
-*.env
-.env.*
-.venv/
-.idea/
-*.iml
-*.suo
-*.ntvs*
+
+# Windows
+Thumbs.db
+
+# VS Code
+# .vscode/
+
+.Robot-Guide/
+.vscode/

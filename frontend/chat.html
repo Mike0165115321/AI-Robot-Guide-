@@ -4,157 +4,354 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat - AI Guide น่าน</title>
+    <title>AI Guide - Nan Province</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Inter:wght@400;500;700&display=swap"
+        rel="stylesheet">
     <style>
-        /* --- General Body & Font Styles --- */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-            background-color: #f0f2f5;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+        :root {
+            --color-bg-primary: #0A192F;
+            --color-bg-card: #112240;
+            --color-text-primary: #CCD6F6;
+            --color-text-secondary: #8892B0;
+            --color-border: #233554;
+            --color-accent-teal: #64FFDA;
+            --color-user-bubble: #3B82F6;
+            --color-mic-active: #F472B6;
         }
 
-        /* --- Chat Container --- */
-        .chat-container {
-            width: 100%;
-            max-width: 700px;
-            height: 90vh;
-            max-height: 800px;
-            background-color: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        body {
+            font-family: 'Kanit', 'Inter', sans-serif;
+            background-color: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            background-image: linear-gradient(rgba(10, 25, 47, 0.95), rgba(10, 25, 47, 0.95)), url('https://images.unsplash.com/photo-1589325253319-33235221385c?q=80&w=2070&auto-format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        #message-area::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #message-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #message-area::-webkit-scrollbar-thumb {
+            background-color: rgba(136, 146, 176, 0.3);
+            border-radius: 10px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .ai-message,
+        .user-message {
+            animation: fadeIn 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .glass-ai-bubble {
+            background-color: rgba(17, 34, 64, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--color-border);
+        }
+
+        .chat-card-main {
+            background-color: var(--color-bg-card);
+            border: 1px solid var(--color-border);
+            box-shadow: 0 10px 30px -15px rgba(2, 12, 27, 0.7);
+        }
+
+        .action-pill {
+            padding-left: 1rem;
+            /* 16px */
+            padding-right: 1rem;
+            /* 16px */
+            padding-top: 0.5rem;
+            /* 8px */
+            padding-bottom: 0.5rem;
+            /* 8px */
+
+            /* Typography */
+            font-size: 0.875rem;
+            /* 14px */
+            font-weight: 500;
+            color: #cbd5e1;
+            /* text-slate-300 */
+
+            /* Background & Border */
+            background-color: rgba(51, 65, 85, 0.5);
+            /* bg-slate-700 with 50% opacity */
+            border-radius: 9999px;
+            /* rounded-full */
+
+            /* Added from the full HTML for better UX */
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            /* space-x-2 */
+            cursor: pointer;
+            transition: all 200ms ease-in-out;
+        }
+
+        .action-pill:hover {
+            background-color: rgba(71, 85, 105, 0.6);
+            /* hover:bg-slate-600/60 */
+            color: #ffffff;
+            /* hover:text-white */
+        }
+
+        .convo-highlight-pill {
+            /* Layout & Sizing */
+            padding-left: 1rem;
+            padding-right: 1rem;
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+
+            /* Typography */
+            font-size: 0.875rem;
+            font-weight: 600;
+            /* semibold */
+            color: #ffffff;
+            /* text-white */
+
+            /* Background & Border */
+            background-image: linear-gradient(to right, #3b82f6, #4f46e5);
+            /* from-blue-500 to-indigo-600 */
+            border-radius: 9999px;
+
+            /* Effects */
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            /* shadow-lg */
+
+            /* Added from the full HTML for better UX */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            /* space-x-2 */
+            cursor: pointer;
+            transition: all 200ms ease-in-out;
+        }
+
+        .convo-highlight-pill:hover {
+            background-image: linear-gradient(to right, #60a5fa, #6366f1);
+            /* hover:from-blue-400 hover:to-indigo-500 */
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            /* hover:shadow-xl */
+        }
+
+        @keyframes mic-pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(244, 114, 182, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(244, 114, 182, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(244, 114, 182, 0);
+            }
+        }
+
+        .mic-listening {
+            background-color: var(--color-mic-active) !important;
+            color: white !important;
+            animation: mic-pulse 1.5s infinite;
+        }
+
+        .prose h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #5EEAD4;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .prose ul {
+            list-style-type: disc;
+            padding-left: 1.25rem;
+        }
+
+        .prose li {
+            margin-bottom: 0.25rem;
+            padding-left: 0.5rem;
+        }
+
+        .prose strong {
+            color: #99F6E4;
+            font-weight: 600;
+        }
+
+        .prose p {
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+            line-height: 1.625;
+        }
+
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .robot-icon-container {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            position: relative;
+            background-color: #fcfcfc;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
+            animation: head-idle-icon 8s infinite ease-in-out;
+            transform-style: preserve-3d;
+        }
+
+        .icon-head-top-accent {
+            position: absolute;
+            top: -1px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 10px;
+            background-color: #63d1c9;
+            border-radius: 10px / 6px;
+        }
+
+        .icon-robot-face {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -45%);
+            width: 32px;
+            height: 22px;
+            background-color: #2c2f33;
+            border-radius: 50% / 10px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 2px;
+            box-shadow: inset 0 0 5px #000;
             overflow: hidden;
         }
 
-        /* --- Chat Header --- */
-        .chat-header {
-            background-color: #007bff;
-            color: white;
-            padding: 1rem;
-            text-align: center;
-            font-size: 1.25rem;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        .icon-robot-eye {
+            width: 9px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: #40c4ff;
+            box-shadow: 0 0 2px #40c4ff, 0 0 5px #40c4ff, 0 0 8px #40c4ff;
+            animation: eye-pulse-icon 4s infinite alternate;
         }
 
-        /* --- Chat Box (Message Area) --- */
-        .chat-box {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
+        @keyframes head-idle-icon {
+
+            0%,
+            100% {
+                transform: rotateZ(0deg);
+            }
+
+            50% {
+                transform: rotateZ(-5deg);
+            }
         }
 
-        /* --- Message Bubbles --- */
-        .message {
-            max-width: 75%;
-            padding: 0.75rem 1rem;
-            border-radius: 18px;
-            line-height: 1.5;
-            word-wrap: break-word;
-            white-space: pre-wrap;
-        }
+        @keyframes eye-pulse-icon {
+            from {
+                box-shadow: 0 0 2px #40c4ff, 0 0 5px #40c4ff;
+            }
 
-        .message.user {
-            background-color: #007bff;
-            color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
-        }
-
-        .message.bot {
-            background-color: #e9e9eb;
-            color: #333;
-            align-self: flex-start;
-            border-bottom-left-radius: 4px;
-        }
-
-        /* --- Input Area --- */
-        .input-area {
-            display: flex;
-            padding: 1rem;
-            border-top: 1px solid #ddd;
-            background-color: #f8f9fa;
-        }
-
-        #user-input {
-            flex-grow: 1;
-            border: 1px solid #ccc;
-            border-radius: 20px;
-            padding: 0.75rem 1.25rem;
-            font-size: 1rem;
-            margin-right: 0.75rem;
-        }
-
-        #user-input:focus {
-            outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-        }
-
-        .action-buttons button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 0.75rem;
-            font-size: 1.5rem;
-            color: #555;
-            transition: color 0.2s;
-        }
-
-        .action-buttons button:hover {
-            color: #007bff;
-        }
-
-        /* --- For loading message --- */
-        .message.bot.thinking {
-            font-style: italic;
-            color: #777;
-        }
-
-        .message.bot img {
-            max-width: 100%;
-            border-radius: 10px;
-            margin-top: 10px;
+            to {
+                box-shadow: 0 0 3px #40c4ff, 0 0 7px #40c4ff;
+            }
         }
     </style>
 </head>
 
-<body>
-    <div class="chat-container">
-        <div class="chat-header">
-            AI Guide จังหวัดน่าน
-        </div>
-        <div class="chat-box" id="chat-box">
-            <!-- Initial greeting message -->
-        </div>
-        <div class="input-area">
-            <input type="text" id="user-input" placeholder="พิมพ์คำถามของคุณที่นี่...">
-            <div class="action-buttons">
-                <button id="send-btn" title="Send">▶️</button>
-                <button id="ptt-btn" title="Push to Talk">🎤</button>
-                <button id="convo-btn" title="Conversation Mode">🗣️</button>
+<body class="font-sans">
+
+    <div id="chat-container" class="flex flex-col items-center justify-center p-4 min-h-screen">
+        <div
+            class="w-full max-w-5xl bg-bg-card rounded-2xl shadow-2xl flex flex-col h-[95vh] sm:h-[90vh] overflow-hidden chat-card-main">
+            <header class="p-4 flex items-center justify-between border-b border-border flex-shrink-0">
+                <div class="flex items-center space-x-4">
+                    <div class="robot-icon-container">
+                        <div class="icon-head-top-accent"></div>
+                        <div class="icon-robot-face">
+                            <div class="icon-robot-eye"></div>
+                            <div class="icon-robot-eye"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold text-text-primary">AI Guide จังหวัดน่าน</h1>
+                        <p class="text-xs text-text-secondary">สอบถามข้อมูลท่องเที่ยวได้เลย</p>
+                    </div>
+                </div>
+                <div>
+                    <button id="new-chat-btn" title="New Chat"
+                        class="text-sm text-accent-teal hover:brightness-125 transition">เริ่มใหม่</button>
+                </div>
+            </header>
+
+            <main id="message-area" class="flex-grow p-4 space-y-5 overflow-y-auto">
+            </main>
+
+            <div class="p-4 border-t border-border bg-bg-card/80 backdrop-blur-sm">
+                <!-- [จุดที่แก้ไข] เพิ่ม class "input-area-container" ที่นี่ -->
+                <div class="input-area-container flex flex-col space-y-3">
+
+                    <div
+                        class="flex items-center bg-slate-800 rounded-xl p-1.5 border border-border focus-within:border-blue-500 transition-colors">
+                        <textarea id="user-input" placeholder="ถามเกี่ยวกับจังหวัดน่าน หรือลอง 'เปิดเพลง'..." rows="1"
+                            class="flex-grow bg-transparent text-text-primary placeholder-text-secondary px-3 py-2 focus:outline-none resize-none"></textarea>
+                        <button id="send-button-icon"
+                            class="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-500 transform active:scale-95 disabled:bg-slate-600 disabled:cursor-not-allowed transition-all duration-200 flex-shrink-0"
+                            aria-label="ส่งข้อความ">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13" />
+                                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="flex space-x-2 items-center justify-center overflow-x-auto pb-1 hide-scrollbar">
+                        <button id="convo-btn" title="ไปหน้าคุยกับน้องน่าน" class="convo-highlight-pill">
+                            <span>🤖</span>
+                            <span>คุยกับน้องน่าน</span>
+                        </button>
+                        <button id="mic-button" title="บันทึกเสียง" class="action-pill">
+                            <span>🎤</span>
+                            <span id="mic-button-text">ไมโครโฟน</span>
+                        </button>
+                        <button id="faq-button" title="คำถามที่พบบ่อย" class="action-pill">
+                            <span>❓</span>
+                            <span>คำถามที่พบบ่อย</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    <div id="avatar-container"
-        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #000; justify-content: center; align-items: center;">
-        <!-- ในเฟสแรก เราจะแสดงข้อความง่ายๆ ก่อน -->
-        <div id="robot-face" style="color: white; font-size: 2rem;">
-            ... Listening ...
-        </div>
-        <button id="close-convo-btn"
-            style="position: absolute; top: 20px; right: 20px; font-size: 2rem; background: none; border: none; color: white; cursor: pointer;">&times;</button>
-    </div>
 
-    <!-- Scripts remain the same -->
     <script src="assets/scripts/config.js"></script>
     <script src="assets/scripts/voice-handler.js"></script>
     <script src="assets/scripts/chat.js"></script>

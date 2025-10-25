@@ -1,284 +1,336 @@
+// /assets/scripts/avatar_logic.js (V6.2 - FINAL FIX)
+
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- UI Elements & Controller ---
-    const faceV1 = document.getElementById('avatar-face');
     const statusText = document.getElementById('status-text');
+    const stopSpeechButton = document.getElementById('stop-speech-btn');
 
     const uiController = {
         setEmotion(emotion) {
-            const activeAvatar = window.currentAvatar || 'v1'; 
-            if (activeAvatar === 'v1') {
-                faceV1.className = 'face';
-                if (emotion) faceV1.classList.add(emotion);
-            } else if (activeAvatar === 'v2') {
-                switch (emotion) {
-                    case 'talking':
-                        if (typeof playNeutral === 'function') playNeutral();
-                        break;
-                    case 'thinking':
-                        if (typeof playThinking === 'function') playThinking();
-                        break;
-                    default:
-                        if (typeof playNeutral === 'function') playNeutral();
-                        break;
-                }
+            if (window.avatarAnimator && typeof window.avatarAnimator.setEmotion === 'function') {
+                window.avatarAnimator.setEmotion(emotion);
             }
         },
         setStatus(text) {
-            if (statusText) {
-                statusText.textContent = text;
+            if (statusText) statusText.textContent = text;
+        },
+        enterPresentation(data) {
+            if (window.avatarAnimator && typeof window.avatarAnimator.enterPresentationMode === 'function') {
+                window.avatarAnimator.enterPresentationMode(data);
+            }
+        },
+        exitPresentation() {
+            if (window.avatarAnimator && typeof window.avatarAnimator.exitPresentationMode === 'function') {
+                window.avatarAnimator.exitPresentationMode();
             }
         }
     };
 
-    // --- AudioProcessor Class ---
-    class AudioProcessor {
-        constructor(onSpeechEndCallback) {
-            this.onSpeechEnd = onSpeechEndCallback;
-            this.NOISE_FLOOR = 0.1;
-            this.SPEECH_THRESHOLD = 0.05;
-            this.AMPLIFICATION = 50;
-            this.SILENCE_DELAY_MS = 400;
-            this.smoothingFactor = 0.3;
-            this.smoothedVolume = 0.0;
-            this.wasInterrupted = false; // Flag สำหรับ Barge-in Fix
-            this.isListening = false;
-            this.isSpeaking = false;
-            this.silenceTimeout = null;
-            this.audioChunks = [];
-            this.audioContext = null;
-            this.mediaStream = null;
-            this.mediaRecorder = null;
-            this.analyser = null;
-            this.dataArray = null;
-            this.debugInterval = null;
-        }
-
-        async start(audioContext) {
-            if (this.isListening) return;
-            this.audioContext = audioContext;
-            try {
-                this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const source = this.audioContext.createMediaStreamSource(this.mediaStream);
-                this.analyser = this.audioContext.createAnalyser();
-                source.connect(this.analyser);
-                this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-                this.mediaRecorder = new MediaRecorder(this.mediaStream, { mimeType: 'audio/webm' });
-                this.mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) this.audioChunks.push(event.data);
-                };
-                this.mediaRecorder.onstop = () => {
-                    // [Barge-in Fix] ตรวจสอบก่อนว่าถูกขัดจังหวะหรือไม่
-                    if (this.wasInterrupted) {
-                        console.log("Recording interrupted by AI response. Discarding audio chunk.");
-                        this.audioChunks = []; // ล้างเสียงที่บันทึกไว้ทิ้ง
-                        this.wasInterrupted = false; // รีเซ็ตสถานะ
-                        return; // ไม่ต้องทำอะไรต่อ
-                    }
-
-                    const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-                    this.audioChunks = [];
-                    if (audioBlob.size > 4000) { 
-                        this.onSpeechEnd(audioBlob); 
-                    }
-                };
-                this.isListening = true;
-                this.smoothedVolume = 0.0;
-                uiController.setStatus("กำลังฟัง...");
-                this.runDetectionLoop();
-            } catch (err) {
-                console.error("Microphone access error:", err);
-                uiController.setStatus("ไม่สามารถเข้าถึงไมโครโฟน");
-            }
-        }
-
-        // [Barge-in Fix] ปรับปรุง stop ให้รับ parameter ได้
-        stop(interrupted = false) {
-            if (interrupted) {
-                this.wasInterrupted = true;
-            }
-            this.isListening = false;
-            if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-                this.mediaRecorder.stop();
-            }
-            this.mediaStream?.getTracks().forEach(track => track.stop());
-            this.mediaStream = null;
-            clearTimeout(this.silenceTimeout);
-            if (this.debugInterval) {
-                clearInterval(this.debugInterval);
-                this.debugInterval = null;
-            }
-        }
-
-        runDetectionLoop() {
-            if (!this.isListening || !this.analyser || !this.dataArray) { return; }
-            requestAnimationFrame(() => this.runDetectionLoop());
-            
-            this.analyser.getByteFrequencyData(this.dataArray);
-            let rawVolume = this.dataArray.reduce((a, b) => a + b) / this.dataArray.length / 128.0;
-            if (rawVolume < this.NOISE_FLOOR) { rawVolume = 0; }
-            const amplifiedVolume = rawVolume * this.AMPLIFICATION;
-            this.smoothedVolume = this.smoothedVolume * this.smoothingFactor + amplifiedVolume * (1 - this.smoothingFactor);
-
-            if (!this.debugInterval) {
-                this.debugInterval = setInterval(() => { 
-                    console.log(`Amp Vol: ${amplifiedVolume.toFixed(4)} | Smooth Vol: ${this.smoothedVolume.toFixed(4)} | Threshold: ${this.SPEECH_THRESHOLD}`); 
-                }, 200);
-            }
-
-            if (this.smoothedVolume > this.SPEECH_THRESHOLD) {
-                if (!this.isSpeaking) {
-                    this.isSpeaking = true;
-                    if (this.mediaRecorder.state === 'inactive') { this.mediaRecorder.start(); }
-                    uiController.setStatus("รับฟังอยู่...");
-                }
-                clearTimeout(this.silenceTimeout);
-                this.silenceTimeout = null;
-            } else {
-                if (this.isSpeaking && this.silenceTimeout === null) {
-                    this.silenceTimeout = setTimeout(() => {
-                        if (this.mediaRecorder.state === 'recording') { this.mediaRecorder.stop(); }
-                        this.isSpeaking = false; this.silenceTimeout = null;
-                    }, this.SILENCE_DELAY_MS);
-                }
-            }
-        }
-    }
-
     let websocket = null;
-    let isPlayingAudio = false;
     let mainAudioContext = null;
     let currentAudioSource = null;
     let idleTimeout = null;
-    const IDLE_TIME_MS = 60000;
 
-    function startIdleTimer() {
-        clearTimeout(idleTimeout);
-        idleTimeout = setTimeout(() => {
-            console.log("Idle timer triggered. Asking backend for a prompt.");
-            audioProcessor.stop(); 
-            if (websocket?.readyState === WebSocket.OPEN) {
-                websocket.send(JSON.stringify({ action: "idle_prompt" }));
-                uiController.setEmotion('thinking');
-            }
-        }, IDLE_TIME_MS);
-        console.log(`Idle timer (re)started for ${IDLE_TIME_MS / 1000} seconds.`);
+    const IDLE_TIME_MS = 60000;
+    const PRESENTATION_VIEW_TIME_MS = 20000;
+
+    let isAITalking = false;
+    let lastMessageWasIdle = false;
+    let presentationHideTimeout = null;
+
+    function interruptAISpeech() {
+        if (currentAudioSource) {
+            console.log("🛑 INTERRUPT: Stopping current AI speech.");
+            currentAudioSource.onended = null;
+            currentAudioSource.stop();
+            currentAudioSource = null;
+        }
+        if (stopSpeechButton) stopSpeechButton.classList.remove('visible');
     }
 
-    const audioProcessor = new AudioProcessor((audioBlob) => {
-        if (websocket?.readyState === WebSocket.OPEN) {
-            clearTimeout(idleTimeout); 
-            console.log("User spoke, idle timer paused.");
-            console.log("Sending audio blob to backend...");
-            uiController.setEmotion('thinking');
-            websocket.send(audioBlob);
+    function resetToListeningState() {
+        interruptAISpeech();
+        voiceHandler.stop(true);
+        if (stopSpeechButton) stopSpeechButton.classList.remove('visible');
+        uiController.exitPresentation();
+
+        console.log("State => Listening");
+        isAITalking = false;
+        uiController.setEmotion('normal');
+        uiController.setStatus("กำลังฟัง...");
+
+        if (mainAudioContext && mainAudioContext.state === 'running') {
+            voiceHandler.start(mainAudioContext);
+        }
+        timerManager.start();
+    }
+
+    async function playAudio(audioData) {
+        if (!mainAudioContext) return Promise.reject("AudioContext not ready");
+        interruptAISpeech();
+
+        try {
+            let bufferToDecode = audioData;
+            if (audioData instanceof Blob) {
+                bufferToDecode = await audioData.arrayBuffer();
+            } else if (!(audioData instanceof ArrayBuffer)){
+                console.error("Invalid audio data type received:", typeof audioData);
+                return Promise.reject("Invalid audio data type");
+            }
+
+            if (bufferToDecode.byteLength < 100) {
+                console.warn("Received very small audio buffer, skipping playback.");
+                return Promise.resolve();
+            }
+
+            const audioBuffer = await mainAudioContext.decodeAudioData(bufferToDecode);
+            const newSource = mainAudioContext.createBufferSource();
+            newSource.buffer = audioBuffer;
+            newSource.connect(mainAudioContext.destination);
+
+            if (stopSpeechButton) stopSpeechButton.classList.add('visible');
+
+            return new Promise((resolve, reject) => {
+                newSource.onended = () => {
+                    if (window.avatarAnimator && typeof window.avatarAnimator.stopSpeaking === 'function') {
+                        window.avatarAnimator.stopSpeaking();
+                    }
+                    if (currentAudioSource === newSource) currentAudioSource = null;
+                    if (stopSpeechButton) stopSpeechButton.classList.remove('visible');
+                    resolve();
+                };
+                try {
+                    if (window.avatarAnimator && typeof window.avatarAnimator.startSpeaking === 'function') {
+                        window.avatarAnimator.startSpeaking();
+                    }
+                    newSource.start(0);
+                    currentAudioSource = newSource;
+                } catch (startError){
+                    console.error("Error starting audio source:", startError);
+                    if (stopSpeechButton) stopSpeechButton.classList.remove('visible');
+                    currentAudioSource = null;
+                    reject(startError);
+                }
+            });
+
+        } catch (e) {
+            console.error("Audio decoding/playing error:", e);
+            if (stopSpeechButton) stopSpeechButton.classList.remove('visible');
+            currentAudioSource = null;
+            return Promise.reject(e);
+        }
+    }
+
+
+    const timerManager = {
+        start: () => {
+            if (isAITalking) return;
+            timerManager.clear();
+            idleTimeout = setTimeout(() => {
+                console.log("⏰ Idle timer triggered.");
+                voiceHandler.stop(true);
+                clearTimeout(presentationHideTimeout);
+                uiController.exitPresentation();
+
+                if (websocket?.readyState === WebSocket.OPEN) {
+                    websocket.send(JSON.stringify({ action: "idle_prompt" }));
+                    uiController.setEmotion('thinking');
+                }
+            }, IDLE_TIME_MS);
+        },
+        clear: () => {
+            clearTimeout(idleTimeout);
+            idleTimeout = null;
+        }
+    };
+
+
+    const voiceHandler = new VoiceHandler({
+        onStatusUpdate: (text) => {
+            uiController.setStatus(text);
+            if (text === "กำลังฟัง..." || text === "รับฟังอยู่...") {
+                uiController.setEmotion('listening');
+            }
+        },
+        onSpeechEnd: (audioBlob) => {
+            timerManager.clear();
+            clearTimeout(presentationHideTimeout);
+            uiController.exitPresentation();
+
+            if (websocket?.readyState === WebSocket.OPEN) {
+                if (audioBlob && audioBlob.size > 1000) {
+                    console.log(`User spoke, sending audio (${(audioBlob.size / 1024).toFixed(1)} KB).`);
+                    uiController.setEmotion('thinking');
+                    uiController.setStatus("กำลังประมวลผล...");
+                    websocket.send(audioBlob);
+                } else {
+                    console.log("Audio blob too small or invalid, not sending.");
+                    resetToListeningState();
+                }
+            } else {
+                console.error("WebSocket not open, cannot send audio.");
+                resetToListeningState();
+            }
         }
     });
 
-    async function startAudioSystem() {
-        if (mainAudioContext) return;
+
+    async function initializeAndStart() {
+        document.body.removeEventListener('click', initializeAndStart);
+        uiController.setStatus("กำลังเริ่มต้นระบบเสียง...");
+
         try {
-            mainAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-            await mainAudioContext.resume();
-            console.log("AudioContext is active and running!");
-            audioProcessor.start(mainAudioContext);
+            if (!mainAudioContext) {
+                mainAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (mainAudioContext.state === 'suspended') {
+                await mainAudioContext.resume();
+            }
+            console.log("AudioContext is active and running.");
+            resetToListeningState();
         } catch (e) {
-            console.error("Failed to initialize audio system.", e);
-            uiController.setStatus("เกิดข้อผิดพลาดในการเริ่มระบบเสียง");
+            console.error("Failed to initialize or resume AudioContext.", e);
+            uiController.setStatus("ข้อผิดพลาดระบบเสียง: โปรดรีเฟรชหรืออนุญาตไมโครโฟน");
         }
     }
 
+
     function connectWebSocket() {
         if (typeof API_HOST === 'undefined' || typeof API_PORT === 'undefined') {
-            console.error("API_HOST or API_PORT is not defined in config.js");
-            uiController.setStatus("ตั้งค่า API ไม่ถูกต้อง");
+            console.error("API configuration (API_HOST/API_PORT in config.js) is missing!");
+            uiController.setStatus("ข้อผิดพลาด: การตั้งค่า API หายไป");
             return;
         }
-        const wsUrl = `ws://${API_HOST}:${API_PORT}/api/chat/ws/avatar_chat`;
+        const wsUrl = `ws://${API_HOST}:${API_PORT}/api/avatar/ws`;
+        if (websocket && (websocket.readyState === WebSocket.OPEN || websocket.readyState === WebSocket.CONNECTING)) {
+            return;
+        }
+
+        console.log(`Attempting to connect to WebSocket: ${wsUrl}`);
+        uiController.setStatus("กำลังเชื่อมต่อ...");
         websocket = new WebSocket(wsUrl);
         websocket.binaryType = 'arraybuffer';
 
         websocket.onopen = () => {
-            console.log("WebSocket connected.");
+            console.log("WebSocket connected successfully.");
             uiController.setStatus("โปรดคลิกเพื่อเริ่มการสนทนา");
-            document.body.addEventListener('click', startAudioSystem, { once: true });
-            startIdleTimer();
+            document.body.addEventListener('click', initializeAndStart, { once: true });
         };
 
+        // --- [ START OF V6.2 FINAL FIX ] ---
         websocket.onmessage = async (event) => {
-            clearTimeout(idleTimeout);
-            
+            timerManager.clear();
+
             if (typeof event.data === 'string') {
                 try {
                     const data = JSON.parse(event.data);
-                    if (data.emotion) {
-                        uiController.setEmotion(data.emotion);
-                        if (data.emotion === 'thinking') {
-                            uiController.setStatus("กำลังประมวลผล...");
-                        }
-                    }
-                } catch (e) { console.error("Failed to parse JSON message:", e); }
-            }
-            else if (event.data instanceof ArrayBuffer) {
-                if (!mainAudioContext) {
-                    await startAudioSystem(); 
-                    if (!mainAudioContext) return;
-                }
-                
-                // [Barge-in Fix] เรียก stop พร้อมบอกว่า "นี่คือการขัดจังหวะ"
-                audioProcessor.stop(true);
+                    console.log("Received JSON:", data);
 
-                try {
-                    if (currentAudioSource) {
-                        currentAudioSource.stop();
-                        currentAudioSource.disconnect();
-                    }
-                    const audioData = event.data;
-                    const audioBuffer = await mainAudioContext.decodeAudioData(audioData);
-                    const newSource = mainAudioContext.createBufferSource();
-                    newSource.buffer = audioBuffer;
-                    newSource.connect(mainAudioContext.destination);
-                    newSource.start(0);
-                    currentAudioSource = newSource;
-                    isPlayingAudio = true;
-                    uiController.setEmotion('talking');
-                    uiController.setStatus(" ");
+                    isAITalking = true;
+                    voiceHandler.stop(true);
 
-                    newSource.onended = () => {
-                        if (currentAudioSource === newSource) {
-                            isPlayingAudio = false;
-                            currentAudioSource = null;
-                            uiController.setEmotion(null);
-                            uiController.setStatus("กำลังฟัง...");
-                            audioProcessor.start(mainAudioContext);
-                            startIdleTimer();
+                    lastMessageWasIdle = data.isIdlePrompt || false;
+                    if (lastMessageWasIdle) {
+                        uiController.setEmotion(data.emotion || 'talking');
+                        return; // Exit early for idle prompts
+                    }
+                    
+                    // [FIX 1] Use image_url (underscore) to match Backend
+                    const hasVisualContent = data.image_url || (data.image_gallery && data.image_gallery.length > 0) || (data.sources && data.sources.length > 0);
+                    
+                    if (hasVisualContent) {
+                        // If there's visual content: Enter presentation mode (which renders text + visuals)
+                        console.log("Message has visual content, entering presentation mode.");
+                        uiController.setStatus("กำลังประมวลผล..."); // Clear status bar before presentation
+                        uiController.enterPresentation(data);
+                    } else {
+                        // [FIX 2] If no visual content: Display the answer text in the status bar
+                        console.log("Message has no visual content, will show text in status.");
+                        if (data.answer) {
+                            uiController.setStatus(data.answer); // <-- This fixes the missing text issue
                         }
-                    };
+                        // Also, set the appropriate emotion (this was previously commented out)
+                        uiController.setEmotion(data.emotion || 'talking');
+                    }
+
                 } catch (e) {
-                    console.error("Error playing received audio:", e);
-                    isPlayingAudio = false;
-                    currentAudioSource = null;
-                    uiController.setEmotion(null);
-                    uiController.setStatus("กำลังฟัง...");
-                    audioProcessor.start(mainAudioContext);
-                    startIdleTimer();
+                    console.error("Error processing received JSON:", e, "Data:", event.data);
+                    resetToListeningState();
                 }
             }
-        };
+            // --- [ END OF V6.2 FINAL FIX ] ---
+            else if (event.data instanceof ArrayBuffer) {
+                console.log(`Received Audio Buffer (${event.data.byteLength} bytes)`);
+                try {
+                    await playAudio(event.data);
+                    console.log("Audio playback finished.");
 
-        websocket.onclose = () => {
-            clearTimeout(idleTimeout);
-            uiController.setStatus("การเชื่อมต่อถูกตัด");
-            audioProcessor.stop();
-            if(currentAudioSource) currentAudioSource.stop();
-            console.warn("WebSocket disconnected. Attempting to reconnect in 5 seconds...");
+                    clearTimeout(presentationHideTimeout);
+                    presentationHideTimeout = setTimeout(() => {
+                        console.log("Presentation view time expired, exiting presentation.");
+                        uiController.exitPresentation();
+                    }, PRESENTATION_VIEW_TIME_MS);
+
+                    resetToListeningState();
+
+                } catch (e) {
+                    console.error("Failed to play received audio.", e);
+                    resetToListeningState();
+                }
+            } else {
+                console.warn("Received unexpected data type:", typeof event.data);
+            }
+        }; // End of websocket.onmessage
+
+        websocket.onclose = (event) => {
+            console.warn(`WebSocket disconnected. Code: ${event.code}, Reason: ${event.reason}. Reconnecting in 5s...`);
+            isAITalking = false;
+            timerManager.clear();
+            clearTimeout(presentationHideTimeout);
+            uiController.setStatus("การเชื่อมต่อถูกตัด กำลังพยายามเชื่อมต่อใหม่...");
+            voiceHandler.stop(true);
+            interruptAISpeech();
+            document.body.removeEventListener('click', initializeAndStart);
+            websocket = null;
             setTimeout(connectWebSocket, 5000);
         };
-        websocket.onerror = (err) => {
-            console.error("WebSocket Error:", err);
+        websocket.onerror = (error) => {
+            console.error("WebSocket Error:", error);
             uiController.setStatus("เกิดข้อผิดพลาดในการเชื่อมต่อ");
-            websocket.close();
         };
+    }
+
+    const textQueryForm = document.getElementById('text-query-form');
+    const textQueryInput = document.getElementById('text-query-input');
+    if (textQueryForm && textQueryInput) {
+        textQueryForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const queryText = textQueryInput.value.trim();
+            if (!queryText) return;
+
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                console.log(`⌨️ [Text Input] Sending query: ${queryText}`);
+                interruptAISpeech();
+                voiceHandler.stop(true);
+
+                uiController.exitPresentation();
+                websocket.send(JSON.stringify({ "query": queryText }));
+                textQueryInput.value = "";
+                uiController.setEmotion('thinking');
+                uiController.setStatus("กำลังประมวลผล...");
+
+            } else {
+                console.error("WebSocket is not connected. Cannot send text query.");
+                uiController.setStatus("ไม่ได้เชื่อมต่อ ไม่สามารถส่งข้อความได้");
+            }
+        });
+    }
+
+    if (stopSpeechButton) {
+        stopSpeechButton.addEventListener('click', () => {
+            console.log("🔘 [Stop Button] Clicked. Stopping AI speech and returning to listen state.");
+            resetToListeningState();
+        });
     }
 
     connectWebSocket();
