@@ -116,10 +116,13 @@ python3 Back-end/scripts/clear_database.py
 ```
 
 ### 8. รันเซิร์ฟเวอร์ (Run Backend)
-เมื่อทุกอย่างพร้อม ให้รัน FastAPI Server:
+
+เข้าไปที่ Back-end ก่อนด้วยการ
+```
+cd Back-end
+```
+# เมื่อทุกอย่างพร้อม ให้รัน FastAPI Server:
 
 ```
-# รันเซิร์ฟเวอร์ (จากโฟลเดอร์หลัก)
-uvicorn Back-end.api.main:app --host 127.0.0.1 --port 9090 --reload
---reload หมายความว่าถ้าเราแก้โค้ด Backend เซิร์ฟเวอร์จะรีสตาร์ทตัวเองอัตโนมัติ
+uvicorn api.main:app --host 127.0.0.1 --port 9090 --reload
 ```
