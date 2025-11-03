@@ -1,28 +1,30 @@
-console.log("%c ADMIN.JS LOADED - V.ULTIMATE FINAL -> V5.2", "color: lime; font-size: 16px; font-weight: bold;");
+console.log("%c ADMIN.JS LOADED - V.ULTIMATE FINAL -> V5.4.0 (Image Previews)", "color: lime; font-size: 16px; font-weight: bold;");
 
 // --- Global Variables ---
 let locationsTableBody, addLocationForm, editModal, editLocationForm, closeModalButton, fileInput, analyzeBtn, loadingSpinner;
 // Assume API_BASE_URL is defined globally in config.js
 // const API_BASE_URL = ''; // DO NOT REDECLARE
 
-// --- Core Functions (V5.2 - Updated for Slug) ---
+// --- Core Functions (V5.4.0 - Image Previews) ---
 
 async function fetchAndDisplayLocations() {
     if (!locationsTableBody) {
         console.error("locationsTableBody not found during fetch");
         return;
     }
-    locationsTableBody.innerHTML = '<tr><td colspan="6">Loading data...</td></tr>'; // Add loading state
+    // [V5.4] Adjusted colspan from 6 to 7 to account for the new "Preview" column
+    locationsTableBody.innerHTML = '<tr><td colspan="7">Loading data...</td></tr>';
 
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/locations/`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const locations = await response.json();
 
-        locationsTableBody.innerHTML = ''; // Clear loading/previous data
+        locationsTableBody.innerHTML = '';
 
         if (!Array.isArray(locations) || locations.length === 0) {
-            locationsTableBody.innerHTML = '<tr><td colspan="6">No locations found. Add one below!</td></tr>';
+            // [V5.4] Adjusted colspan
+            locationsTableBody.innerHTML = '<tr><td colspan="7">No locations found. Add one below!</td></tr>';
             return;
         }
 
@@ -31,31 +33,39 @@ async function fetchAndDisplayLocations() {
             const imageIndicator = hasImageLink
                 ? `<span style="color: #4ade80;">✔️ Yes (${location.metadata.image_prefix})</span>`
                 : '<span style="color: #f87171;">❌ No</span>';
+            
+            // --- [V5.4] Image Preview Logic ---
+            // Use a placeholder if no image URL is provided by the API
+            const placeholderImage = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22100%22%20height%3D%2275%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%2075%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_1%20text%20%7B%20fill%3A%23AAAAAA%3Bfont-weight%3Abold%3Bfont-family%3AArial%2C%20Helvetica%2C%20Open%20Sans%2C%20sans-serif%2C%20monospace%3Bfont-size%3A10pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_1%22%3E%3Crect%20width%3D%22100%22%20height%3D%2275%22%20fill%3D%22%23EEEEEE%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2227.5%22%20y%3D%2242%22%3ENo Image%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E';
+            const previewImageUrl = location.preview_image_url
+                ? `${API_BASE_URL}${location.preview_image_url}`
+                : placeholderImage;
+            
+            const imagePreviewHtml = `<img src="${previewImageUrl}" alt="Preview for ${location.slug}" style="width: 100px; height: 75px; object-fit: cover; border-radius: 4px; background-color: #f0f0f0;">`;
+            // --- [END V5.4] ---
 
             const row = document.createElement('tr');
-            // --- [ V5.2 FINAL - Cleaned ] ---
-            // Removed {/* ... */} comments from this template literal
             row.innerHTML = `
+                <td>${imagePreviewHtml}</td>
                 <td>${location.slug || 'N/A'}</td>
                 <td>${location.title || 'N/A'}</td>
                 <td>${location.category || 'N/A'}</td>
                 <td>${location.topic || 'N/A'}</td>
                 <td>${imageIndicator}</td>
                 <td>
-                    <button class="btn-edit" data-slug="${location.slug}" style="background-color: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer;">แก้ไข</button>
-                    <button class="btn-delete" data-slug="${location.slug}" style="background-color: #ef4444; color: white; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer;">ลบ</button>
+                    <button class="btn btn-edit" data-slug="${location.slug}">แก้ไข</button>
+                    <button class="btn btn-delete" data-slug="${location.slug}">ลบ</button>
                 </td>
             `;
-            // --- [ END Cleaned ] ---
             locationsTableBody.appendChild(row);
         });
     } catch (error) {
         console.error('Fetch error:', error);
-        locationsTableBody.innerHTML = '<tr><td colspan="6">Failed to load data. Please check connection.</td></tr>';
+         // [V5.4] Adjusted colspan
+        locationsTableBody.innerHTML = '<tr><td colspan="7">Failed to load data. Please check connection.</td></tr>';
     }
 }
 
-// [V5.2 FIX] Change parameter and fetch URL to use slug
 async function deleteLocation(slug) {
     if (!slug) {
         alert('Error: Invalid slug provided for deletion.');
@@ -69,11 +79,10 @@ async function deleteLocation(slug) {
             alert(`ลบข้อมูล "${slug}" เรียบร้อยแล้ว!`);
             fetchAndDisplayLocations(); // Refresh table
         } else {
-             // Try parsing JSON, otherwise use status text
              let errorDetail = response.statusText;
              try {
-                const errorData = await response.json();
-                errorDetail = errorData.detail || errorDetail;
+                 const errorData = await response.json();
+                 errorDetail = errorData.detail || errorDetail;
              } catch (e) { /* Ignore parsing error if no JSON body */ }
             alert(`ลบข้อมูลไม่สำเร็จ: ${errorDetail}`);
         }
@@ -83,7 +92,6 @@ async function deleteLocation(slug) {
     }
 }
 
-// [V5.2 FIX] Change parameter and fetch URL to use slug
 async function openEditModal(slug) {
      if (!slug) {
         alert('Error: Invalid slug provided for editing.');
@@ -91,36 +99,56 @@ async function openEditModal(slug) {
     }
     console.log(`Opening edit modal for slug: ${slug}`);
 
-    // Ensure modal and form elements exist before proceeding
     if (!editModal || !editLocationForm) {
         console.error("Edit modal or form not found.");
         alert("ข้อผิดพลาด: ไม่พบองค์ประกอบฟอร์มแก้ไข");
         return;
     }
 
-
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/locations/${slug}`);
         if (!response.ok) throw new Error(`Failed to fetch location details for "${slug}". Status: ${response.status}`);
         const location = await response.json();
 
+        // --- [V5.4] Populate Image Preview in Modal ---
+        const imagePreviewEl = document.getElementById('edit-form-image-preview');
+        const noImageTextEl = document.getElementById('edit-form-no-image');
+        
+        const previewImageUrl = location.preview_image_url
+            ? `${API_BASE_URL}${location.preview_image_url}`
+            : null;
+
+        if (previewImageUrl && imagePreviewEl && noImageTextEl) {
+            imagePreviewEl.src = previewImageUrl;
+            imagePreviewEl.style.display = 'block';
+            noImageTextEl.style.display = 'none';
+        } else if (imagePreviewEl && noImageTextEl) {
+            imagePreviewEl.style.display = 'none';
+            imagePreviewEl.src = ''; // Clear old image source
+            noImageTextEl.style.display = 'block';
+        }
+        // --- [END V5.4] ---
+
         // Populate hidden fields first
-        document.getElementById('edit-form-mongo-id').value = location.mongo_id || ''; // Handle missing mongo_id
+        document.getElementById('edit-form-mongo-id').value = location.mongo_id || ''; 
         document.getElementById('edit-form-slug').value = location.slug;
 
-        // Populate visible fields (Use || '' as default)
-        // [V5.2] Added display-slug population
-        const displaySlugField = document.getElementById('display-slug');
-        if (displaySlugField) displaySlugField.value = location.slug; // Populate the disabled display field
-
+        // Populate visible fields
+        document.getElementById('display-slug').value = location.slug; 
         document.getElementById('edit-form-title').value = location.title || '';
         document.getElementById('edit-form-summary').value = location.summary || '';
         document.getElementById('edit-form-category').value = location.category || '';
         document.getElementById('edit-form-topic').value = location.topic || '';
-
+        document.getElementById('edit-form-keywords').value = (location.keywords && Array.isArray(location.keywords)) 
+            ? location.keywords.join(', ') 
+            : '';
+        document.getElementById('edit-form-details').value = (location.details && Array.isArray(location.details)) 
+            ? JSON.stringify(location.details, null, 2)
+            : '[]';
+        
         const imagePrefix = (location.metadata && location.metadata.image_prefix) ? location.metadata.image_prefix : '';
         document.getElementById('edit-form-image-prefix').value = imagePrefix;
-        document.getElementById('edit-form-image-file').value = ''; // Clear file input
+        document.getElementById('edit-form-image-file').value = ''; 
 
         editModal.style.display = 'block';
     } catch (error) {
@@ -129,10 +157,12 @@ async function openEditModal(slug) {
     }
 }
 
-// [V5.2 FIX] Update to handle 'slug' input
+
+// --- Functions below this line are unchanged from V5.3.1 ---
+
 async function handleAddLocationSubmit(event) {
     event.preventDefault();
-    if (!addLocationForm) return; // Should not happen if listener is attached
+    if (!addLocationForm) return; 
 
     const addBtn = addLocationForm.querySelector('button[type="submit"]');
     addBtn.disabled = true; addBtn.textContent = 'Processing...';
@@ -142,7 +172,8 @@ async function handleAddLocationSubmit(event) {
         alert("กรุณากรอก Slug (Key ที่ไม่ซ้ำกัน)");
         addBtn.disabled = false; addBtn.textContent = 'Add Location'; return;
     }
-    if (!/^[a-z0-9_-]{3,}$/.test(slug)) { // Corrected regex check for length >= 3
+
+    if (!/^[a-z0-9_-]{3,}$/.test(slug)) { 
          alert("Slug ต้องมีอย่างน้อย 3 ตัวอักษร และประกอบด้วย a-z, 0-9, _, - เท่านั้น");
          addBtn.disabled = false; addBtn.textContent = 'Add Location'; return;
     }
@@ -159,18 +190,17 @@ async function handleAddLocationSubmit(event) {
         alert("Image Prefix ต้องตรงกับ Slug ที่กรอก");
         addBtn.disabled = false; addBtn.textContent = 'Add Location'; return;
     }
-    // Only set prefix if it's explicitly provided and matches slug, or if no image is uploaded
+    
     const finalImagePrefixForMeta = imagePrefixInput === slug ? slug : null;
 
 
-    if (imageFile && slug) { // Now slug acts as the prefix target
+    if (imageFile && slug) { 
         const imageFormData = new FormData();
         imageFormData.append('file', imageFile);
         try {
-             // Send slug via query parameter as expected by admin_api.py V5.2
              const imageResponseQuery = await fetch(`${API_BASE_URL}/api/admin/locations/upload-image/?image_prefix=${slug}`, {
-                 method: 'POST',
-                 body: imageFormData
+                method: 'POST',
+                body: imageFormData
              });
 
             if (!imageResponseQuery.ok) {
@@ -183,7 +213,7 @@ async function handleAddLocationSubmit(event) {
                  }
             }
             const imageData = await imageResponseQuery.json();
-            uploadedImagePrefix = imageData.image_prefix; // Confirm the prefix used
+            uploadedImagePrefix = imageData.image_prefix; 
             alert(`อัปโหลดรูปภาพสำเร็จ! บันทึกเป็น: ${imageData.saved_as}`);
         } catch (error) {
             console.error('Image upload error:', error);
@@ -192,13 +222,30 @@ async function handleAddLocationSubmit(event) {
         }
     }
 
+    const keywordsInput = document.getElementById('form-keywords').value || '';
+    const keywordsArray = keywordsInput.split(',')
+                                       .map(k => k.trim()) 
+                                       .filter(k => k);     
+
+    const detailsInput = document.getElementById('form-details').value || '[]';
+    let detailsArray = [];
+    try {
+        detailsArray = JSON.parse(detailsInput);
+        if (!Array.isArray(detailsArray)) detailsArray = []; 
+    } catch (e) {
+        console.warn("Could not parse Details JSON string. Defaulting to empty array.", e);
+        detailsArray = [];
+    }
+
+
     const newLocationData = {
         slug: slug,
         title: document.getElementById('form-title').value,
         summary: document.getElementById('form-summary').value,
         category: document.getElementById('form-category').value,
         topic: document.getElementById('form-topic').value,
-        // Use confirmed prefix if uploaded, else use the input prefix if it matched slug, else null
+        keywords: keywordsArray,
+        details: detailsArray,
         metadata: uploadedImagePrefix ? { image_prefix: uploadedImagePrefix } : (finalImagePrefixForMeta ? { image_prefix: finalImagePrefixForMeta } : null)
     };
 
@@ -215,10 +262,10 @@ async function handleAddLocationSubmit(event) {
         } else {
              let errorDetail = response.statusText;
              try {
-                const errorData = await response.json();
-                errorDetail = errorData.detail || errorDetail;
-                 if (response.status === 400 && errorDetail.includes("unique") || errorDetail.includes("duplicate key")) {
-                    errorDetail = `Slug '${slug}' นี้มีอยู่แล้ว กรุณาใช้ Slug อื่น`;
+                 const errorData = await response.json();
+                 errorDetail = errorData.detail || errorDetail;
+                 if (response.status === 400 && (errorDetail.includes("Slug") && errorDetail.includes("exists"))) {
+                     errorDetail = `Slug '${slug}' นี้มีอยู่แล้ว กรุณาใช้ Slug อื่น`;
                  }
              } catch (e) { /* Ignore parsing error if no JSON body */ }
              alert(`เพิ่มข้อมูลไม่สำเร็จ: ${errorDetail}`);
@@ -231,10 +278,9 @@ async function handleAddLocationSubmit(event) {
     }
 }
 
-// [V5.2 FIX] Update to handle 'slug' input and URL
 async function handleEditFormSubmit(event) {
     event.preventDefault();
-     if (!editLocationForm) return; // Should not happen
+     if (!editLocationForm) return; 
 
     const saveBtn = editLocationForm.querySelector('button[type="submit"]');
     saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
@@ -245,32 +291,26 @@ async function handleEditFormSubmit(event) {
          saveBtn.disabled = false; saveBtn.textContent = 'Save Changes'; return;
     }
 
-    // const mongoId = document.getElementById('edit-form-mongo-id').value; // Not used for API call
-
     const imagePrefixInput = document.getElementById('edit-form-image-prefix').value.trim();
     const imageFile = document.getElementById('edit-form-image-file').files[0];
-    let finalImagePrefix = imagePrefixInput; // Assume current/edited prefix unless changed by upload
+    let finalImagePrefix = imagePrefixInput; 
 
-     // Validation: If a prefix is provided, it must match the slug (or be empty to remove)
     if (imagePrefixInput && imagePrefixInput !== slug) {
          alert("Image Prefix ต้องตรงกับ Slug (หรือไม่ต้องกรอกเพื่อลบ)");
          saveBtn.disabled = false; saveBtn.textContent = 'Save Changes'; return;
     }
-     // Validation: If uploading a file, the prefix input must match the slug
-     if (imageFile && imagePrefixInput !== slug) {
+    if (imageFile && imagePrefixInput !== slug) {
          alert("Image Prefix ต้องตรงกับ Slug เมื่ออัปโหลดไฟล์ใหม่");
          saveBtn.disabled = false; saveBtn.textContent = 'Save Changes'; return;
-     }
+    }
 
-
-    if (imageFile && slug) { // Upload if file selected AND prefix matches slug
+    if (imageFile && slug) { 
         const imageFormData = new FormData();
         imageFormData.append('file', imageFile);
         try {
-             // Use slug as the prefix for uploading
              const imageResponse = await fetch(`${API_BASE_URL}/api/admin/locations/upload-image/?image_prefix=${slug}`, {
-                 method: 'POST',
-                 body: imageFormData
+                method: 'POST',
+                body: imageFormData
              });
 
             if (!imageResponse.ok) {
@@ -281,13 +321,13 @@ async function handleEditFormSubmit(event) {
                  } catch (parseError) {
                      throw new Error(errorText || 'Image upload failed');
                  }
-             }
+            }
             const imageData = await imageResponse.json();
-            finalImagePrefix = imageData.image_prefix; // Update prefix based on upload result
+            finalImagePrefix = imageData.image_prefix; 
             alert(`อัปโหลดรูปภาพใหม่สำเร็จ! บันทึกเป็น: ${imageData.saved_as}`);
-             // Update the prefix field visually
+             
              document.getElementById('edit-form-image-prefix').value = finalImagePrefix;
-             document.getElementById('edit-form-image-file').value = ''; // Clear file input
+             document.getElementById('edit-form-image-file').value = ''; 
         } catch (error) {
              console.error('Image upload error during edit:', error);
             alert(`เกิดข้อผิดพลาดในการอัปโหลดรูปภาพใหม่: ${error.message}`);
@@ -295,14 +335,29 @@ async function handleEditFormSubmit(event) {
         }
     }
 
+    const keywordsInput = document.getElementById('edit-form-keywords').value || '';
+    const keywordsArray = keywordsInput.split(',')
+                                       .map(k => k.trim())
+                                       .filter(k => k);
+
+    const detailsInput = document.getElementById('edit-form-details').value || '[]';
+    let detailsArray = [];
+    try {
+        detailsArray = JSON.parse(detailsInput);
+        if (!Array.isArray(detailsArray)) detailsArray = [];
+    } catch (e) {
+        console.warn("Could not parse Details JSON string. Defaulting to empty array.", e);
+        detailsArray = [];
+    }
+
     const updatedData = {
-        slug: slug, // Include slug in the body
+        slug: slug,
         title: document.getElementById('edit-form-title').value,
         summary: document.getElementById('edit-form-summary').value,
         category: document.getElementById('edit-form-category').value,
         topic: document.getElementById('edit-form-topic').value,
-        // Use final prefix (either original, edited, or from upload result)
-        // If finalImagePrefix is empty string, set metadata to null
+        keywords: keywordsArray,
+        details: detailsArray,
         metadata: finalImagePrefix ? { image_prefix: finalImagePrefix } : null
     };
 
@@ -333,7 +388,6 @@ async function handleEditFormSubmit(event) {
 }
 
 async function handleAnalyzeDocument() {
-    // ... (This function looks okay, ensure form IDs match HTML) ...
      if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
         alert('Please select a document file first.');
         return;
@@ -342,7 +396,6 @@ async function handleAnalyzeDocument() {
     const formData = new FormData();
     formData.append('file', file);
 
-    // Ensure buttons/spinners exist
     if (!analyzeBtn || !loadingSpinner) {
         console.error("Analyze button or loading spinner not found.");
         return;
@@ -350,7 +403,7 @@ async function handleAnalyzeDocument() {
 
     analyzeBtn.disabled = true;
     loadingSpinner.style.display = 'inline-block';
-    analyzeBtn.textContent = 'Analyzing...'; // Use textContent for button text
+    analyzeBtn.textContent = 'Analyzing...'; 
 
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/locations/analyze-document`, {
@@ -369,32 +422,30 @@ async function handleAnalyzeDocument() {
 
         const data = await response.json();
 
-        // Populate the "Add Location" form (ensure form elements exist)
-        const formTitle = document.getElementById('form-title');
-        const formSummary = document.getElementById('form-summary');
-        const formCategory = document.getElementById('form-category');
-        const formTopic = document.getElementById('form-topic');
-        const formSlug = document.getElementById('form-slug'); // Target the slug field
+        document.getElementById('form-title').value = data.title || '';
+        document.getElementById('form-summary').value = data.summary || '';
+        document.getElementById('form-category').value = data.category || '';
+        document.getElementById('form-topic').value = data.topic || '';
+        document.getElementById('form-keywords').value = (data.keywords && Array.isArray(data.keywords))
+            ? data.keywords.join(', ')
+            : '';
+        document.getElementById('form-details').value = (data.details && Array.isArray(data.details))
+            ? JSON.stringify(data.details, null, 2)
+            : '[]';
 
-        if (formTitle) formTitle.value = data.title || '';
-        if (formSummary) formSummary.value = data.summary || '';
-        if (formCategory) formCategory.value = data.category || '';
-        if (formTopic) formTopic.value = data.topic || '';
-
-        // Auto-generate and populate slug
-        if (formSlug) {
-            // Use the same robust slug generation logic as add_image_links.py if possible
+        if (data.slug) {
+            document.getElementById('form-slug').value = data.slug;
+        } else {
             const titleForSlug = data.title || `item_${Date.now()}`;
             let generatedSlug = titleForSlug.toLowerCase().trim()
-                                     .replace(/[\s\(\)\[\]{}]+/g, '_') // Replace spaces and brackets with _
-                                     .replace(/[^a-z0-9_-]/g, '')    // Remove invalid chars
-                                     .replace(/[-_]+/g, '_')         // Collapse multiple _ or -
-                                     .replace(/^-+|-+$/g, '')       // Trim leading/trailing _ or -
-                                     .substring(0, 50);            // Max length
-            if (!generatedSlug) generatedSlug = `item_${Date.now()}`; // Fallback if empty
-            formSlug.value = generatedSlug;
+                                          .replace(/[\s\(\)\[\]{}]+/g, '-')
+                                          .replace(/[^a-z0-9-]/g, '')    
+                                          .replace(/[-]+/g, '-')          
+                                          .replace(/^-+|-+$/g, '')       
+                                          .substring(0, 50);          
+            if (!generatedSlug) generatedSlug = `item_${Date.now()}`; 
+            document.getElementById('form-slug').value = generatedSlug;
         }
-
 
         alert('Document analyzed successfully! Form fields have been populated.');
 
@@ -404,36 +455,31 @@ async function handleAnalyzeDocument() {
     } finally {
         analyzeBtn.disabled = false;
         loadingSpinner.style.display = 'none';
-        analyzeBtn.textContent = 'Analyze Document'; // Reset button text
-        if(fileInput) fileInput.value = ''; // Clear file input
+        analyzeBtn.textContent = 'Analyze Document'; 
+        if(fileInput) fileInput.value = ''; 
     }
 }
 
-
 // ==========================================================
-//  EVENT LISTENERS (V5.2 - Updated for Slug)
+//  EVENT LISTENERS
 // ==========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Get Element References ---
     locationsTableBody = document.querySelector('#locations-table tbody');
     addLocationForm = document.getElementById('add-location-form');
     editModal = document.getElementById('edit-modal');
     editLocationForm = document.getElementById('edit-location-form');
-    // More specific selector for close button inside modal
     closeModalButton = document.querySelector('#edit-modal .close-button');
     fileInput = document.getElementById('file-input');
     analyzeBtn = document.getElementById('analyze-btn');
     loadingSpinner = document.getElementById('loading-spinner');
 
-    // --- Initial Data Load ---
     if (locationsTableBody) {
         fetchAndDisplayLocations();
     } else {
         console.error("Critical Error: locationsTableBody not found.");
     }
 
-    // --- Form Event Listeners ---
     if (addLocationForm) {
          addLocationForm.addEventListener('submit', handleAddLocationSubmit);
     } else {
@@ -446,47 +492,36 @@ document.addEventListener('DOMContentLoaded', () => {
          console.warn("Edit location form (#edit-location-form) not found.");
     }
 
-    // --- Modal Close Button ---
     if (closeModalButton && editModal) {
-        closeModalButton.addEventListener('click', () => {
+         closeModalButton.addEventListener('click', () => {
              editModal.style.display = 'none';
-        });
-    } else {
-        if (!closeModalButton) console.warn("Close modal button (.close-button inside #edit-modal) not found.");
-        if (!editModal) console.warn("Edit modal (#edit-modal) not found.");
+         });
     }
 
-    // --- Document Analysis Button ---
-     if (analyzeBtn) {
-        analyzeBtn.addEventListener('click', handleAnalyzeDocument);
+    if (analyzeBtn) {
+         analyzeBtn.addEventListener('click', handleAnalyzeDocument);
     } else {
-        console.warn("Analyze document button (#analyze-btn) not found.");
-    }
+         console.warn("Analyze document button (#analyze-btn) not found.");
+     }
 
-    // --- Event Delegation for Edit/Delete Buttons ---
     if (locationsTableBody) {
         locationsTableBody.addEventListener('click', (event) => {
             const targetButton = event.target.closest('button');
             if (!targetButton) return;
 
-            // [V5.2 FIX] Read 'data-slug'
             const slug = targetButton.dataset.slug;
 
             if (targetButton.classList.contains('btn-edit')) {
-                console.log(`Edit button clicked for slug: ${slug}`);
                 openEditModal(slug);
             } else if (targetButton.classList.contains('btn-delete')) {
-                console.log(`Delete button clicked for slug: ${slug}`);
                 deleteLocation(slug);
             }
         });
     }
 
-    // --- Close Modal on Outside Click ---
     window.onclick = function (event) {
-        // Ensure editModal exists before checking target
-        if (editModal && event.target == editModal) {
-            editModal.style.display = "none";
-        }
+         if (editModal && event.target == editModal) {
+             editModal.style.display = "none";
+         }
     }
-}); // End DOMContentLoaded
+});

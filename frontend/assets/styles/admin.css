@@ -1,69 +1,150 @@
-/* /frontend/assets/styles/admin.css (ฉบับสมบูรณ์) */
+/* /frontend/assets/styles/admin.css (ฉบับปรับปรุง) */
 
-/* --- 1. สไตล์โดยรวม --- */
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    margin: 2em;
-    background-color: #f4f6f8;
-    color: #333;
+/* --- 0. CSS Variables (ตัวแปรสำหรับใช้ซ้ำ) --- */
+:root {
+    --font-family-primary: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --color-background: #f4f6f8;
+    --color-text: #333;
+    --color-heading: #2c3e50;
+    --color-surface: #ffffff; /* สีพื้นหลังของกล่อง, ตาราง */
+    --color-border: #ddd;
+    --color-border-subtle: #e0e0e0;
+    
+    --color-primary: #007bff;
+    --color-primary-hover: #0056b3;
+    --color-success: #28a745;
+    --color-success-hover: #218838;
+    --color-danger: #dc3545;
+    --color-danger-hover: #c82333;
+    --color-cta: #10b981;
+    --color-cta-hover: #0d9468;
+    
+    --border-radius: 8px;
+    --box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-h1, h2, h3 {
-    color: #2c3e50;
+/* --- 1. สไตล์โดยรวม (Global Styles) --- */
+body {
+    font-family: var(--font-family-primary);
+    margin: 2em;
+    background-color: var(--color-background);
+    color: var(--color-text);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--color-heading);
 }
 
 hr {
     border: none;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid var(--color-border-subtle);
     margin: 2em 0;
 }
 
-/* --- 2. สไตล์สำหรับฟอร์ม (เพิ่ม/แก้ไข) --- */
+/* --- 2. สไตล์สำหรับฟอร์มและกล่องเนื้อหา (Forms & Containers) --- */
+.form-container,
 form {
-    background-color: #ffffff;
+    background-color: var(--color-surface);
     padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
     margin-bottom: 2em;
 }
 
-form input[type="text"],
-form textarea {
-    width: 100%;
-    padding: 8px;
-    margin-top: 4px;
-    margin-bottom: 12px;
-    box-sizing: border-box; /* ทำให้ padding ไม่ขยายกล่อง */
-    border: 1px solid #ccc;
-    border-radius: 4px;
+.form-group {
+    margin-bottom: 1rem;
 }
 
-form button[type="submit"] {
-    background-color: #28a745;
-    color: white;
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="file"],
+textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 4px;
+    margin-bottom: 12px;
+    box-sizing: border-box; 
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    font-size: 1rem; /* ทำให้ขนาดตัวอักษรพอดี */
+}
+
+input[type="file"] {
+    background-color: #f9f9f9;
+}
+
+input:disabled {
+    background-color: #eee;
+    cursor: not-allowed;
+}
+
+/* --- 3. สไตล์ปุ่ม (Buttons) --- */
+.btn {
+    display: inline-block;
     padding: 10px 15px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
     font-size: 16px;
+    font-weight: bold;
+    color: white;
+    text-align: center;
+    transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+}
+.btn:hover {
+    opacity: 0.9;
+}
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
-form button[type="submit"]:hover {
-    background-color: #218838;
+.btn-submit {
+    background-color: var(--color-success);
+}
+.btn-submit:hover {
+    background-color: var(--color-success-hover);
 }
 
-/* --- 3. สไตล์สำหรับตารางข้อมูล --- */
+.btn-cta {
+    background-color: var(--color-cta);
+}
+.btn-cta:hover {
+    background-color: var(--color-cta-hover);
+}
+
+.btn-edit {
+    background-color: var(--color-primary);
+}
+.btn-edit:hover {
+    background-color: var(--color-primary-hover);
+}
+
+.btn-delete {
+    background-color: var(--color-danger);
+}
+.btn-delete:hover {
+    background-color: var(--color-danger-hover);
+}
+
+/* --- 4. สไตล์ตาราง (Table) --- */
 table {
     width: 100%;
     border-collapse: collapse;
-    background-color: #ffffff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background-color: var(--color-surface);
+    box-shadow: var(--box-shadow);
 }
 
 th, td {
-    border: 1px solid #ddd;
+    border: 1px solid var(--color-border);
     padding: 12px;
     text-align: left;
+    vertical-align: middle;
 }
 
 th {
@@ -72,35 +153,22 @@ th {
 }
 
 tbody tr:nth-child(even) {
-    background-color: #f9f9f9; /* สีสลับแถว */
+    background-color: #f9f9f9; 
 }
 
-/* --- 4. สไตล์สำหรับปุ่ม Action ในตาราง --- */
-.btn-edit, .btn-delete {
+/* ปุ่ม Action ในตาราง (ทำให้เล็กลง) */
+td .btn-edit,
+td .btn-delete {
     padding: 5px 10px;
-    border: none;
-    border-radius: 4px;
-    color: white;
-    cursor: pointer;
+    font-size: 14px;
     margin-right: 5px;
 }
-
-.btn-edit {
-    background-color: #007bff;
-}
-.btn-edit:hover {
-    background-color: #0056b3;
-}
-
-.btn-delete {
-    background-color: #dc3545;
-}
-.btn-delete:hover {
-    background-color: #c82333;
+td .btn:last-child {
+    margin-right: 0;
 }
 
 
-/* --- 5. สไตล์สำหรับ Modal (ของเดิม) --- */
+/* --- 5. สไตล์ Modal --- */
 .modal {
     display: none;
     position: fixed;
@@ -114,25 +182,56 @@ tbody tr:nth-child(even) {
 }
 
 .modal-content {
-    background-color: #fefefe;
+    background-color: var(--color-surface);
     margin: 10% auto;
-    padding: 20px;
+    padding: 25px;
     border: 1px solid #888;
     width: 80%;
     max-width: 600px;
-    border-radius: 8px;
+    border-radius: var(--border-radius);
+    position: relative; /* สำหรับจัดตำแหน่งปุ่มปิด */
 }
 
 .close-button {
+    position: absolute;
+    top: 10px;
+    right: 15px;
     color: #aaa;
-    float: right;
     font-size: 28px;
     font-weight: bold;
+    cursor: pointer;
 }
 
 .close-button:hover,
 .close-button:focus {
     color: black;
     text-decoration: none;
-    cursor: pointer;
+}
+
+/* --- 6. สไตล์สำหรับ AI Loading Spinner --- */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#loading-spinner {
+    display: none; /* JS จะเป็นคนสั่งโชว์ */
+    vertical-align: middle;
+    margin-left: 10px;
+}
+
+.spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+.spinner-text {
+    font-style: italic;
+    color: #555;
 }
