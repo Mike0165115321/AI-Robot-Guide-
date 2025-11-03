@@ -98,7 +98,7 @@ GROQ_API_KEYS="gsk_...key1,gsk_...key2"
 # ตรวจสอบว่ายังอยู่ใน venv-robot
 7.1
 ```
-# รันสคริปต์เพื่อ อัปภาพลงฐานข้อมูล
+# รันสคริปต์เพื่อ ทำให้ฐานข้อมูลรู้จักภาพ
 python3 Back-end/utils/add_image_links.py
 ```
 
