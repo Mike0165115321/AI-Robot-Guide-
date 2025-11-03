@@ -7,60 +7,57 @@ import re
 import time 
 
 IMAGE_MAPPING = {
-    "วัดภูมินทร์": "wat_phumin_",
-    "ดอยเสมอดาว": "doi_samoe_dao_",
-    "อุทยานแห่งชาติดอยภูคา": "doi_phu_kha_park_",
-    "ดอยภูคา": "doi_phu_kha_park_",
-    "เสาดินนาน้อย": "sao_din_na_noi_",
-    "วัดพระธาตุแช่แห้ง": "wat_phra_that_chae_haeng_",
-    "หมู่บ้านสะปัน": "sapan_village_",
-    "วัดพระธาตุเขาน้อย": "wat_phra_that_khao_noi_",
-    "ถนนคนเดิน": "nan_walking_street_",
-    "กาดข่วงเมือง": "nan_walking_street_",
-    "อุทยานแห่งชาติขุนสถาน": "khun_sathan_national_park_",
-    "พิพิธภัณฑสถานแห่งชาติน่าน": "nan_national_museum_",
-    "หอคำ": "nan_national_museum_",
-    "วัดพระธาตุช้างค้ำ": "wat_phra_that_chang_kham_",
-    "บ่อเกลือ": "bo_kluea_salt_licks_",
-    "ดอยสกาด": "doi_skat_",
-    "อ้อมดาวริมน้ำ": "aom_dao_riverside_",
-    "ร้านอ้อมดาว": "aom_dao_restaurant_",
-    "ตูบนา": "toobna_homestay_",
-    "ลำดวนผ้าทอ": "tailue_coffee_",
-    "กาแฟไทลื้อ": "tailue_coffee_",
-    "ป้านิ่ม": "pa_nim_dessert_",
-    "เฮือนภูคา": "huen_phukha_restaurant_",
-    "บ้านนาก๋างโต้ง": "baan_na_kang_tong_",
-    "Nirvanan House": "nirvanan_house_",
-    "Bitter Bar": "bitter_bar_nan_",
-    "วัดอรัญญาวาส": "wat_aranyawat_",
-    "วัดมิ่งเมือง": "wat_ming_mueang_",
-    "ประวัติศาสตร์น่าน": "history_nan_",
-    "ยุคใหม่": "history_modern_",
-    "ชนเผ่า": "ethnic_group_",
-    "วัฒนธรรม": "culture_nan_",
+"วัดภูมินทร์": "wat-phumin-",
+"ดอยเสมอดาว": "doi-samoe-dao-",
+"อุทยานแห่งชาติดอยภูคา": "doi-phu-kha-park-",
+"ดอยภูคา": "doi-phu-kha-park-",
+"เสาดินนาน้อย": "sao-din-na-noi-",
+"วัดพระธาตุแช่แห้ง": "wat-phra-that-chae-haeng-",
+"หมู่บ้านสะปัน": "sapan-village-",
+"วัดพระธาตุเขาน้อย": "wat-phra-that-khao-noi-",
+"ถนนคนเดิน": "nan-walking-street-",
+"กาดข่วงเมือง": "nan-walking-street-",
+"อุทยานแห่งชาติขุนสถาน": "khun-sathan-national-park-",
+"พิพิธภัณฑสถานแห่งชาติน่าน": "nan-national-museum-",
+"หอคำ": "nan-national-museum-",
+"วัดพระธาตุช้างค้ำ": "wat-phra-that-chang-kham-",
+"บ่อเกลือ": "bo-kluea-salt-licks-",
+"ดอยสกาด": "doi-skat-",
+"อ้อมดาวริมน้ำ": "aom-dao-riverside-",
+"ร้านอ้อมดาว": "aom-dao-restaurant-",
+"ตูบนา": "toobna-homestay-",
+"ลำดวนผ้าทอ": "tailue-coffee-",
+"กาแฟไทลื้อ": "tailue-coffee-",
+"ป้านิ่ม": "pa-nim-dessert-",
+"เฮือนภูคา": "huen-phukha-restaurant-",
+"บ้านนาก๋างโต้ง": "baan-na-kang-tong-",
+"Nirvanan House": "nirvanan-house-",
+"Bitter Bar": "bitter-bar-nan-",
+"วัดอรัญญาวาส": "wat-aranyawat-",
+"วัดมิ่งเมือง": "wat-ming-mueang-",
+"ประวัติศาสตร์น่าน": "history-nan-",
+"ยุคใหม่": "history-modern-",
+"ชนเผ่า": "ethnic-group-",
+"วัฒนธรรม": "culture-nan-",
 }
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 DATA_SOURCE_FOLDER = BACKEND_ROOT / "core" / "database" / "data"
 
 def generate_safe_slug(text: str) -> str:
-    """
-    สร้าง Slug ที่ปลอดภัย (a-z, 0-9, _, -) จากข้อความใดๆ
-    """
     if not text:
         timestamp_ms = int(time.time() * 1000)
-        return f"item_{timestamp_ms}"
+        return f"item-{timestamp_ms}" 
 
     slug = text.lower().strip()
-    slug = re.sub(r'[\s\(\)\[\]{}]+', '_', slug)
-    slug = re.sub(r'[^a-z0-9_-]', '', slug)
-    slug = re.sub(r'[-_]+', '_', slug)
-    slug = slug.strip('_-')
+    slug = re.sub(r'[\s\(\)\[\]{}]+', '-', slug) 
+    slug = re.sub(r'[^a-z0-9-]', '', slug)    
+    slug = re.sub(r'[-]+', '-', slug)      
+    slug = slug.strip('-')                 
     slug = slug[:50]
     if not slug:
         timestamp_ms = int(time.time() * 1000)
-        return f"item_{timestamp_ms}"
+        return f"item-{timestamp_ms}"
     return slug
 
 
