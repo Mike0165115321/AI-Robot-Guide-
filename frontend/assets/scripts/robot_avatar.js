@@ -72,7 +72,6 @@ class AvatarAnimator {
         this.quickSetEyeY(finalY);
     }
     
-    // [LIP SYNC FIX] Blink only if not speaking
     eyeBlink() {
         if (this.isSpeaking || !this.robotFace || this.eyeElements.length === 0 || typeof gsap === 'undefined') return;
         if (!this.robotFace.classList.contains('face-thinking')) {
@@ -92,7 +91,6 @@ class AvatarAnimator {
         this.blinkInterval = null;
     }
     
-    // [LIP SYNC FIX] New functions to control speaking state
     startSpeaking() {
         this.isSpeaking = true;
         this.setEmotion('speaking');
@@ -100,7 +98,6 @@ class AvatarAnimator {
 
     stopSpeaking() {
         this.isSpeaking = false;
-        // The emotion will be set by `resetToListeningState` after audio ends.
     }
 
     setEmotion(emotion) {
@@ -138,7 +135,6 @@ class AvatarAnimator {
         else { gsap.to(this.eyeElements, { x: 0, y: this.BASE_EYE_Y_OFFSET + this.emotionOffsetY, duration: 0.4, ease: "power3", overwrite: true }); }
     }
 
-    // [V5 REWRITE] This function now orchestrates the whole presentation
     enterPresentationMode(data) {
         if (!this.robotMasterContainer || !this.presentationArea || typeof gsap === 'undefined' || !data) return;
         
@@ -166,48 +162,43 @@ class AvatarAnimator {
             .to(this.robotMasterContainer, { x: 0, scale: 1, duration: 1.0, ease: 'power3.inOut' }, "-=0.3");
     }
 
-    // [V5.1 REWRITE] This function now builds the entire presentation UI from V5 data
     updatePresentation(data) {
-         if (!this.infoDisplay || !this.resultText || typeof gsap === 'undefined') return;
+        if (!this.infoDisplay || !this.resultText || typeof gsap === 'undefined') return;
 
-        // [FIX] ล้างเนื้อหาเก่า (นี่คือจุดที่เราแก้ครั้งที่แล้ว)
+        if (data && data.html_is_pre_rendered) {
+            console.log("AvatarAnimator: HTML was pre-rendered by avatar_logic. Skipping content update.");
+            return; 
+        }
         this.infoDisplay.innerHTML = ''; 
         this.resultText.innerHTML = '';
 
-        // --- 1. แสดงผลข้อความ (Text) ---
         const answerText = data.answer || '';
         this.resultText.innerHTML = typeof marked !== 'undefined' ? marked.parse(answerText) : answerText;
         gsap.fromTo(this.resultText, {opacity: 0}, {opacity: 1, duration: 0.6});
 
-        // --- [START OF V5.1 FIX] ---
-        // --- 2. สร้าง Gallery (รวม image_url และ image_gallery) ---
-
-        // สร้าง list รูปภาพทั้งหมด โดยรวมทั้ง url เดี่ยว และ gallery
         const allImages = [];
         if (data.image_url) {
             allImages.push(data.image_url);
         }
         if (data.image_gallery && data.image_gallery.length > 0) {
             data.image_gallery.forEach(url => {
-                if (url && !allImages.includes(url)) { // กันการแสดงผลซ้ำ
+                if (url && !allImages.includes(url)) {
                     allImages.push(url);
                 }
             });
         }
 
-        // ถ้ามีรูปภาพอย่างน้อย 1 รูป
         if (allImages.length > 0) {
             const galleryContainer = document.createElement('div');
             galleryContainer.className = 'gallery-container';
             
             const title = document.createElement('h3');
-            title.textContent = 'รูปภาพประกอบ:'; // หัวข้อนี้จะกลับมาแล้ว!
+            title.textContent = 'รูปภาพประกอบ:'; 
             galleryContainer.appendChild(title);
             
             const imagesWrapper = document.createElement('div');
             imagesWrapper.className = 'gallery-images-wrapper';
             
-            // วนลูปจาก allImages ที่เราสร้างใหม่
             allImages.forEach(url => {
                 const imgLink = document.createElement('a');
                 imgLink.href = url;
@@ -222,11 +213,8 @@ class AvatarAnimator {
             galleryContainer.appendChild(imagesWrapper);
             this.infoDisplay.appendChild(galleryContainer);
         }
-        // --- [END OF V5.1 FIX] ---
 
 
-        // --- 3. สร้าง "แหล่งข้อมูลเพิ่มเติม" (Sources) ---
-        // โค้ดส่วนนี้ถูกต้องแล้ว ไม่ต้องแก้
         if (data.sources && data.sources.length > 0) {
             const sourcesContainer = document.createElement('div');
             sourcesContainer.className = 'sources-container';
@@ -260,7 +248,6 @@ class AvatarAnimator {
             this.infoDisplay.appendChild(sourcesContainer);
         }
 
-        // --- 4. Animation ---
         gsap.fromTo(this.infoDisplay.children, {
             opacity: 0, y: 20
         }, {
@@ -269,7 +256,6 @@ class AvatarAnimator {
     }
 }
 
-// --- Initialize ---
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof gsap === 'undefined') {
          console.error("GSAP library is not loaded!"); return;

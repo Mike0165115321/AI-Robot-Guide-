@@ -684,30 +684,17 @@ body {
 }
 
 .music-controls {
-    /* ถ้าต้องการให้ music-controls ยังอยู่มุมขวาล่าง แต่เลื่อนขึ้นไปนิดหน่อย */
     bottom: 90px;
-    /* หรือปรับค่าตามความเหมาะสมให้ไม่ทับกับ input */
     right: 25px;
     left: unset;
-    /* หรือย้ายตำแหน่งไปเลย เช่น 
-    left: 25px;
-    right: unset;
-    */
 }
 
 .stop-speech-button {
     position: fixed;
-    /* (!!) [แก้ไข] ตำแหน่งให้อยู่ "เหนือ" ปุ่ม Text Input ที่มุมขวา */
     bottom: 90px;
-    /* 25px (bottom ของ text-input) + 50px (height ของ text-input) + 15px (margin) */
     right: 25px;
-    /* <--- (!!) แก้จาก 'left' เป็น 'right' */
     left: unset;
-    /* <--- (!!) เพิ่ม เพื่อยกเลิกค่า 'left' เก่า */
-
     z-index: 99;
-    /* ให้มันอยู่ข้างล่างปุ่ม text input ที่มี z-index 100 */
-
     width: 50px;
     height: 50px;
     border-radius: 50%;
@@ -731,7 +718,6 @@ body {
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-/* (!!) คลาสนี้จะถูกเพิ่มโดย JavaScript เมื่อ AI เริ่มพูด */
 .stop-speech-button.visible {
     opacity: 1;
     visibility: visible;
@@ -740,65 +726,47 @@ body {
 
 #info-display {
     display: flex;
-    /* หรือ grid */
     flex-wrap: wrap;
-    /* ให้ขึ้นบรรทัดใหม่ */
     gap: 10px;
-    /* ระยะห่างระหว่างรูป */
     align-items: flex-start;
-    /* จัดชิดบน */
-    /* หรือใช้ grid-template-columns ถ้าใช้ grid */
 }
 
 .gallery-image {
     max-width: 30%;
-    /* ให้แสดงประมาณ 3 รูปต่อแถว (ปรับได้) */
     height: auto;
     border-radius: 8px;
-    /* ทำให้ขอบมน */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     object-fit: cover;
-    /* ป้องกันภาพยืด */
-    /* เพิ่ม transition ถ้าต้องการให้มี hover effect */
 }
 
 #info-display {
     display: flex;
     flex-direction: column;
-    /* <-- [สำคัญ] จัดเรียงลูก (gallery, sources) ในแนวตั้ง */
     gap: 24px;
-    /* <-- ระยะห่างระหว่าง ส่วน gallery กับ ส่วน sources */
     width: 100%;
     max-width: 100%;
 }
 
-/* 2. สไตล์หัวข้อ "รูปภาพประกอบ:" และ "แหล่งข้อมูลเพิ่มเติม:" */
 .gallery-container h3,
 .sources-container h3 {
     font-size: 1.1rem;
     font-weight: 600;
     color: #e2e8f0;
-    /* สีเทาอ่อน */
     margin-bottom: 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding-bottom: 8px;
 }
 
-/* 3. สไตล์ส่วน Gallery รูปภาพ */
 .gallery-images-wrapper {
     display: flex;
     flex-wrap: wrap;
-    /* <-- [สำคัญ] ทำให้รูปตัดขึ้นบรรทัดใหม่ */
     gap: 10px;
-    /* <-- ระยะห่างระหว่างรูป */
 }
 
 .gallery-images-wrapper a {
     display: block;
     width: calc(33.333% - 7px);
-    /* <-- 3 รูปต่อแถว (คำนวณ gap แล้ว) */
     aspect-ratio: 16 / 10;
-    /* <-- ทำให้รูปมีสัดส่วนคงที่ (16:10) */
     border-radius: 8px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -808,27 +776,22 @@ body {
 .gallery-images-wrapper a:hover {
     transform: scale(1.05);
     box-shadow: 0 0 15px var(--color-robot-eye-glow, #40c4ff);
-    /* <-- ใช้สีธีม */
 }
 
 .gallery-images-wrapper img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* <-- [สำคัญ] ทำให้รูปเต็มกรอบ ไม่ยืด */
 }
 
-/* 4. สไตล์ส่วน Source Card */
 .sources-cards-wrapper {
     display: flex;
     flex-wrap: wrap;
-    /* <-- ทำให้การ์ดตัดขึ้นบรรทัดใหม่ */
     gap: 12px;
 }
 
 .source-card {
     width: calc(33.333% - 8px);
-    /* <-- 3 การ์ดต่อแถว (คำนวณ gap แล้ว) */
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
@@ -854,8 +817,62 @@ body {
     font-size: 0.8rem;
     font-weight: 500;
     color: #cbd5e1;
-    /* สีเทาอ่อน */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.music-prompt-wrapper {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    align-items: center;
+}
+
+.song-input-field {
+    flex-grow: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--color-robot-teal);
+    background: var(--color-bg-primary);
+    color: var(--color-robot-white);
+    font-family: 'Kanit', sans-serif;
+    font-size: 1em;
+}
+.song-input-field:focus {
+    outline: none;
+    box-shadow: 0 0 10px var(--color-robot-teal);
+}
+
+.song-submit-btn {
+    padding: 10px 15px;
+    background: var(--color-robot-teal);
+    color: var(--color-bg-primary);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Kanit', sans-serif;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+.song-submit-btn:hover {
+    background-color: var(--color-robot-white);
+}
+
+.song-choice-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 12px;
+    margin-top: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-robot-teal);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--color-robot-white);
+    font-family: 'Kanit', sans-serif;
+    transition: background-color 0.3s ease;
+}
+.song-choice-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
 }

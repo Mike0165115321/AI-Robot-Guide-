@@ -1,4 +1,4 @@
-// /assets/scripts/avatar_logic.js (V6.2 - FINAL FIX)
+// /assets/scripts/avatar_logic.js (V-Music Mod 7.0 - Refactored Core)
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let mainAudioContext = null;
     let currentAudioSource = null;
     let idleTimeout = null;
+    let musicHandler = null; 
 
     const IDLE_TIME_MS = 60000;
     const PRESENTATION_VIEW_TIME_MS = 20000;
@@ -37,22 +38,46 @@ document.addEventListener('DOMContentLoaded', () => {
     let isAITalking = false;
     let lastMessageWasIdle = false;
     let presentationHideTimeout = null;
+    
 
-    function interruptAISpeech() {
+    function stopAISpeechAudio() {
         if (currentAudioSource) {
-            console.log("🛑 INTERRUPT: Stopping current AI speech.");
-            currentAudioSource.onended = null;
+            console.log("🛑 INTERRUPT: Stopping current AI speech audio.");
+            currentAudioSource.onended = null; 
             currentAudioSource.stop();
             currentAudioSource = null;
         }
+    }
+
+    function interruptAISpeech() {
+        stopAISpeechAudio(); 
         if (stopSpeechButton) stopSpeechButton.classList.remove('visible');
     }
+
+    function resetToListeningOverPresentation() {
+        interruptAISpeech();
+        voiceHandler.stop(true);
+        if (stopSpeechButton) stopSpeechButton.classList.remove('visible');
+
+        console.log("State => Listening (over Presentation)");
+        isAITalking = false;
+        uiController.setEmotion('normal'); 
+        uiController.setStatus("กำลังฟัง... (สามารถพูดแทรกได้)");
+
+        if (mainAudioContext && mainAudioContext.state === 'running') {
+            voiceHandler.start(mainAudioContext);
+        }
+        timerManager.start();
+    }
+    
 
     function resetToListeningState() {
         interruptAISpeech();
         voiceHandler.stop(true);
         if (stopSpeechButton) stopSpeechButton.classList.remove('visible');
         uiController.exitPresentation();
+
+        if (musicHandler) musicHandler.reset(); 
 
         console.log("State => Listening");
         isAITalking = false;
@@ -67,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function playAudio(audioData) {
         if (!mainAudioContext) return Promise.reject("AudioContext not ready");
-        interruptAISpeech();
+        stopAISpeechAudio(); 
 
         try {
             let bufferToDecode = audioData;
@@ -124,7 +149,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const timerManager = {
         start: () => {
-            if (isAITalking) return;
+            if (isAITalking || (musicHandler && musicHandler.isPlaying()) || (musicHandler && musicHandler.isWaiting())) {
+                console.log(`[Timer] Idle timer start skipped (isAITalking: ${isAITalking}, isPlayingMusic: ${musicHandler?.isPlaying()}, isAwaitingUserInput: ${musicHandler?.isWaiting()})`);
+                return;
+            }
+
             timerManager.clear();
             idleTimeout = setTimeout(() => {
                 console.log("⏰ Idle timer triggered.");
@@ -141,6 +170,9 @@ document.addEventListener('DOMContentLoaded', () => {
         clear: () => {
             clearTimeout(idleTimeout);
             idleTimeout = null;
+        },
+        clearPresentationTimeout: () => {
+            clearTimeout(presentationHideTimeout);
         }
     };
 
@@ -156,6 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
             timerManager.clear();
             clearTimeout(presentationHideTimeout);
             uiController.exitPresentation();
+            if (musicHandler) musicHandler.reset();
 
             if (websocket?.readyState === WebSocket.OPEN) {
                 if (audioBlob && audioBlob.size > 1000) {
@@ -213,11 +246,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         websocket.onopen = () => {
             console.log("WebSocket connected successfully.");
+            
+            musicHandler = new AvatarMusicHandler(websocket, uiController, voiceHandler, timerManager, {
+                stopSpeechButton: stopSpeechButton,
+                stopAISpeechAudio: stopAISpeechAudio,
+                resetToListeningState: resetToListeningState
+            });
+
             uiController.setStatus("โปรดคลิกเพื่อเริ่มการสนทนา");
             document.body.addEventListener('click', initializeAndStart, { once: true });
         };
 
-        // --- [ START OF V6.2 FINAL FIX ] ---
         websocket.onmessage = async (event) => {
             timerManager.clear();
 
@@ -228,28 +267,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     isAITalking = true;
                     voiceHandler.stop(true);
-
+                    
                     lastMessageWasIdle = data.isIdlePrompt || false;
                     if (lastMessageWasIdle) {
                         uiController.setEmotion(data.emotion || 'talking');
-                        return; // Exit early for idle prompts
+                        return; 
                     }
                     
-                    // [FIX 1] Use image_url (underscore) to match Backend
+                    if (musicHandler && musicHandler.handleMessage(data)) {
+                        return; 
+                    }
                     const hasVisualContent = data.image_url || (data.image_gallery && data.image_gallery.length > 0) || (data.sources && data.sources.length > 0);
                     
                     if (hasVisualContent) {
-                        // If there's visual content: Enter presentation mode (which renders text + visuals)
                         console.log("Message has visual content, entering presentation mode.");
-                        uiController.setStatus("กำลังประมวลผล..."); // Clear status bar before presentation
+                        uiController.setStatus("กำลังประมวลผล..."); 
                         uiController.enterPresentation(data);
                     } else {
-                        // [FIX 2] If no visual content: Display the answer text in the status bar
                         console.log("Message has no visual content, will show text in status.");
                         if (data.answer) {
-                            uiController.setStatus(data.answer); // <-- This fixes the missing text issue
+                            uiController.setStatus(data.answer); 
                         }
-                        // Also, set the appropriate emotion (this was previously commented out)
                         uiController.setEmotion(data.emotion || 'talking');
                     }
 
@@ -258,20 +296,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     resetToListeningState();
                 }
             }
-            // --- [ END OF V6.2 FINAL FIX ] ---
             else if (event.data instanceof ArrayBuffer) {
                 console.log(`Received Audio Buffer (${event.data.byteLength} bytes)`);
                 try {
                     await playAudio(event.data);
                     console.log("Audio playback finished.");
 
-                    clearTimeout(presentationHideTimeout);
-                    presentationHideTimeout = setTimeout(() => {
-                        console.log("Presentation view time expired, exiting presentation.");
-                        uiController.exitPresentation();
-                    }, PRESENTATION_VIEW_TIME_MS);
+                    if (musicHandler && musicHandler.isWaiting()) {
+                        console.log("[Input Wait] AI speech finished, but awaiting user input. Not resetting state.");
+                        resetToListeningOverPresentation();
+                        return; 
+                    }
 
-                    resetToListeningState();
+                    if (musicHandler && musicHandler.isPlaying()) {
+                         console.log("[Music] Audio finished, but music is playing. Keeping presentation open.");
+                         musicHandler.goToMusicIdleState();
+                    } else { 
+                        clearTimeout(presentationHideTimeout);
+                        presentationHideTimeout = setTimeout(() => {
+                            console.log("Presentation view time expired, exiting presentation.");
+                            uiController.exitPresentation();
+                        }, PRESENTATION_VIEW_TIME_MS);
+                        
+                        resetToListeningState();
+                    }
 
                 } catch (e) {
                     console.error("Failed to play received audio.", e);
@@ -280,11 +328,12 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 console.warn("Received unexpected data type:", typeof event.data);
             }
-        }; // End of websocket.onmessage
+        }; 
 
         websocket.onclose = (event) => {
             console.warn(`WebSocket disconnected. Code: ${event.code}, Reason: ${event.reason}. Reconnecting in 5s...`);
             isAITalking = false;
+            if (musicHandler) musicHandler.reset();
             timerManager.clear();
             clearTimeout(presentationHideTimeout);
             uiController.setStatus("การเชื่อมต่อถูกตัด กำลังพยายามเชื่อมต่อใหม่...");
@@ -310,6 +359,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (websocket && websocket.readyState === WebSocket.OPEN) {
                 console.log(`⌨️ [Text Input] Sending query: ${queryText}`);
+                
+                if (musicHandler) musicHandler.reset();
+                
                 interruptAISpeech();
                 voiceHandler.stop(true);
 
@@ -329,6 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (stopSpeechButton) {
         stopSpeechButton.addEventListener('click', () => {
             console.log("🔘 [Stop Button] Clicked. Stopping AI speech and returning to listen state.");
+            if (musicHandler) musicHandler.reset();  
             resetToListeningState();
         });
     }

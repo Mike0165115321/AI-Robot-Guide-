@@ -94,11 +94,9 @@ class RAGOrchestrator:
         final_answer = await get_llama_response_direct_async(user_query=corrected_query)
         return {"answer": final_answer, "action": None, "sources": [], "image_url": None, "image_gallery": []}
 
-    # --- (ส่วนนี้ไม่เกี่ยวข้องกับการแก้ไข จึงไม่แตะต้อง) ---
     async def _handle_play_music(self, corrected_query: str, entity: Optional[str], mode: str) -> dict:
-        if mode == 'voice':
-            return {"answer": "ขออภัยค่ะ หนูยังเปิดเพลงในโหมดนี้ไม่ได้...", "action": None, "sources": [], "image_url": None, "image_gallery": []}
         generic_music_requests = ["เพลง", "ฟังเพลง", "เปิดเพลง", "ร้องเพลง", "มิวสิค", "สับเพลง"]
+        
         if not entity or entity.lower().strip() in generic_music_requests:
             return {"answer": "ได้เลยค่ะ! คุณอยากฟังเพลงอะไรเป็นพิเศษไหมคะ?", "action": "PROMPT_FOR_SONG_INPUT", "action_payload": {"placeholder": "เช่น Lover - Taylor Swift"}, "sources": [], "image_url": None, "image_gallery": []}
         else:
@@ -108,7 +106,6 @@ class RAGOrchestrator:
                 return {"answer": f"ขออภัยค่ะ หาเพลง '{search_query}' ไม่เจอเลยค่ะ", "action": "PROMPT_FOR_SONG_INPUT", "action_payload": {"placeholder": "ลองอีกครั้ง..."}, "sources": [], "image_url": None, "image_gallery": []}
             return {"answer": f"เจอเพลงจาก '{search_query}' แล้วค่ะ! เลือกได้เลย", "action": "SHOW_SONG_CHOICES", "action_payload": search_results, "sources": [], "image_url": None, "image_gallery": []}
 
-    # --- (ส่วนนี้ไม่เกี่ยวข้องกับการแก้ไข จึงไม่แตะต้อง) ---
     async def _handle_system_command(self, corrected_query: str, entity: Optional[str]) -> dict:
         logging.info("🚦 [Router] Routing to: System Command Handler")
         entity_to_launch = entity
@@ -118,7 +115,6 @@ class RAGOrchestrator:
         result_text = await asyncio.to_thread(system_tool_instance.launch, entity_to_launch)
         return {"answer": result_text, "action": None, "sources": [], "image_url": None, "image_gallery": []}
 
-    # --- [ NEW V6: รื้อฟังก์ชันนี้ใหม่ทั้งหมด ] ---
     async def _handle_informational(
         self, 
         corrected_query: str, 
@@ -135,8 +131,6 @@ class RAGOrchestrator:
         static_image_gallery: List[str] = [] 
         processed_prefixes = set()
 
-        # --- [ 1. STATIC-FIRST IMAGE SEARCH (คงเดิมจาก V5.4) ] ---
-        # (Logic นี้ยังคงทำงานได้ เพราะ V6.1 Interpreter จะส่ง 'entity' มาให้สำหรับ Simple Query)
         if entity:
             try:
                 logging.info(f"🎯 [Static Search] Trying to find exact match for entity: '{entity}'")
@@ -180,8 +174,6 @@ class RAGOrchestrator:
             logging.warning(f"No results from Qdrant and no priority doc found for: {corrected_query}")
             return {"answer": "ขออภัยค่ะ ไม่พบข้อมูลที่เกี่ยวข้อง", "action": None, "sources": [], "image_url": fallback_image, "image_gallery": [fallback_image] if fallback_image else []}
 
-        # --- [ 3. MERGE & FETCH DOCUMENTS (คงเดิมจาก V5.4) ] ---
-        # (Logic การ "ยัด" priority_doc ไว้หน้าสุด ยังคงสำคัญ)
         final_mongo_ids = unique_search_ids
         
         if priority_doc and priority_doc.get('_id'):
@@ -198,7 +190,6 @@ class RAGOrchestrator:
             return {"answer": "ขออภัยค่ะ พบข้อมูลแต่ดึงรายละเอียดไม่ได้", "action": None, "sources": [], "image_url": fallback_image, "image_gallery": [fallback_image] if fallback_image else []}
         docs_with_synthetic = await asyncio.to_thread(lambda docs: [(doc, create_synthetic_document(doc)) for doc in docs], retrieved_docs)
 
-        # (ถ้ามีเอกสารเยอะมาก V6 อาจจะต้องเพิ่มประสิทธิภาพส่วนนี้ แต่ตอนนี้ยังใช้ได้)
         logging.info(f"🧠 [Reranker] Reranking {len(docs_with_synthetic)} documents against: '{corrected_query}'")
         sentence_pairs = [[corrected_query, synthetic_doc] for doc, synthetic_doc in docs_with_synthetic]
         scores = await asyncio.to_thread(self.reranker.predict, sentence_pairs, show_progress_bar=False)
@@ -209,11 +200,9 @@ class RAGOrchestrator:
         final_synthetic_docs = [synth for score, (_, synth) in reranked_docs_with_synthetic[:top_k_rerank]]
         logging.info(f"✅ [Reranker] Kept top {len(final_docs)} documents.")
 
-        # --- [ 5. IMAGE & CONTEXT PREPARATION (คงเดิมจาก V5.4) ] ---
         primary_doc = final_docs[0] if final_docs else None
         primary_topic_fallback = primary_doc.get("title", "Unknown") if primary_doc else "สถานที่ในจังหวัดน่าน"
 
-        # (Logic "Fair Fallback Search" ของ V5.4 ยังคงยอดเยี่ยม)
         all_topics_list = [doc.get("title") for doc in final_docs if doc and doc.get("title")]
         unique_topics = list(dict.fromkeys(all_topics_list))
         
@@ -222,7 +211,6 @@ class RAGOrchestrator:
         else:
             topics_str_for_query = ", ".join(unique_topics)
 
-        # (Log Analytics)
         if primary_doc and self.log_collection is not None:
             try:
                 log_document = {"query": corrected_query, "primary_topic": primary_topic_fallback, "timestamp": datetime.now(timezone.utc)}
@@ -230,12 +218,10 @@ class RAGOrchestrator:
             except Exception as e:
                 logging.error(f"❌ [Analytics] Failed to log query: {e}")
 
-        # (สร้าง Context)
         context_str = "\n\n---\n\n".join(final_synthetic_docs)
         
         source_info: List[dict] = []
 
-        # (Loop สร้าง Source Card และรวบรวม Static Image - คงเดิมจาก V5.4)
         for doc in final_docs:
             if not doc: continue
             prefix = doc.get("metadata", {}).get("image_prefix")
@@ -259,11 +245,9 @@ class RAGOrchestrator:
                 "image_urls": doc_static_images[:settings.SOURCE_CARD_IMAGE_LIMIT]
             })
 
-        # (Google Image Fallback - คงเดิมจาก V5.4)
         if len(static_image_gallery) < settings.IMAGE_FALLBACK_THRESHOLD:
             logging.warning(f"⚠️ Static images insufficient (found {len(static_image_gallery)}). Falling back to Google Search for topics: '{topics_str_for_query}'...")
             
-            # (ใช้ smarter_query ที่ฉลาดของ V5.4)
             smarter_query = f"{corrected_query} {topics_str_for_query} น่าน"
             
             logging.info(f"🔍 [Google Search] Using smarter query: '{smarter_query}'")
@@ -275,8 +259,6 @@ class RAGOrchestrator:
                 if g_url not in static_image_gallery:
                     static_image_gallery.append(g_url)
         
-        # --- [ 6. FINAL GENERATION (คงเดิมจาก V5.4) ] ---
-        # (ส่ง Context ที่รวยที่สุด ให้ Gemini สรุป)
         insights = await asyncio.to_thread(get_insights_from_logs, self.log_collection)
         final_answer = await get_gemini_response_async(
             user_query=corrected_query, context=context_str, insights=insights
@@ -294,22 +276,19 @@ class RAGOrchestrator:
             "sources": source_info
         }
 
-    # --- [ NEW V6: รื้อฟังก์ชันนี้ใหม่ ] ---
     async def answer_query(self, query: str, mode: str = 'text') -> dict:
         try:
-            # 1. รับ Interpretation V6.1 (ที่มี sub_queries)
             interpretation = await self.query_interpreter.interpret_and_route(query)
         except Exception as e:
             logging.error(f"❌ [Router V6] CRITICAL: Failed to interpret query: {e}. Defaulting to INFORMATIONAL.", exc_info=True)
             fallback_image = self._find_any_random_image()
             return {"answer": "ขออภัยค่ะ มีปัญหาในการตีความคำถาม", "action": None, "sources": [], "image_url": fallback_image, "image_gallery": [fallback_image] if fallback_image else []}
 
-        # 2. ดึงค่าทั้งหมดออกมา
         intent = interpretation.get("intent", "INFORMATIONAL")
         corrected_query = interpretation.get("corrected_query", query)
         entity = interpretation.get("entity")
         is_complex = interpretation.get("is_complex", False)
-        sub_queries = interpretation.get("sub_queries", [corrected_query]) # Fallback
+        sub_queries = interpretation.get("sub_queries", [corrected_query]) 
 
         logging.info(f"🚦 [Router V6] Intent: {intent} | Entity: {entity} | Complex: {is_complex} | Sub-Queries: {sub_queries} | Mode: {mode}")
 
@@ -322,7 +301,6 @@ class RAGOrchestrator:
         handler = handler_map.get(intent, self._handle_informational)
 
         try:
-            # 3. สร้าง kwargs สำหรับ Handler แต่ละตัว
             handler_kwargs = {"corrected_query": corrected_query}
             
             if intent == "INFORMATIONAL":
@@ -338,7 +316,6 @@ class RAGOrchestrator:
             elif intent == "SYSTEM_COMMAND":
                  handler_kwargs["entity"] = entity
             
-            # (SMALL_TALK ใช้แค่ corrected_query)
             
             return await handler(**handler_kwargs) 
             

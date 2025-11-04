@@ -1,10 +1,13 @@
 class VoiceHandler {
     constructor(callbacks) {
         this.callbacks = { onStatusUpdate: () => {}, onSpeechEnd: () => {}, ...callbacks };
-        this.NOISE_FLOOR = 0.05;           
-        this.SPEECH_THRESHOLD = 0.2;            
+
+        //ปรับการรับเสียง//
+        this.NOISE_FLOOR = 0.02;           
+        this.SPEECH_THRESHOLD = 0.1;            
         this.AMPLIFICATION = 25;            
-        this.SILENCE_DELAY_MS = 1000;          
+        this.SILENCE_DELAY_MS = 500;
+
         this.SPEECH_CONFIRMATION_FRAMES = 5;    
         this.speechFrameCount = 0;
         this.MIN_BLOB_SIZE_BYTES = 10000;   
