@@ -15,11 +15,27 @@ class Settings:
     MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
     MONGO_DATABASE_NAME = "nanaiguide"
     DEVICE: str = "cpu"  # หรือ "cuda" ถ้ามี GPU
-    QDRANT_TOP_K: int = 5
-    IMAGE_FALLBACK_THRESHOLD: int = 2
-    GOOGLE_IMAGE_MAX_RESULTS: int = 3
-    SOURCE_CARD_IMAGE_LIMIT: int = 3
-    FINAL_GALLERY_IMAGE_LIMIT: int = 5
+    QDRANT_TOP_K: int = 8  # (จาก 5 -> 8) 
+
+    # 2. จำนวนภาพสำรอง (Google Search)
+    # ถ้าหาภาพจากฐานข้อมูลได้น้อยกว่า 2 ภาพ ให้ไปหา Google เพิ่ม
+    IMAGE_FALLBACK_THRESHOLD: int = 2  # (คงเดิมไว้ ดีแล้วครับ)
+
+    # 3. จำกัดจำนวนภาพจาก Google
+    # อย่าให้ Google หาเยอะเกินไป เดี๋ยวจะช้าและเปลืองโควต้า
+    GOOGLE_IMAGE_MAX_RESULTS: int = 2  # (จาก 3 -> 2) ประหยัดขึ้นนิดนึง
+
+    # 4. ภาพใน Source Card (การ์ดอ้างอิงท้ายคำตอบ)
+    # โชว์แค่ 1-2 ภาพต่อการ์ดก็พอ จะได้ไม่รก
+    SOURCE_CARD_IMAGE_LIMIT: int = 1  # (จาก 3 -> 1) เน้นสะอาดตา
+
+    # 5. ภาพใน Gallery รวม (ส่วนแสดงผลหลัก)
+    # โชว์ภาพสวยๆ รวมกันไม่เกิน 4-5 ภาพ กำลังดีครับ
+    FINAL_GALLERY_IMAGE_LIMIT: int = 4  # (จาก 5 -> 4) โหลดเร็วขึ้นนิดนึง
+    
+    # --- (ค่าอื่นๆ ที่สำคัญ) ---
+    TOP_K_RERANK_TEXT = 5  # (สำคัญ!) คัดจาก 8 เหลือ 5 ที่ดีที่สุดส่งให้ LLM
+    TOP_K_RERANK_VOICE = 3 # (สำคัญ!) ถ้าเป็นเสียง เอาแค่ 3 พอ เน้นกระชับ
     
     QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT = int(os.getenv("QDRANT_PORT", 6333))

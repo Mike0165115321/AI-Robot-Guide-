@@ -1,3 +1,6 @@
+# /core/database/qdrant_manager.py
+# (โค้ดที่แก้ไขแล้ว)
+
 import uuid
 import asyncio
 import logging
@@ -21,16 +24,11 @@ class QdrantManager:
         self.collection_name = settings.QDRANT_COLLECTION_NAME
         
     async def initialize(self):
-        """
-        [V6.2 - NO-HYBRID] Reverted to V5.1 logic.
-        Ensures the collection exists (Vector-Only).
-        """
         try:
             await self.client.get_collection(collection_name=self.collection_name)
             logging.info(f"✅ Collection '{self.collection_name}' already exists (Vector-Only).")
         except Exception:
             logging.warning(f"⚠️ Collection '{self.collection_name}' not found. Creating new one (Vector-Only)...") 
-            # [REVERT V6.2] ถอด Logic การสร้าง Payload Index ที่เป็นปัญหาออก
             await self.client.recreate_collection(
                 collection_name=self.collection_name,
                 vectors_config=models.VectorParams(
@@ -55,11 +53,10 @@ class QdrantManager:
         return await asyncio.to_thread(self._create_vector_sync, text)
 
     async def upsert_location(self, mongo_id: str, description: str):
-        """
-        [V6.2 - NO-HYBRID]
-        Upserts vector and payload. (We can still keep text_content, it just won't be indexed)
-        """
-        vector = await self._create_vector(description)
+        logging.info(f"Applying 'passage:' prefix for e5-large indexing...")
+        passage_with_prefix = f"passage: {description}"
+        vector = await self._create_vector(passage_with_prefix)
+        
         point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, mongo_id))
 
         await self.client.upsert(
@@ -68,7 +65,6 @@ class QdrantManager:
                 models.PointStruct(
                     id=point_id,
                     vector=vector.tolist(),
-                    # [REVERT V6.2] เรายังเก็บ text_content ไว้ได้ มันไม่ทำพัง แค่ไม่ได้ใช้ค้นหา
                     payload={
                         "mongo_id": mongo_id,
                         "text_content": description 
@@ -77,16 +73,14 @@ class QdrantManager:
             ],
             wait=True
         )
-        logging.info(f"✅ Upserted vector (NoHybrid) for mongo_id '{mongo_id}' to Qdrant.") 
+        logging.info(f"✅ Upserted vector (e5-prefixed) for mongo_id '{mongo_id}' to Qdrant.") 
         return True
     
     async def search_similar(self, query_text: str, top_k: int = settings.QDRANT_TOP_K): 
-        """
-        [V6.2 - NO-HYBRID] Reverted to V5.1 (Vector-Only Search).
-        """
-        query_vector = await self._create_vector(query_text)
+        logging.info(f"Applying 'query:' prefix for e5-large search...")
+        query_with_prefix = f"query: {query_text}"
+        query_vector = await self._create_vector(query_with_prefix) 
 
-        # [REVERT V6.2] กลับมาใช้ .search() แบบ Vector ธรรมดา
         search_results = await self.client.search(
             collection_name=self.collection_name,
             query_vector=query_vector.tolist(),
@@ -94,12 +88,21 @@ class QdrantManager:
             with_payload=True
         )
         
-        logging.info(f"🔍 Found {len(search_results)} vector results for query: '{query_text}'") 
+        logging.info(f"✅ [Qdrant Raw Results] Query '{query_text}' found {len(search_results)} results (Pre-Reranking):")
+        
+        for i, result in enumerate(search_results):
+            text_preview = result.payload.get('text_content', 'N/A')[:100].strip() + "..."
+            
+            logging.info(
+                f"  Result #{i+1} | "
+                f"Score: {result.score:.4f} | " 
+                f"Mongo_ID: {result.payload.get('mongo_id')} | "
+                f"Content: '{text_preview}'"
+            )
         return search_results
     
     async def delete_vector(self, mongo_id: str):
         point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, mongo_id))
-
         try:
             await self.client.delete(
                 collection_name=self.collection_name,

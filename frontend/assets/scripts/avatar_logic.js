@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         uiController.setStatus("กำลังฟัง... (สามารถพูดแทรกได้)");
 
         if (mainAudioContext && mainAudioContext.state === 'running') {
-            voiceHandler.start(mainAudioContext);
+            voiceHandler.start();
         }
         timerManager.start();
     }
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         uiController.setStatus("กำลังฟัง...");
 
         if (mainAudioContext && mainAudioContext.state === 'running') {
-            voiceHandler.start(mainAudioContext);
+            voiceHandler.start();
         }
         timerManager.start();
     }

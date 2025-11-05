@@ -6,39 +6,40 @@ import logging
 import re 
 import time 
 
+# IMAGE_MAPPING และค่าคงที่อื่นๆ ยังคงเหมือนเดิม
 IMAGE_MAPPING = {
-"วัดภูมินทร์": "wat-phumin-",
-"ดอยเสมอดาว": "doi-samoe-dao-",
-"อุทยานแห่งชาติดอยภูคา": "doi-phu-kha-park-",
-"ดอยภูคา": "doi-phu-kha-park-",
-"เสาดินนาน้อย": "sao-din-na-noi-",
-"วัดพระธาตุแช่แห้ง": "wat-phra-that-chae-haeng-",
-"หมู่บ้านสะปัน": "sapan-village-",
-"วัดพระธาตุเขาน้อย": "wat-phra-that-khao-noi-",
-"ถนนคนเดิน": "nan-walking-street-",
-"กาดข่วงเมือง": "nan-walking-street-",
-"อุทยานแห่งชาติขุนสถาน": "khun-sathan-national-park-",
-"พิพิธภัณฑสถานแห่งชาติน่าน": "nan-national-museum-",
-"หอคำ": "nan-national-museum-",
-"วัดพระธาตุช้างค้ำ": "wat-phra-that-chang-kham-",
-"บ่อเกลือ": "bo-kluea-salt-licks-",
-"ดอยสกาด": "doi-skat-",
-"อ้อมดาวริมน้ำ": "aom-dao-riverside-",
-"ร้านอ้อมดาว": "aom-dao-restaurant-",
-"ตูบนา": "toobna-homestay-",
-"ลำดวนผ้าทอ": "tailue-coffee-",
-"กาแฟไทลื้อ": "tailue-coffee-",
-"ป้านิ่ม": "pa-nim-dessert-",
-"เฮือนภูคา": "huen-phukha-restaurant-",
-"บ้านนาก๋างโต้ง": "baan-na-kang-tong-",
-"Nirvanan House": "nirvanan-house-",
-"Bitter Bar": "bitter-bar-nan-",
-"วัดอรัญญาวาส": "wat-aranyawat-",
-"วัดมิ่งเมือง": "wat-ming-mueang-",
-"ประวัติศาสตร์น่าน": "history-nan-",
-"ยุคใหม่": "history-modern-",
-"ชนเผ่า": "ethnic-group-",
-"วัฒนธรรม": "culture-nan-",
+    "วัดภูมินทร์": "wat-phumin-",
+    "ดอยเสมอดาว": "doi-samoe-dao-",
+    "อุทยานแห่งชาติดอยภูคา": "doi-phu-kha-park-",
+    "ดอยภูคา": "doi-phu-kha-park-",
+    "เสาดินนาน้อย": "sao-din-na-noi-",
+    "วัดพระธาตุแช่แห้ง": "wat-phra-that-chae-haeng-",
+    "หมู่บ้านสะปัน": "sapan-village-",
+    "วัดพระธาตุเขาน้อย": "wat-phra-that-khao-noi-",
+    "ถนนคนเดิน": "nan-walking-street-",
+    "กาดข่วงเมือง": "nan-walking-street-",
+    "อุทยานแห่งชาติขุนสถาน": "khun-sathan-national-park-",
+    "พิพิธภัณฑสถานแห่งชาติน่าน": "nan-national-museum-",
+    "หอคำ": "nan-national-museum-",
+    "วัดพระธาตุช้างค้ำ": "wat-phra-that-chang-kham-",
+    "บ่อเกลือ": "bo-kluea-salt-licks-",
+    "ดอยสกาด": "doi-skat-",
+    "อ้อมดาวริมน้ำ": "aom-dao-riverside-",
+    "ร้านอ้อมดาว": "aom-dao-restaurant-",
+    "ตูบนา": "toobna-homestay-",
+    "ลำดวนผ้าทอ": "tailue-coffee-",
+    "กาแฟไทลื้อ": "tailue-coffee-",
+    "ป้านิ่ม": "pa-nim-dessert-",
+    "เฮือนภูคา": "huen-phukha-restaurant-",
+    "บ้านนาก๋างโต้ง": "baan-na-kang-tong-",
+    "Nirvanan House": "nirvanan-house-",
+    "Bitter Bar": "bitter-bar-nan-",
+    "วัดอรัญญาวาส": "wat-aranyawat-",
+    "วัดมิ่งเมือง": "wat-ming-mueang-",
+    "ประวัติศาสตร์น่าน": "history-nan-",
+    "ยุคใหม่": "history-modern-",
+    "ชนเผ่า": "ethnic-group-",
+    "วัฒนธรรม": "culture-nan-",
 }
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
@@ -51,6 +52,7 @@ def generate_safe_slug(text: str) -> str:
 
     slug = text.lower().strip()
     slug = re.sub(r'[\s\(\)\[\]{}]+', '-', slug) 
+    slug = re.sub(r'[^a-z0-9ก-ฮ-]', '', slug)    
     slug = re.sub(r'[^a-z0-9-]', '', slug)    
     slug = re.sub(r'[-]+', '-', slug)      
     slug = slug.strip('-')                 
@@ -60,9 +62,8 @@ def generate_safe_slug(text: str) -> str:
         return f"item-{timestamp_ms}"
     return slug
 
-
 def process_all_jsonl_files():
-    print(f"--- 🖼️  Starting to add 'slug' and 'image_prefix' (V6 - Smart Priority) in '{DATA_SOURCE_FOLDER}' ---")
+    print(f"--- 🖼️  Starting to add 'slug' and 'image_prefix' (V7 - Title Only) in '{DATA_SOURCE_FOLDER}' ---")
 
     if not DATA_SOURCE_FOLDER.is_dir():
         print(f"❌ ERROR: Directory not found: {DATA_SOURCE_FOLDER}")
@@ -75,7 +76,6 @@ def process_all_jsonl_files():
         return
 
     total_files_processed = 0
-
 
     for filename in files_to_process:
         file_path = DATA_SOURCE_FOLDER / filename
@@ -91,20 +91,12 @@ def process_all_jsonl_files():
                     try: 
                         data = json.loads(line)
                         
-                        # --- [ NEW V6 LOGIC START ] ---
                         title = data.get("title", "")
                         title_lower = title.lower()
                         
-                        summary_text = (
-                            data.get("summary", "") + " " +
-                            str(data.get("details", []))
-                        ).lower()
-
                         found_prefix = None
                         best_match_key = ""
 
-                        # 1. Priority Search: ค้นหาใน TITLE ก่อน
-                        #    (เราจะหา "key" ที่ยาวที่สุดที่ตรงกัน เพื่อแก้ปัญหา "วัดภูมินทร์" vs "วัดพระธาตุช้างค้ำ")
                         if title_lower:
                             for place_name in IMAGE_MAPPING.keys():
                                 if place_name.lower() in title_lower:
@@ -114,30 +106,14 @@ def process_all_jsonl_files():
                         if best_match_key:
                             found_prefix = IMAGE_MAPPING[best_match_key]
                         
-                        # 2. Fallback Search: ถ้าไม่เจอใน title, ค่อยค้นหาใน summary + details
-                        if not found_prefix and summary_text:
-                            best_match_key_fallback = ""
-                            for place_name in IMAGE_MAPPING.keys():
-                                if place_name.lower() in summary_text:
-                                    if len(place_name) > len(best_match_key_fallback):
-                                        best_match_key_fallback = place_name
-                            
-                            if best_match_key_fallback:
-                                found_prefix = IMAGE_MAPPING[best_match_key_fallback]
-                                logging.warning(f"Line {line_num} ('{title}'): Prefix not in title. Found '{found_prefix}' in summary.")
-                        # --- [ NEW V6 LOGIC END ] ---
-
-                        # Ensure metadata exists
                         if "metadata" not in data or data["metadata"] is None:
                             data["metadata"] = {}
 
                         final_slug = ""
-                        # Case 1: Prefix found in mapping
                         if found_prefix:
                             data["metadata"]["image_prefix"] = found_prefix
-                            final_slug = found_prefix.rstrip('_')
+                            final_slug = found_prefix.rstrip('-') 
                             lines_updated += 1
-                        # Case 2: No prefix found, generate slug from title
                         else:
                             if title:
                                 generated_slug = generate_safe_slug(title)
@@ -150,13 +126,11 @@ def process_all_jsonl_files():
                                     counter += 1
 
                                 final_slug = generated_slug
-                                logging.warning(f"Line {line_num} ('{title}') missing prefix mapping. Generated slug: '{final_slug}'")
                             else:
                                 logging.error(f"Line {line_num} missing 'title', cannot generate slug. Skipping line.")
                                 outfile.write(line)
                                 continue 
 
-                        # Assign the determined slug (either from prefix or generated)
                         if final_slug:
                             data["slug"] = final_slug
                             slugs_generated_in_file.add(final_slug)
@@ -165,11 +139,10 @@ def process_all_jsonl_files():
 
                     except json.JSONDecodeError:
                         logging.warning(f"Skipping malformed JSON on line {line_num} in {filename}.")
-                        outfile.write(line) # Write original line back
+                        outfile.write(line) 
                     except Exception as line_e:
                         logging.error(f"Error processing line {line_num} in {filename}: {line_e}", exc_info=False)
-                        outfile.write(line) # Write original line back
-
+                        outfile.write(line) 
 
             shutil.move(temp_file_path, file_path)
             print(f"  - ✅ Finished. Updated/Checked {lines_updated} (prefix) lines in '{filename}'.")
@@ -183,8 +156,8 @@ def process_all_jsonl_files():
                 except OSError as rm_err:
                     logging.error(f"Failed to remove temporary file {temp_file_path}: {rm_err}")
 
-
     print(f"\n--- 🎉 Successfully processed {total_files_processed} file(s). ---")
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')

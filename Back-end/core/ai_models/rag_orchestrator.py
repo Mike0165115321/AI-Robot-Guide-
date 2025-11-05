@@ -2,6 +2,7 @@ import asyncio
 import logging
 import random
 import re
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -11,7 +12,7 @@ from sentence_transformers import CrossEncoder
 from core.config import settings
 from core.ai_models.llm_handler import (
     get_llama_response_direct_async,
-    get_gemini_response_async,
+    get_groq_rag_response_async,
     get_insights_from_logs
 )
 from core.ai_models.query_interpreter import QueryInterpreter
@@ -22,7 +23,10 @@ from core.tools.system_tool import system_tool_instance
 from utils.helper_functions import create_synthetic_document
 from core.tools.image_search_tool import image_search_tool_instance
 
-IMAGE_DIR = Path(__file__).resolve().parent.parent.parent / "static" / "images"
+BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
+IMAGE_DIR = BACKEND_ROOT / "static" / "images"
+
+logging.info(f"📂 [RAGOrchestrator] IMAGE_DIR set to: {IMAGE_DIR.absolute()}")
 
 class RAGOrchestrator:
     def __init__(self, 
@@ -30,7 +34,6 @@ class RAGOrchestrator:
                  qdrant_manager: QdrantManager,
                  query_interpreter: QueryInterpreter):
         
-        # [NEW V6] อัปเดตชื่อเวอร์ชันใน log
         logging.info("⚙️  RAG Orchestrator (V6.0 - Hybrid + Decompose) is initializing...") 
         self.mongo_manager = mongo_manager
         self.qdrant_manager = qdrant_manager
@@ -46,11 +49,12 @@ class RAGOrchestrator:
         self.log_collection = self.mongo_manager.get_collection("query_logs")
         if self.log_collection is not None:
             logging.info("📝 Analytics logging is enabled.")
-
-        logging.info("🏞️ Scanning image directory for caching...")
-        self.image_dir_exists = IMAGE_DIR.is_dir()
+        
         self.all_image_files: List[str] = []
         self.prefixed_image_map: Dict[str, List[str]] = {}
+
+        logging.info(f"🏞️ Scanning image directory: {IMAGE_DIR.absolute()}")
+        self.image_dir_exists = IMAGE_DIR.is_dir()
 
         if self.image_dir_exists:
             try:
@@ -58,12 +62,17 @@ class RAGOrchestrator:
                     if f.is_file() and f.suffix.lower() in ('.jpg', '.jpeg', '.png', '.webp'):
                         file_path_str = f"/static/images/{f.name}"
                         self.all_image_files.append(file_path_str)
-                        parts = f.name.split('_')
-                        if len(parts) > 1:
-                            prefix = parts[0]
+                        prefix = ""
+                        if '-' in f.name:
+                             prefix = f.name.rsplit('-', 1)[0] + '-'
+                        elif '_' in f.name:
+                             prefix = f.name.split('_')[0] + '_'
+                        
+                        if prefix:
                             if prefix not in self.prefixed_image_map:
                                 self.prefixed_image_map[prefix] = []
                             self.prefixed_image_map[prefix].append(file_path_str)
+                            
                 logging.info(f"✅ Image Cache: Found {len(self.all_image_files)} images and {len(self.prefixed_image_map)} prefixes.")
             except Exception as e:
                 logging.error(f"❌ Error scanning image directory: {e}")
@@ -89,7 +98,6 @@ class RAGOrchestrator:
             logging.error(f"❌ Error shuffling cached images for prefix '{prefix}': {e}")
             return list(cached_files)
 
-    # --- (ส่วนนี้ไม่เกี่ยวข้องกับการแก้ไข จึงไม่แตะต้อง) ---
     async def _handle_small_talk(self, corrected_query: str) -> dict:
         final_answer = await get_llama_response_direct_async(user_query=corrected_query)
         return {"answer": final_answer, "action": None, "sources": [], "image_url": None, "image_gallery": []}
@@ -146,25 +154,19 @@ class RAGOrchestrator:
                             processed_prefixes.add(priority_prefix)
             except Exception as e:
                 logging.error(f"❌ Error during priority entity search: {e}")
-        # --- [ END OF STATIC SEARCH ] ---
 
-        
-        # --- [ 2. DECOMPOSED HYBRID RETRIEVAL (รื้อใหม่ V6) ] ---
         mongo_ids_from_search = []
         logging.info(f"🛰️ [Hybrid Retrieval] Starting retrieval for {len(sub_queries)} sub-queries...")
         
         for sub_q in sub_queries:
             if not sub_q.strip(): continue
             logging.info(f"🔍 [Hybrid Retrieval] Searching for: '{sub_q}'")
-            # (นี่คือฟังก์ชัน search_similar (V6) ใหม่ของเรา ที่รัน Hybrid Search อัตโนมัติ)
             qdrant_results = await self.qdrant_manager.search_similar(query_text=sub_q, top_k=settings.QDRANT_TOP_K)
             
-            # รวบรวม ID ทั้งหมดที่ค้นเจอ
             for res in qdrant_results:
                 if res.payload and res.payload.get('mongo_id'):
                     mongo_ids_from_search.append(res.payload.get('mongo_id'))
 
-        # ลบ ID ที่ซ้ำกันออก (แต่ยังคงลำดับ)
         unique_search_ids = list(dict.fromkeys(mongo_ids_from_search))
         logging.info(f"📚 [Hybrid Retrieval] Found {len(unique_search_ids)} unique documents from all sub-queries.")
 
@@ -260,10 +262,12 @@ class RAGOrchestrator:
                     static_image_gallery.append(g_url)
         
         insights = await asyncio.to_thread(get_insights_from_logs, self.log_collection)
-        final_answer = await get_gemini_response_async(
-            user_query=corrected_query, context=context_str, insights=insights
+
+        final_answer = await get_groq_rag_response_async(
+            user_query=corrected_query,
+            context=context_str,
+            insights=insights
         )
-        
         valid_gallery_urls = [url for url in static_image_gallery if url and isinstance(url, str)]
         main_image_url = valid_gallery_urls[0] if valid_gallery_urls else fallback_image
         
