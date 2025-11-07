@@ -3,6 +3,7 @@ import logging
 import random
 import re
 import os
+import urllib.parse 
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -64,9 +65,9 @@ class RAGOrchestrator:
                         self.all_image_files.append(file_path_str)
                         prefix = ""
                         if '-' in f.name:
-                             prefix = f.name.rsplit('-', 1)[0] + '-'
+                            prefix = f.name.rsplit('-', 1)[0] + '-'
                         elif '_' in f.name:
-                             prefix = f.name.split('_')[0] + '_'
+                            prefix = f.name.split('_')[0] + '_'
                         
                         if prefix:
                             if prefix not in self.prefixed_image_map:
@@ -122,6 +123,84 @@ class RAGOrchestrator:
             return {"answer": answer, "action": None, "sources": [], "image_url": None, "image_gallery": []}
         result_text = await asyncio.to_thread(system_tool_instance.launch, entity_to_launch)
         return {"answer": result_text, "action": None, "sources": [], "image_url": None, "image_gallery": []}
+
+
+    async def get_navigation_list(self) -> List[Dict[str, Any]]:
+        logging.info("🗺️  [V-Maps] get_navigation_list called.")
+        
+        query_filter = {
+            "$or": [
+                {"category": "สถานที่นำทาง"},
+                {"category": "สถานที่นำทาง (อำเภอ)"}
+            ]
+        }
+        projection = {"title": 1, "slug": 1, "topic": 1, "_id": 0}
+        
+        try:
+            results = await asyncio.to_thread(
+                lambda: list(self.mongo_manager.get_collection("nan_locations").find(query_filter, projection))
+            )
+            sorted_results = sorted(results, key=lambda x: (x.get('topic', 'Z').startswith('วัด'), x.get('title', '')))
+            logging.info(f"[V-Maps] Found {len(sorted_results)} navigation-ready locations.")
+            return sorted_results
+        except Exception as e:
+            logging.error(f"❌ [V-Maps] Error querying navigation list from MongoDB: {e}", exc_info=True)
+            return []
+
+    async def handle_get_directions(self, entity_slug: str, user_lat: float, user_lon: float) -> dict:
+        logging.info(f"🗺️  [V-Maps] Handling GET_DIRECTIONS for slug: '{entity_slug}'")
+        api_key = settings.GOOGLE_API_KEY
+        if not api_key:
+            logging.error("[V-Maps] CRITICAL: GOOGLE_API_KEY is not set!")
+            return {"answer": "ขออภัยค่ะ ระบบแผนที่ยังไม่ได้ตั้งค่า API Key ค่ะ", "action": None, "sources": [], "image_url": None, "image_gallery": []}
+
+        doc = await asyncio.to_thread(self.mongo_manager.get_location_by_slug, entity_slug)
+        
+        if not doc or not doc.get("navigation_data"):
+            logging.warning(f"[V-Maps] No 'navigation_data' found for slug: {entity_slug}")
+            return {"answer": f"ขออภัยค่ะ น้องน่านยังไม่มีพิกัดแผนที่ของสถานที่นี้เลยค่ะ", "action": None, "sources": [], "image_url": None, "image_gallery": []}
+
+        nav_data = doc["navigation_data"]
+        doc_title = doc.get("title", "ปลายทาง")
+
+        try:
+            origin = f"{user_lat},{user_lon}"
+            dest_lat = nav_data.get('latitude')
+            dest_lon = nav_data.get('longitude')
+            
+            if dest_lat is None or dest_lon is None:
+                logging.error(f"[V-Maps] Missing Lat/Lon in navigation_data for slug: {entity_slug}")
+                raise ValueError("Missing coordinates")
+                
+            destination = f"{dest_lat},{dest_lon}"
+            
+            logging.info(f"[V-Maps] Origin: {origin} | Destination: {destination}")
+
+            # --- 🚀 FIX: แก้ไขการสร้าง URL ให้ถูกต้อง ---
+            base_url = "https://www.google.com/maps/embed/v1/directions"
+            params = {
+                'key': api_key,
+                'origin': origin,
+                'destination': destination,
+                'mode': 'driving'
+            }
+            embed_url = f"{base_url}?{urllib.parse.urlencode(params)}"
+            # --- 🚀 END FIX ---
+            
+            logging.info(f"[V-Maps] Generated Embed URL: {embed_url}")
+        
+            return {
+                "answer": f"พร้อมแล้วค่ะ! นี่คือเส้นทางจากตำแหน่งของคุณไปยัง **{doc_title}** นะคะ",
+                "action": "SHOW_MAP_EMBED", 
+                "action_payload": {
+                    "embed_url": embed_url,
+                    "destination_name": doc_title
+                },
+                "image_url": None, "image_gallery": [], "sources": []
+            }
+        except Exception as e:
+            logging.error(f"❌ [V-Maps] Error building Embed URL: {e}", exc_info=True)
+            return {"answer": "ขออภัยค่ะ เกิดข้อผิดพลาดในการสร้าง URL แผนที่ค่ะ", "action": None, "sources": [], "image_url": None, "image_gallery": []}
 
     async def _handle_informational(
         self, 
@@ -181,7 +260,7 @@ class RAGOrchestrator:
         if priority_doc and priority_doc.get('_id'):
             priority_id_str = str(priority_doc.get('_id'))
             if priority_id_str in final_mongo_ids:
-                 final_mongo_ids.remove(priority_id_str)
+                final_mongo_ids.remove(priority_id_str)
             
             logging.info(f"Injecting priority doc (ID: {priority_id_str}) into retrieved list.")
             final_mongo_ids.insert(0, priority_id_str)
@@ -268,6 +347,7 @@ class RAGOrchestrator:
             context=context_str,
             insights=insights
         )
+        
         valid_gallery_urls = [url for url in static_image_gallery if url and isinstance(url, str)]
         main_image_url = valid_gallery_urls[0] if valid_gallery_urls else fallback_image
         
@@ -318,7 +398,7 @@ class RAGOrchestrator:
                 handler_kwargs["entity"] = entity
 
             elif intent == "SYSTEM_COMMAND":
-                 handler_kwargs["entity"] = entity
+                handler_kwargs["entity"] = entity
             
             
             return await handler(**handler_kwargs) 

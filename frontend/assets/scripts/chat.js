@@ -1,17 +1,17 @@
+// แฟ้ม: frontend/assets/scripts/chat.js (ฉบับแก้ไข)
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Element References ---
     const messageArea = document.getElementById('message-area');
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button-icon');
     const micButton = document.getElementById('mic-button');
-    const convoBtn = document.getElementById('convo-btn');
+    const convoBtn = document.getElementById('convo-btn'); 
     const faqButton = document.getElementById('faq-button');
     const newChatBtn = document.getElementById('new-chat-btn');
     const inputArea = document.querySelector('.input-area-container');
+    const travelModeBtn = document.getElementById('travel-mode-btn');
 
     let isAnswering = false;
 
-    // A default empty response object for error cases
     const createEmptyResponse = (answerText) => ({
         answer: answerText,
         action: null,
@@ -21,7 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
         sources: []
     });
 
-    // --- Initialize Voice Handler ---
     const voiceHandler = new VoiceHandler({
         onStartRecording: () => { micButton.classList.add('mic-listening'); },
         onStopRecording: () => { micButton.classList.remove('mic-listening'); },
@@ -32,7 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
         onError: (error) => { addMessage(createEmptyResponse(`ขออภัยค่ะ เกิดข้อผิดพลาดกับระบบเสียง: ${error}`), 'ai'); }
     });
 
-    // --- Send Message Function ---
     async function sendMessage(queryOverride = null) {
         const query = queryOverride || userInput.value.trim();
         if (!query || isAnswering) return;
@@ -46,10 +44,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const thinkingMessageElement = addMessage('กำลังประมวลผล...', 'ai-thinking');
 
         try {
-            const response = await fetch(`/api/chat/`, {
+            const response = await fetch(`${API_BASE_URL}/api/chat/`, { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: query }),
+                body: JSON.stringify({ query: query }), 
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
@@ -80,13 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (type === 'user') {
             messageElement.className = 'flex justify-end user-message';
             html = `<div class="bg-blue-600 p-3 rounded-2xl rounded-br-lg max-w-md text-white shadow-md"><p>${data.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p></div>`;
-        } else { // ai, ai-thinking
+        } else { 
             messageElement.className = 'flex items-start space-x-3 ai-message';
             let contentHtml = '';
 
             if (type === 'ai-thinking') {
                 contentHtml = `<p class="italic text-text-secondary animate-pulse">${data}</p>`;
-            } else { // type === 'ai'
+            } else { 
                 const answerHtml = window.marked ? marked.parse(data.answer || '') : (data.answer || '');
                 contentHtml = `<div class="prose prose-invert max-w-none text-text-primary">${answerHtml}</div>`;
 
@@ -122,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     `).join('');
                     contentHtml += `<div class="mt-4">${songsHtml}</div>`;
                 }
+
                 else if (!data.action && data.sources && data.sources.length > 0) {
                     const sourcesWithImages = data.sources.filter(s => s.image_urls && s.image_urls.length > 0);
                     if (sourcesWithImages.length > 0) {
@@ -150,28 +149,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (type === 'ai' && data.action === 'PROMPT_FOR_SONG_INPUT') {
             const wrapper = document.getElementById(`song-input-wrapper-${messageId}`);
-            if (wrapper) {
-                const inputField = wrapper.querySelector('.song-input-field');
-                const submitButton = wrapper.querySelector('.song-submit-btn');
-                if (inputField && submitButton) {
-                    const submitSong = () => {
-                        const query = inputField.value.trim();
-                        if (query) {
-                            sendMessage(query);
-                            inputField.disabled = true;
-                            submitButton.disabled = true;
-                            wrapper.style.opacity = '0.7';
-                        }
-                    };
-                    submitButton.addEventListener('click', submitSong);
-                    inputField.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); submitSong(); }
-                    });
-                    inputField.focus();
-                }
+            const inputField = wrapper?.querySelector('.song-input-field');
+            if (inputField) {
+                inputField.focus();
             }
         }
-
+        
         if (type === 'ai' && data.action === 'SHOW_SONG_CHOICES') {
             messageElement.querySelectorAll('.song-choice-btn').forEach(button => {
                 button.addEventListener('click', () => {
@@ -203,7 +186,6 @@ document.addEventListener('DOMContentLoaded', () => {
         el.style.overflowY = (el.scrollHeight > 160) ? 'auto' : 'hidden';
     }
 
-    // --- Event Listeners (Full Code) ---
     sendButton.addEventListener('click', () => sendMessage());
     userInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -211,12 +193,19 @@ document.addEventListener('DOMContentLoaded', () => {
     userInput.addEventListener('input', (e) => adjustTextareaHeight(e.target));
     convoBtn.addEventListener('click', () => { window.open('robot_avatar.html', '_blank'); });
 
+    if (travelModeBtn) {
+        travelModeBtn.addEventListener('click', () => {
+            console.log('Switching to Travel Mode page...');
+            window.location.href = 'travel_mode';
+        });
+    }
+
     newChatBtn.addEventListener('click', () => {
-        messageArea.innerHTML = '';
+        // --- 🚀 FIX 1: แก้ปัญหาจากวิดีโอ ---
+        // ล้างข้อความทั้งหมดในพื้นที่แชทก่อน
+        messageArea.innerHTML = ''; 
+        // จากนั้นค่อยเพิ่มข้อความต้อนรับสำหรับการแชทใหม่
         addMessage(createEmptyResponse("เริ่มต้นการสนทนาใหม่ค่ะ มีอะไรให้ช่วยเกี่ยวกับจังหวัดน่านไหมคะ?"), 'ai');
-        const songInput = document.querySelector('.song-input-field');
-        if(songInput) songInput.closest('div').remove();
-        inputArea.style.display = 'flex';
         userInput.focus();
     });
 
@@ -241,17 +230,54 @@ document.addEventListener('DOMContentLoaded', () => {
         const faqContainer = document.createElement('div');
         faqContainer.id = 'faq-container';
         faqContainer.className = 'flex items-start space-x-3 ai-message';
-        const faqs = ["แนะนำที่เที่ยวธรรมชาติหน่อย", "วัดสวยๆ ในตัวเมืองมีที่ไหนบ้าง", "ของกินพื้นเมืองที่ต้องลองคืออะไร", "อยากได้แผนเที่ยว 1 วัน", "เปิดเพลง", "เปิดเครื่องคิดเลข","ร้านอาหารกลางคืนอร่อยๆ"];
+        
+        const faqs = [ "แนะนำที่เที่ยวธรรมชาติหน่อย", "วัดสวยๆ ในตัวเมืองมีที่ไหนบ้าง", "ของกินพื้นเมืองที่ต้องลองคืออะไร", "อยากได้แผนเที่ยว 1 วัน", "เปิดเพลง", "เปิดเครื่องคิดเลข", "ร้านอาหารกลางคืนอร่อยๆ" ];
+        
         let buttonsHtml = faqs.map(q => `<button class="block w-full text-left p-2.5 mt-2 bg-slate-700/60 hover:bg-slate-700 rounded-lg transition">${q.replace(/</g, "&lt;")}</button>`).join('');
         faqContainer.innerHTML = `<div class="robot-icon-container"><div class="icon-head-top-accent"></div><div class="icon-robot-face"><div class="icon-robot-eye"></div><div class="icon-robot-eye"></div></div></div><div class="glass-ai-bubble p-4 rounded-2xl rounded-bl-lg max-w-md w-full"><p class="font-medium text-text-primary mb-2">ลองถามคำถามเหล่านี้ดูสิคะ:</p>${buttonsHtml}</div>`;
+        
         faqContainer.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', () => { sendMessage(btn.textContent); faqContainer.remove(); });
+            btn.addEventListener('click', () => { 
+                sendMessage(btn.textContent); 
+                faqContainer.remove(); 
+            });
         });
         messageArea.appendChild(faqContainer);
         messageArea.scrollTop = messageArea.scrollHeight;
     });
 
+    // --- 🚀 FIX 2: แก้ปัญหา Memory Leak ด้วย Event Delegation ---
+    const handleSongSubmit = (wrapper) => {
+        if (!wrapper) return;
+        const inputField = wrapper.querySelector('.song-input-field');
+        const submitButton = wrapper.querySelector('.song-submit-btn');
+
+        if (inputField && !inputField.disabled) {
+            const query = inputField.value.trim();
+            if (query) {
+                sendMessage(query);
+                inputField.disabled = true;
+                submitButton.disabled = true;
+                wrapper.style.opacity = '0.7';
+            }
+        }
+    };
+    
+    messageArea.addEventListener('click', (e) => {
+        const submitButton = e.target.closest('.song-submit-btn');
+        if (submitButton) {
+            handleSongSubmit(submitButton.closest('[id^="song-input-wrapper-"]'));
+        }
+    });
+
+    messageArea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.target.classList.contains('song-input-field')) {
+            e.preventDefault();
+            handleSongSubmit(e.target.closest('[id^="song-input-wrapper-"]'));
+        }
+    });
+    // --- สิ้นสุดส่วนแก้ไขที่ 2 ---
+
     addMessage(createEmptyResponse("สวัสดีเจ้า... ยินดีต้อนรับสู่เมืองน่าน มีอะหยังหื้อน้องน่านช่วยก่อเจ้า?"), 'ai');
     adjustTextareaHeight(userInput);
-
 });

@@ -3,7 +3,7 @@ import os
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends 
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,10 +12,13 @@ from core.database.mongodb_manager import MongoDBManager
 from core.database.qdrant_manager import QdrantManager
 from core.ai_models.query_interpreter import QueryInterpreter
 from core.ai_models.youtube_handler import YouTubeHandler
-from core.ai_models.rag_orchestrator import RAGOrchestrator
+from core.ai_models.rag_orchestrator import RAGOrchestrator 
 from core.ai_models.youtube_handler import youtube_handler_instance
 from core.config import settings
 from utils.file_cleaner import start_background_cleanup
+from api.dependencies import get_rag_orchestrator 
+from api.routers import admin_api, chat_api, avatar_api
+
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("uvicorn").propagate = False
 logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
@@ -81,12 +84,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from api.routers import admin_api, chat_api, avatar_api
-
 app.include_router(admin_api.router, prefix="/api/admin/locations") 
 app.include_router(chat_api.router, prefix="/api/chat")   
 app.include_router(avatar_api.router, prefix="/api/avatar")
 
+
+@app.get("/api/navigation_list", tags=["V-Maps"])
+async def get_navigation_list(
+    orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator)
+):
+    try:
+        location_list = await orchestrator.get_navigation_list()
+        return location_list
+    except Exception as e:
+        logging.error(f"❌ [API-NavList] Error getting navigation list: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not retrieve navigation list.")
+    
 @app.get("/api/stream")
 async def get_stream_url(video_url: str):
     if not video_url:
@@ -119,7 +132,8 @@ async def serve_frontend(request: Request, full_path: str):
         "": "index.html",
         "chat": "chat.html",
         "admin": "admin.html",
-        "robot_avatar": "robot_avatar.html"
+        "robot_avatar": "robot_avatar.html",
+        "travel_mode": "travel_mode.html"
     }
     file_to_serve = path_map.get(full_path, full_path)
     

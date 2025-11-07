@@ -4,294 +4,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Guide - Nan Province</title>
+    <title>AI Guide - Nan Province Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <link rel="stylesheet" href="assets/styles/chat.css"> 
+    
     <link
         href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Inter:wght@400;500;700&display=swap"
         rel="stylesheet">
-    <style>
-        :root {
-            --color-bg-primary: #0A192F;
-            --color-bg-card: #112240;
-            --color-text-primary: #CCD6F6;
-            --color-text-secondary: #8892B0;
-            --color-border: #233554;
-            --color-accent-teal: #64FFDA;
-            --color-user-bubble: #3B82F6;
-            --color-mic-active: #F472B6;
-        }
-
-        body {
-            font-family: 'Kanit', 'Inter', sans-serif;
-            background-color: var(--color-bg-primary);
-            color: var(--color-text-primary);
-            background-image: linear-gradient(rgba(10, 25, 47, 0.95), rgba(10, 25, 47, 0.95)), url('https://images.unsplash.com/photo-1589325253319-33235221385c?q=80&w=2070&auto-format&fit=crop');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-        }
-
-        #message-area::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        #message-area::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        #message-area::-webkit-scrollbar-thumb {
-            background-color: rgba(136, 146, 176, 0.3);
-            border-radius: 10px;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(12px) scale(0.98);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        .ai-message,
-        .user-message {
-            animation: fadeIn 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-
-        .glass-ai-bubble {
-            background-color: rgba(17, 34, 64, 0.8);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid var(--color-border);
-        }
-
-        .chat-card-main {
-            background-color: var(--color-bg-card);
-            border: 1px solid var(--color-border);
-            box-shadow: 0 10px 30px -15px rgba(2, 12, 27, 0.7);
-        }
-
-        .action-pill {
-            padding-left: 1rem;
-            /* 16px */
-            padding-right: 1rem;
-            /* 16px */
-            padding-top: 0.5rem;
-            /* 8px */
-            padding-bottom: 0.5rem;
-            /* 8px */
-
-            /* Typography */
-            font-size: 0.875rem;
-            /* 14px */
-            font-weight: 500;
-            color: #cbd5e1;
-            /* text-slate-300 */
-
-            /* Background & Border */
-            background-color: rgba(51, 65, 85, 0.5);
-            /* bg-slate-700 with 50% opacity */
-            border-radius: 9999px;
-            /* rounded-full */
-
-            /* Added from the full HTML for better UX */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            /* space-x-2 */
-            cursor: pointer;
-            transition: all 200ms ease-in-out;
-        }
-
-        .action-pill:hover {
-            background-color: rgba(71, 85, 105, 0.6);
-            /* hover:bg-slate-600/60 */
-            color: #ffffff;
-            /* hover:text-white */
-        }
-
-        .convo-highlight-pill {
-            /* Layout & Sizing */
-            padding-left: 1rem;
-            padding-right: 1rem;
-            padding-top: 0.5rem;
-            padding-bottom: 0.5rem;
-
-            /* Typography */
-            font-size: 0.875rem;
-            font-weight: 600;
-            /* semibold */
-            color: #ffffff;
-            /* text-white */
-
-            /* Background & Border */
-            background-image: linear-gradient(to right, #3b82f6, #4f46e5);
-            /* from-blue-500 to-indigo-600 */
-            border-radius: 9999px;
-
-            /* Effects */
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-            /* shadow-lg */
-
-            /* Added from the full HTML for better UX */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            /* space-x-2 */
-            cursor: pointer;
-            transition: all 200ms ease-in-out;
-        }
-
-        .convo-highlight-pill:hover {
-            background-image: linear-gradient(to right, #60a5fa, #6366f1);
-            /* hover:from-blue-400 hover:to-indigo-500 */
-            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-            /* hover:shadow-xl */
-        }
-
-        @keyframes mic-pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(244, 114, 182, 0.4);
-            }
-
-            70% {
-                box-shadow: 0 0 0 10px rgba(244, 114, 182, 0);
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(244, 114, 182, 0);
-            }
-        }
-
-        .mic-listening {
-            background-color: var(--color-mic-active) !important;
-            color: white !important;
-            animation: mic-pulse 1.5s infinite;
-        }
-
-        .prose h3 {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: #5EEAD4;
-            margin-top: 1rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .prose ul {
-            list-style-type: disc;
-            padding-left: 1.25rem;
-        }
-
-        .prose li {
-            margin-bottom: 0.25rem;
-            padding-left: 0.5rem;
-        }
-
-        .prose strong {
-            color: #99F6E4;
-            font-weight: 600;
-        }
-
-        .prose p {
-            margin-top: 0.5rem;
-            margin-bottom: 0.5rem;
-            line-height: 1.625;
-        }
-
-        .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-
-        .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-
-        .robot-icon-container {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            position: relative;
-            background-color: #fcfcfc;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-            flex-shrink: 0;
-            animation: head-idle-icon 8s infinite ease-in-out;
-            transform-style: preserve-3d;
-        }
-
-        .icon-head-top-accent {
-            position: absolute;
-            top: -1px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 20px;
-            height: 10px;
-            background-color: #63d1c9;
-            border-radius: 10px / 6px;
-        }
-
-        .icon-robot-face {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -45%);
-            width: 32px;
-            height: 22px;
-            background-color: #2c2f33;
-            border-radius: 50% / 10px;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            padding: 0 2px;
-            box-shadow: inset 0 0 5px #000;
-            overflow: hidden;
-        }
-
-        .icon-robot-eye {
-            width: 9px;
-            height: 7px;
-            border-radius: 50%;
-            background-color: #40c4ff;
-            box-shadow: 0 0 2px #40c4ff, 0 0 5px #40c4ff, 0 0 8px #40c4ff;
-            animation: eye-pulse-icon 4s infinite alternate;
-        }
-
-        @keyframes head-idle-icon {
-
-            0%,
-            100% {
-                transform: rotateZ(0deg);
-            }
-
-            50% {
-                transform: rotateZ(-5deg);
-            }
-        }
-
-        @keyframes eye-pulse-icon {
-            from {
-                box-shadow: 0 0 2px #40c4ff, 0 0 5px #40c4ff;
-            }
-
-            to {
-                box-shadow: 0 0 3px #40c4ff, 0 0 7px #40c4ff;
-            }
-        }
-    </style>
-</head>
+    
+    </head>
 
 <body class="font-sans">
 
     <div id="chat-container" class="flex flex-col items-center justify-center p-4 min-h-screen">
         <div
-            class="w-full max-w-5xl bg-bg-card rounded-2xl shadow-2xl flex flex-col h-[95vh] sm:h-[90vh] overflow-hidden chat-card-main">
-            <header class="p-4 flex items-center justify-between border-b border-border flex-shrink-0">
+            class="w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col h-[95vh] sm:h-[90vh] overflow-hidden chat-card-main">
+            <header class="p-4 flex items-center justify-between border-b border-color-border flex-shrink-0">
                 <div class="flex items-center space-x-4">
                     <div class="robot-icon-container">
                         <div class="icon-head-top-accent"></div>
@@ -301,30 +31,29 @@
                         </div>
                     </div>
                     <div>
-                        <h1 class="text-lg font-bold text-text-primary">AI Guide จังหวัดน่าน</h1>
-                        <p class="text-xs text-text-secondary">สอบถามข้อมูลท่องเที่ยวได้เลย</p>
+                        <h1 class="text-lg font-bold" style="color: var(--color-text-primary);">AI Guide จังหวัดน่าน</h1>
+                        <p class="text-xs" style="color: var(--color-text-secondary);">สอบถามข้อมูลท่องเที่ยวได้เลย</p>
                     </div>
                 </div>
                 <div>
                     <button id="new-chat-btn" title="New Chat"
-                        class="text-sm text-accent-teal hover:brightness-125 transition">เริ่มใหม่</button>
+                        class="text-sm hover:brightness-125 transition" style="color: var(--color-accent-teal);">เริ่มใหม่</button>
                 </div>
             </header>
 
-            <main id="message-area" class="flex-grow p-4 space-y-5 overflow-y-auto">
-            </main>
+            <main id="message-area" class="flex-grow p-4 space-y-5 overflow-y-auto flex flex-col">
+                </main>
 
-            <div class="p-4 border-t border-border bg-bg-card/80 backdrop-blur-sm">
-                <!-- [จุดที่แก้ไข] เพิ่ม class "input-area-container" ที่นี่ -->
-                <div class="input-area-container flex flex-col space-y-3">
+            <div class="p-4 border-t border-color-border" style="background-color: var(--color-bg-card);">
+                <div class="input-area-container"> 
 
                     <div
-                        class="flex items-center bg-slate-800 rounded-xl p-1.5 border border-border focus-within:border-blue-500 transition-colors">
+                        class="flex items-center rounded-xl p-1.5 border border-color-border focus-within:border-blue-500 transition-colors" style="background-color: var(--color-bg-card);">
                         <textarea id="user-input" placeholder="ถามเกี่ยวกับจังหวัดน่าน หรือลอง 'เปิดเพลง'..." rows="1"
-                            class="flex-grow bg-transparent text-text-primary placeholder-text-secondary px-3 py-2 focus:outline-none resize-none"></textarea>
+                            class="flex-grow bg-transparent placeholder-color-text-secondary px-3 py-2 focus:outline-none resize-none" style="color: var(--color-text-primary);"></textarea>
                         <button id="send-button-icon"
-                            class="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-500 transform active:scale-95 disabled:bg-slate-600 disabled:cursor-not-allowed transition-all duration-200 flex-shrink-0"
-                            aria-label="ส่งข้อความ">
+                            class="w-9 h-9 flex items-center justify-center text-white rounded-lg shadow-lg hover:brightness-110 transform active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 flex-shrink-0"
+                            aria-label="ส่งข้อความ" style="background-color: var(--color-user-bubble);">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round">
@@ -333,11 +62,17 @@
                             </svg>
                         </button>
                     </div>
-                    <div class="flex space-x-2 items-center justify-center overflow-x-auto pb-1 hide-scrollbar">
-                        <button id="convo-btn" title="ไปหน้าคุยกับน้องน่าน" class="convo-highlight-pill">
+
+                    <div class="flex space-x-2 items-center justify-center overflow-x-auto pt-3 pb-1 hide-scrollbar"> <button id="convo-btn" title="โหมดสนทนา (Avatar)" class="convo-highlight-pill">
                             <span>🤖</span>
                             <span>คุยกับน้องน่าน</span>
                         </button>
+                        
+                        <button id="travel-mode-btn" title="สลับไปโหมดเดินทาง" class="action-pill">
+                            <span>🗺️</span>
+                            <span>โหมดเดินทาง</span>
+                        </button>
+                        
                         <button id="mic-button" title="บันทึกเสียง" class="action-pill">
                             <span>🎤</span>
                             <span id="mic-button-text">ไมโครโฟน</span>
