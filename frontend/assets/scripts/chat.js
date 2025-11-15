@@ -1,4 +1,88 @@
-// แฟ้ม: frontend/assets/scripts/chat.js (ฉบับแก้ไข)
+// แฟ้ม: frontend/assets/scripts/chat.js (ฉบับแก้ไข 3 - ย้อนกลับไปใช้ Browser STT)
+
+// 🚀 [เพิ่ม 1/3] สร้าง Class สำหรับไมค์เบราว์เซอร์ (เฉพาะกิจสำหรับไฟล์นี้)
+// เพื่อไม่ให้ชื่อชนกับ VoiceHandler (VAD) ของหน้า Avatar
+class BrowserMicHandler {
+    constructor(callbacks) {
+        this.callbacks = callbacks;
+        this.recognition = this.createRecognition();
+        this.isListening = false;
+        this.finalTranscript = '';
+    }
+
+    createRecognition() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            this.callbacks.onError('เบราว์เซอร์นี้ไม่รองรับระบบเสียงพูดค่ะ (โปรดใช้ Chrome หรือ Edge)');
+            return null;
+        }
+        
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'th-TH'; // ภาษาไทย
+        recognition.interimResults = true; // ขอผลลัพธ์ระหว่างพูด
+        recognition.continuous = true; // พูดต่อได้เรื่อยๆ
+
+        recognition.onstart = () => {
+            this.isListening = true;
+            this.finalTranscript = '';
+            this.callbacks.onStartRecording();
+        };
+
+        recognition.onend = () => {
+            this.isListening = false;
+            this.callbacks.onStopRecording();
+            // [สำคัญ] ส่งข้อความที่ได้ทั้งหมดกลับไป
+            if (this.finalTranscript.trim()) {
+                this.callbacks.onFinalTranscript(this.finalTranscript.trim());
+            }
+        };
+
+        recognition.onerror = (event) => {
+            if (event.error === 'no-speech') {
+                // ไม่พูดอะไร ไม่ต้องทำอะไร
+            } else {
+                this.callbacks.onError(event.error);
+            }
+        };
+
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    this.finalTranscript += event.results[i][0].transcript;
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+            // อัปเดตข้อความระหว่างพูด (ถ้าต้องการ)
+            this.callbacks.onInterimTranscript(this.finalTranscript + interimTranscript);
+        };
+
+        return recognition;
+    }
+
+    start() {
+        if (this.isListening || !this.recognition) return;
+        try {
+            this.recognition.start();
+        } catch (e) {
+            console.error("Mic start error:", e);
+        }
+    }
+
+    stop() {
+        if (!this.isListening || !this.recognition) return;
+        try {
+            this.recognition.stop();
+        } catch (e) {
+            console.error("Mic stop error:", e);
+        }
+    }
+}
+
+
+// --- ส่วนหลักของ Chat.js (เหมือนเดิม แต่เรียกใช้ BrowserMicHandler) ---
+
 document.addEventListener('DOMContentLoaded', () => {
     const messageArea = document.getElementById('message-area');
     const userInput = document.getElementById('user-input');
@@ -12,6 +96,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let isAnswering = false;
 
+    // 🚀 [เพิ่ม 2/3] ประกาศตัวแปรสำหรับระบบเสียง (Browser)
+    let audioContext = null;
+    let browserMicHandler = null; // ใช้อันใหม่
+
     const createEmptyResponse = (answerText) => ({
         answer: answerText,
         action: null,
@@ -20,17 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
         image_gallery: [],
         sources: []
     });
-
-    const voiceHandler = new VoiceHandler({
-        onStartRecording: () => { micButton.classList.add('mic-listening'); },
-        onStopRecording: () => { micButton.classList.remove('mic-listening'); },
-        onFinalTranscript: (text) => {
-            userInput.value = text;
-            if (text.trim()) sendMessage();
-        },
-        onError: (error) => { addMessage(createEmptyResponse(`ขออภัยค่ะ เกิดข้อผิดพลาดกับระบบเสียง: ${error}`), 'ai'); }
-    });
-
+    
+    // ... (ฟังก์ชัน sendMessage, addMessage, playVideoInBubble, adjustTextareaHeight ไม่มีการเปลี่ยนแปลง) ...
     async function sendMessage(queryOverride = null) {
         const query = queryOverride || userInput.value.trim();
         if (!query || isAnswering) return;
@@ -201,16 +280,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     newChatBtn.addEventListener('click', () => {
-        // --- 🚀 FIX 1: แก้ปัญหาจากวิดีโอ ---
-        // ล้างข้อความทั้งหมดในพื้นที่แชทก่อน
         messageArea.innerHTML = ''; 
-        // จากนั้นค่อยเพิ่มข้อความต้อนรับสำหรับการแชทใหม่
         addMessage(createEmptyResponse("เริ่มต้นการสนทนาใหม่ค่ะ มีอะไรให้ช่วยเกี่ยวกับจังหวัดน่านไหมคะ?"), 'ai');
         userInput.focus();
     });
 
-    let audioContext = null;
+    // 🚀 [แก้ไข 3/3] "รื้อ" micButton Event Listener เพื่อใช้ BrowserMicHandler
     micButton.addEventListener('click', async () => {
+        if (isAnswering) return;
+
+        // 1. สร้าง Context (จำเป็นต้องมี 1 ครั้ง)
         if (!audioContext) {
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -221,10 +300,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
         }
-        voiceHandler.isListening ? voiceHandler.stop() : voiceHandler.start(audioContext);
+        
+        // 2. สร้าง Handler (ถ้ายังไม่มี)
+        if (!browserMicHandler) {
+            try {
+                browserMicHandler = new BrowserMicHandler({
+                    onStartRecording: () => {
+                        micButton.classList.add('mic-listening');
+                        userInput.value = 'กำลังฟัง...'; // แสดงสถานะในช่องพิมพ์
+                        userInput.disabled = true;
+                    },
+                    onStopRecording: () => {
+                        micButton.classList.remove('mic-listening');
+                        userInput.disabled = false;
+                    },
+                    onInterimTranscript: (text) => {
+                        userInput.value = text; // อัปเดตข้อความระหว่างพูด
+                    },
+                    onFinalTranscript: (text) => {
+                        // [นี่คือเป้าหมายของคุณ!]
+                        // เมื่อพูดจบ ให้เติมข้อความ และ "ไม่ส่ง"
+                        userInput.value = text;
+                        userInput.focus(); // ย้ายเคอร์เซอร์ไปที่ช่องแชท
+                        adjustTextareaHeight(userInput);
+                    },
+                    onError: (error) => {
+                        addMessage(createEmptyResponse(`ขออภัยค่ะ เกิดข้อผิดพลาดกับระบบเสียง: ${error}`), 'ai');
+                        userInput.value = '';
+                        userInput.disabled = false;
+                    }
+                });
+            } catch (e) {
+                 console.error("Failed to initialize BrowserMicHandler", e);
+                 addMessage(createEmptyResponse('ขออภัยค่ะ ไม่สามารถเริ่ม BrowserMicHandler ได้'), 'ai');
+                 return;
+            }
+        }
+        
+        // 3. สั่งเริ่ม/หยุด การฟัง
+        if (browserMicHandler.isListening) {
+            browserMicHandler.stop();
+        } else {
+            browserMicHandler.start();
+        }
     });
     
     faqButton.addEventListener('click', () => {
+        // ... (โค้ด FAQ เหมือนเดิม) ...
         const existingFaq = document.getElementById('faq-container');
         if (existingFaq) existingFaq.remove();
         const faqContainer = document.createElement('div');
@@ -246,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         messageArea.scrollTop = messageArea.scrollHeight;
     });
 
-    // --- 🚀 FIX 2: แก้ปัญหา Memory Leak ด้วย Event Delegation ---
+    // ... (ส่วน Event Delegation ของ Song Submit เหมือนเดิม) ...
     const handleSongSubmit = (wrapper) => {
         if (!wrapper) return;
         const inputField = wrapper.querySelector('.song-input-field');
@@ -276,7 +398,6 @@ document.addEventListener('DOMContentLoaded', () => {
             handleSongSubmit(e.target.closest('[id^="song-input-wrapper-"]'));
         }
     });
-    // --- สิ้นสุดส่วนแก้ไขที่ 2 ---
 
     addMessage(createEmptyResponse("สวัสดีเจ้า... ยินดีต้อนรับสู่เมืองน่าน มีอะหยังหื้อน้องน่านช่วยก่อเจ้า?"), 'ai');
     adjustTextareaHeight(userInput);

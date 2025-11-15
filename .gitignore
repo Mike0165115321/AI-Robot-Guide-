@@ -67,3 +67,6 @@ Thumbs.db
 
 .Robot-Guide/
 .vscode/
+.venv-robot
+.venv-guide
+.env-robot

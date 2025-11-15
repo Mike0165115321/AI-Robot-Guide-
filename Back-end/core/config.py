@@ -14,7 +14,7 @@ class Settings:
     """
     MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
     MONGO_DATABASE_NAME = "nanaiguide"
-    DEVICE: str = "cpu"  # หรือ "cuda" ถ้ามี GPU
+    DEVICE: str = "cuda"  # หรือ "cuda" ถ้ามี GPU
     QDRANT_TOP_K: int = 8  # (จาก 5 -> 8) 
 
     # 2. จำนวนภาพสำรอง (Google Search)

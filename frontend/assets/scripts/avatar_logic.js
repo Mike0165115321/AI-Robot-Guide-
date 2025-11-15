@@ -1,9 +1,13 @@
-// /assets/scripts/avatar_logic.js (V-Music Mod 7.0 - Refactored Core)
+// /assets/scripts/avatar_logic.js (V-Music Mod 7.2 - Fixed Music Controls)
 
 document.addEventListener('DOMContentLoaded', () => {
 
     const statusText = document.getElementById('status-text');
     const stopSpeechButton = document.getElementById('stop-speech-btn');
+    
+    const musicControls = document.getElementById('music-controls');
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    const stopMusicBtn = document.getElementById('stop-btn'); 
 
     const uiController = {
         setEmotion(emotion) {
@@ -27,10 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let websocket = null;
-    let mainAudioContext = null;
+    let mainAudioContext = null; 
     let currentAudioSource = null;
     let idleTimeout = null;
+    
     let musicHandler = null; 
+    let voiceHandler = null; 
 
     const IDLE_TIME_MS = 60000;
     const PRESENTATION_VIEW_TIME_MS = 20000;
@@ -39,7 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastMessageWasIdle = false;
     let presentationHideTimeout = null;
     
-
     function stopAISpeechAudio() {
         if (currentAudioSource) {
             console.log("🛑 INTERRUPT: Stopping current AI speech audio.");
@@ -54,9 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (stopSpeechButton) stopSpeechButton.classList.remove('visible');
     }
 
+
     function resetToListeningOverPresentation() {
         interruptAISpeech();
-        voiceHandler.stop(true);
+        if (voiceHandler) voiceHandler.stop(true); 
         if (stopSpeechButton) stopSpeechButton.classList.remove('visible');
 
         console.log("State => Listening (over Presentation)");
@@ -64,17 +70,18 @@ document.addEventListener('DOMContentLoaded', () => {
         uiController.setEmotion('normal'); 
         uiController.setStatus("กำลังฟัง... (สามารถพูดแทรกได้)");
 
-        if (mainAudioContext && mainAudioContext.state === 'running') {
+        if (mainAudioContext && mainAudioContext.state === 'running' && voiceHandler) { 
             voiceHandler.start();
         }
         timerManager.start();
     }
     
-
     function resetToListeningState() {
         interruptAISpeech();
-        voiceHandler.stop(true);
+        if (voiceHandler) voiceHandler.stop(true); 
         if (stopSpeechButton) stopSpeechButton.classList.remove('visible');
+        if (musicControls) musicControls.style.display = 'none'; // 🚀 [แก้ไข 2/5] ซ่อนปุ่มเพลงเมื่อรีเซ็ต
+        
         uiController.exitPresentation();
 
         if (musicHandler) musicHandler.reset(); 
@@ -84,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         uiController.setEmotion('normal');
         uiController.setStatus("กำลังฟัง...");
 
-        if (mainAudioContext && mainAudioContext.state === 'running') {
+        if (mainAudioContext && mainAudioContext.state === 'running' && voiceHandler) { 
             voiceHandler.start();
         }
         timerManager.start();
@@ -146,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
     const timerManager = {
         start: () => {
             if (isAITalking || (musicHandler && musicHandler.isPlaying()) || (musicHandler && musicHandler.isWaiting())) {
@@ -157,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
             timerManager.clear();
             idleTimeout = setTimeout(() => {
                 console.log("⏰ Idle timer triggered.");
-                voiceHandler.stop(true);
+                if (voiceHandler) voiceHandler.stop(true); 
                 clearTimeout(presentationHideTimeout);
                 uiController.exitPresentation();
 
@@ -177,37 +183,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
 
-    const voiceHandler = new VoiceHandler({
-        onStatusUpdate: (text) => {
-            uiController.setStatus(text);
-            if (text === "กำลังฟัง..." || text === "รับฟังอยู่...") {
-                uiController.setEmotion('listening');
-            }
-        },
-        onSpeechEnd: (audioBlob) => {
-            timerManager.clear();
-            clearTimeout(presentationHideTimeout);
-            uiController.exitPresentation();
-            if (musicHandler) musicHandler.reset();
-
-            if (websocket?.readyState === WebSocket.OPEN) {
-                if (audioBlob && audioBlob.size > 1000) {
-                    console.log(`User spoke, sending audio (${(audioBlob.size / 1024).toFixed(1)} KB).`);
-                    uiController.setEmotion('thinking');
-                    uiController.setStatus("กำลังประมวลผล...");
-                    websocket.send(audioBlob);
-                } else {
-                    console.log("Audio blob too small or invalid, not sending.");
-                    resetToListeningState();
-                }
-            } else {
-                console.error("WebSocket not open, cannot send audio.");
-                resetToListeningState();
-            }
-        }
-    });
-
-
     async function initializeAndStart() {
         document.body.removeEventListener('click', initializeAndStart);
         uiController.setStatus("กำลังเริ่มต้นระบบเสียง...");
@@ -220,7 +195,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 await mainAudioContext.resume();
             }
             console.log("AudioContext is active and running.");
+
+            if (!voiceHandler) {
+                voiceHandler = new VoiceHandler(mainAudioContext, { 
+                    onStatusUpdate: (text) => {
+                        uiController.setStatus(text);
+                        if (text === "กำลังฟัง..." || text === "รับฟังอยู่...") {
+                            uiController.setEmotion('listening');
+                        }
+                    },
+                    onSpeechEnd: (audioBlob) => {
+                        timerManager.clear();
+                        clearTimeout(presentationHideTimeout);
+                        uiController.exitPresentation();
+                        if (musicHandler) musicHandler.reset();
+
+                        if (websocket?.readyState === WebSocket.OPEN) {
+                            if (audioBlob && audioBlob.size > 1000) {
+                                console.log(`User spoke, sending audio (${(audioBlob.size / 1024).toFixed(1)} KB).`);
+                                uiController.setEmotion('thinking');
+                                uiController.setStatus("กำลังประมวลผล...");
+                                websocket.send(audioBlob);
+                            } else {
+                                console.log("Audio blob too small or invalid, not sending.");
+                                resetToListeningState();
+                            }
+                        } else {
+                            console.error("WebSocket not open, cannot send audio.");
+                            resetToListeningState();
+                        }
+                    }
+                });
+            }
+            
+            if (!musicHandler) {
+                // 🚀 [แก้ไข 3/5] ส่งปุ่ม musicControls เข้าไปเป็น callback
+                musicHandler = new AvatarMusicHandler(websocket, uiController, voiceHandler, timerManager, {
+                    stopSpeechButton: stopSpeechButton,
+                    musicControls: musicControls, // 👈 ส่งปุ่มที่ถูกต้องเข้าไป
+                    stopAISpeechAudio: stopAISpeechAudio,
+                    resetToListeningState: resetToListeningState
+                });
+            }
+
             resetToListeningState();
+
         } catch (e) {
             console.error("Failed to initialize or resume AudioContext.", e);
             uiController.setStatus("ข้อผิดพลาดระบบเสียง: โปรดรีเฟรชหรืออนุญาตไมโครโฟน");
@@ -229,6 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function connectWebSocket() {
+        // ... (โค้ดส่วนนี้เหมือนเดิม) ...
         if (typeof API_HOST === 'undefined' || typeof API_PORT === 'undefined') {
             console.error("API configuration (API_HOST/API_PORT in config.js) is missing!");
             uiController.setStatus("ข้อผิดพลาด: การตั้งค่า API หายไป");
@@ -246,18 +266,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         websocket.onopen = () => {
             console.log("WebSocket connected successfully.");
-            
-            musicHandler = new AvatarMusicHandler(websocket, uiController, voiceHandler, timerManager, {
-                stopSpeechButton: stopSpeechButton,
-                stopAISpeechAudio: stopAISpeechAudio,
-                resetToListeningState: resetToListeningState
-            });
-
             uiController.setStatus("โปรดคลิกเพื่อเริ่มการสนทนา");
             document.body.addEventListener('click', initializeAndStart, { once: true });
         };
 
         websocket.onmessage = async (event) => {
+            // ... (โค้ดส่วนนี้เหมือนเดิม) ...
             timerManager.clear();
 
             if (typeof event.data === 'string') {
@@ -266,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log("Received JSON:", data);
 
                     isAITalking = true;
-                    voiceHandler.stop(true);
+                    if (voiceHandler) voiceHandler.stop(true); 
                     
                     lastMessageWasIdle = data.isIdlePrompt || false;
                     if (lastMessageWasIdle) {
@@ -308,9 +322,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         return; 
                     }
 
-                    if (musicHandler && musicHandler.isPlaying()) {
-                         console.log("[Music] Audio finished, but music is playing. Keeping presentation open.");
-                         musicHandler.goToMusicIdleState();
+                    if (musicHandler && musicHandler.isPlaying()) { 
+                        console.log("[Music] Audio finished, but music is playing. Keeping presentation open.");
+                        musicHandler.goToMusicIdleState();
                     } else { 
                         clearTimeout(presentationHideTimeout);
                         presentationHideTimeout = setTimeout(() => {
@@ -331,16 +345,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }; 
 
         websocket.onclose = (event) => {
+            // ... (โค้ดส่วนนี้เหมือนเดิม) ...
             console.warn(`WebSocket disconnected. Code: ${event.code}, Reason: ${event.reason}. Reconnecting in 5s...`);
             isAITalking = false;
-            if (musicHandler) musicHandler.reset();
+            if (musicHandler) musicHandler.reset(); 
             timerManager.clear();
             clearTimeout(presentationHideTimeout);
             uiController.setStatus("การเชื่อมต่อถูกตัด กำลังพยายามเชื่อมต่อใหม่...");
-            voiceHandler.stop(true);
+            if (voiceHandler) voiceHandler.stop(true); 
             interruptAISpeech();
             document.body.removeEventListener('click', initializeAndStart);
             websocket = null;
+            
+            voiceHandler = null;
+            musicHandler = null;
+            mainAudioContext = null; 
+            
             setTimeout(connectWebSocket, 5000);
         };
         websocket.onerror = (error) => {
@@ -363,7 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (musicHandler) musicHandler.reset();
                 
                 interruptAISpeech();
-                voiceHandler.stop(true);
+                if (voiceHandler) voiceHandler.stop(true); 
 
                 uiController.exitPresentation();
                 websocket.send(JSON.stringify({ "query": queryText }));
@@ -385,6 +405,21 @@ document.addEventListener('DOMContentLoaded', () => {
             resetToListeningState();
         });
     }
+
+    if (playPauseBtn) {
+        playPauseBtn.addEventListener('click', () => {
+            alert("ฟังก์ชัน Play/Pause ยังไม่รองรับค่ะ (กรุณากดปุ่ม Stop เพื่อหยุดเพลง)");
+        });
+    }
+    
+    if (stopMusicBtn) {
+        stopMusicBtn.addEventListener('click', () => {
+            console.log("🔘 [Music Stop Button] Clicked. Stopping music and returning to listen state.");
+            if (musicHandler) musicHandler.reset();  
+            resetToListeningState(); 
+        });
+    }
+
 
     connectWebSocket();
 });

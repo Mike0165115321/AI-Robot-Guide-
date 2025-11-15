@@ -1,14 +1,12 @@
-// /frontend/assets/scripts/travel_mode.js (ฉบับแก้ไข 405 Method Not Allowed)
+// /frontend/assets/scripts/travel_mode.js 
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- State Variables ---
     let userLatitude = null;
     let userLongitude = null;
     let navigationList = []; 
     let currentStepIndex = 0; 
 
-    // --- Element References ---
     const itineraryArea = document.getElementById('itinerary-area');
     const itineraryStatus = document.getElementById('itinerary-status');
     const startNavigationBtn = document.getElementById('start-navigation-btn');
@@ -179,14 +177,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 user_lon: userLongitude
             };
             
-            // --- 🚀 FIX: แก้ไข 405 Method Not Allowed ---
-            // เติม "/" ต่อท้าย URL เพื่อให้ตรงกับ API Endpoint
             const response = await fetch(`${API_BASE_URL}/api/chat/`, { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: commandPayload }) 
             });
-            // --- 🚀 END FIX ---
             
             if (!response.ok) throw new Error('Failed to get directions');
             const result = await response.json();
@@ -222,7 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
         mapCanvas.innerHTML = '<p class="text-color-text-secondary">กำลังโหลดแผนที่...</p>';
     }
     
-    // --- EVENT LISTENERS ---
     
     backToChatBtn.addEventListener('click', () => {
         window.location.href = 'chat';
@@ -237,7 +231,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- INITIALIZE ---
     getUserLocation();
 
 });

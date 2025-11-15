@@ -1,4 +1,4 @@
-// /frontend/assets/scripts/avatar_music_handler.js (V-Music Mod 7.0 - Refactored Class)
+// /frontend/assets/scripts/avatar_music_handler.js (V-Music Mod 7.1 - Fixed Controls)
 
 class AvatarMusicHandler {
     constructor(websocket, uiController, voiceHandler, timerManager, callbacks) {
@@ -6,7 +6,7 @@ class AvatarMusicHandler {
         this.uiController = uiController;
         this.voiceHandler = voiceHandler;
         this.timerManager = timerManager;
-        this.callbacks = callbacks; 
+        this.callbacks = callbacks; // callbacks จะมี musicControls แล้ว
 
         this.isAwaitingUserInput = false;
         this.isPlayingMusic = false;
@@ -27,6 +27,11 @@ class AvatarMusicHandler {
         this.isAwaitingUserInput = false;
         this.isPlayingMusic = false;
         
+        // 🚀 [แก้ไข] ซ่อนปุ่ม musicControls เมื่อรีเซ็ต
+        if (this.callbacks.musicControls) {
+            this.callbacks.musicControls.style.display = 'none';
+        }
+
         if (wasPlaying) {
             this.uiController.exitPresentation();
         }
@@ -57,7 +62,7 @@ class AvatarMusicHandler {
                     const query = inputField.value.trim();
                     if (query && this.websocket && this.websocket.readyState === WebSocket.OPEN) {
                         console.log(`[Music] Sending text query for song: ${query}`);
-                        this.isAwaitingUserInput = false; 
+                        this.isAITalking = false; 
                         this.websocket.send(JSON.stringify({ "query": query }));
                         this.uiController.exitPresentation();
                         this.uiController.setEmotion('thinking');
@@ -74,7 +79,7 @@ class AvatarMusicHandler {
 
         } else if (data.action === 'SHOW_SONG_CHOICES' && Array.isArray(data.action_payload)) {
             console.log("[Music] Showing song choices.");
-            this.isAwaitingUserInput = true; 
+            this.isAITalking = true; // [แก้ไข] เปลี่ยนเป็น true เพราะ AI ต้องพูดก่อน
 
             const songsHtml = data.action_payload.map((song, index) => `
                 <button class="song-choice-btn" data-song-index="${index}">
@@ -107,13 +112,18 @@ class AvatarMusicHandler {
         }
         this.voiceHandler.stop(true);
 
+        // 🚀 [แก้ไข] เปลี่ยนไปแสดงปุ่ม musicControls แทนปุ่มแดง
         if (this.callbacks.stopSpeechButton) {
-            this.callbacks.stopSpeechButton.classList.add('visible'); 
+            this.callbacks.stopSpeechButton.classList.remove('visible'); 
         }
+        if (this.callbacks.musicControls) {
+            this.callbacks.musicControls.style.display = 'flex'; // 👈 แสดงปุ่มที่ถูกต้อง
+        }
+        // 🚀 [สิ้นสุดการแก้ไข]
 
         console.log("State => Music Idle (Not Listening)");
         this.uiController.setEmotion('normal'); 
-        this.uiController.setStatus("กำลังเล่นเพลง... (กดปุ่ม 🟥 เพื่อหยุด)");
+        this.uiController.setStatus("กำลังเล่นเพลง... (กดปุ่ม ⏹️ เพื่อหยุด)");
     }
 
     _playVideoInPresentation(song, originalAnswer) {
@@ -146,7 +156,7 @@ class AvatarMusicHandler {
 
         if (resultText) {
             if (isVideo) {
-                 resultText.innerHTML = data.answer;
+                resultText.innerHTML = data.answer;
             } else {
                 resultText.innerHTML = data.answer ? (typeof marked !== 'undefined' ? marked.parse(data.answer) : data.answer) : '';
             }

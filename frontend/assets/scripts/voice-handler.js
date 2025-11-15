@@ -1,11 +1,16 @@
 class VoiceHandler {
     /**
+     * @param {AudioContext} audioContext - [แก้ไข] รับ AudioContext ที่สร้างจากข้างนอก
      * @param {object} callbacks - ฟังก์ชัน Callback ต่างๆ
-     * @param {function} callbacks.onStatusUpdate - อัปเดตสถานะ (เช่น "กำลังฟัง...", "รับฟังอยู่...")
-     * @param {function} callbacks.onSpeechEnd - ส่ง Blob เสียงเมื่อพูดจบ
-     * @param {object} options - การตั้งค่า VAD สำหรับปรับจูน
+     * @param {function} callbacks.onStatusUpdate
+     * @param {function} callbacks.onSpeechEnd
+     * @param {object} options - การตั้งค่า VAD
      */
-    constructor(callbacks, options = {}) {
+    constructor(audioContext, callbacks, options = {}) { // 👈 [แก้ไข] เพิ่ม audioContext
+        if (!audioContext) {
+            throw new Error("VoiceHandler requires a valid AudioContext to be provided.");
+        }
+        
         this.callbacks = { onStatusUpdate: () => {}, onSpeechEnd: () => {}, ...callbacks };
 
         const defaults = {
@@ -15,7 +20,8 @@ class VoiceHandler {
             SILENCE_DELAY_MS: 800,
             SPEECH_CONFIRMATION_FRAMES: 4,
             MIN_BLOB_SIZE_BYTES: 8000,
-            smoothingFactor: 0.4
+            smoothingFactor: 0.4,
+            MAX_RECORDING_MS: 10000 // 10 วินาที (ตามที่เราตั้งไว้)
         };
         Object.assign(this, defaults, options);
 
@@ -24,10 +30,11 @@ class VoiceHandler {
         this.isListening = false;
         this.isSpeaking = false;
         this.silenceTimeout = null;
+        this.recordingTimeout = null;
         this.audioChunks = [];
         this.speechFrameCount = 0;
 
-        this.audioContext = null;
+        this.audioContext = audioContext; // 👈 [แก้ไข] ใช้ Context ที่รับเข้ามา
         this.mediaStream = null;
         this.mediaRecorder = null;
         this.analyser = null;
@@ -35,16 +42,16 @@ class VoiceHandler {
     }
 
     _getAudioContext() {
-        if (!this.audioContext || this.audioContext.state === 'closed') {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        }
+        // 👈 [ลบ] ฟังก์ชันนี้ไม่จำเป็นอีกต่อไป เพราะเรารับ audioContext จาก constructor แล้ว
+        // เราจะปล่อยฟังก์ชัน start() ให้ใช้ this.audioContext โดยตรง
         return this.audioContext;
     }
 
     async start() {
         if (this.isListening) return;
 
-        const audioContext = this._getAudioContext();
+        // 👈 [แก้ไข] ใช้ this.audioContext โดยตรง
+        const audioContext = this.audioContext; 
         if (audioContext.state === 'suspended') {
             await audioContext.resume();
         }
@@ -64,10 +71,22 @@ class VoiceHandler {
             source.connect(this.analyser);
             this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
 
-            const options = { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 128000 };
-            this.mediaRecorder = MediaRecorder.isTypeSupported(options.mimeType)
-                ? new MediaRecorder(this.mediaStream, options)
-                : new MediaRecorder(this.mediaStream);
+            // [แก้ไข] การันตี MimeType
+            const mimeTypes = [
+                'audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/webm'
+            ];
+            const supportedMimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type));
+
+            if (!supportedMimeType) {
+                console.error("VAD: ไม่มี MimeType ที่รองรับ (webm/ogg) สำหรับการอัดเสียง");
+                this.callbacks.onStatusUpdate("เบราว์เซอร์ไม่รองรับการอัดเสียง");
+                return; 
+            }
+
+            console.log("VAD: Using supported mimeType:", supportedMimeType);
+            const options = { mimeType: supportedMimeType, audioBitsPerSecond: 128000 };
+            this.mediaRecorder = new MediaRecorder(this.mediaStream, options);
+
 
             this.mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) this.audioChunks.push(event.data);
@@ -96,6 +115,12 @@ class VoiceHandler {
             this.callbacks.onStatusUpdate("กำลังฟัง...");
             this._runDetectionLoop();
 
+            // [เพิ่ม] เริ่มจับเวลาอัดสูงสุด
+            this.recordingTimeout = setTimeout(() => {
+                console.warn(`VAD: Max recording time reached (${this.MAX_RECORDING_MS / 1000}s). Forcing stop.`);
+                this.stop(false); 
+            }, this.MAX_RECORDING_MS); 
+            
         } catch (err) {
             console.error("VAD: Microphone access error:", err);
             this.callbacks.onStatusUpdate("ไม่สามารถเข้าถึงไมโครโฟน");
@@ -115,6 +140,9 @@ class VoiceHandler {
         this.mediaStream = null;
         clearTimeout(this.silenceTimeout);
         this.silenceTimeout = null;
+
+        clearTimeout(this.recordingTimeout); // [เพิ่ม] เคลียร์ตัวจับเวลาสูงสุด
+        this.recordingTimeout = null;      // [เพิ่ม]
 
         console.log("VAD: Stopped.");
         this.callbacks.onStatusUpdate("หยุดทำงาน");
