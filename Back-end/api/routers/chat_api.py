@@ -23,9 +23,6 @@ async def handle_audio_chat(
     orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator),
     file: UploadFile = File(...)
 ):
-    """
-    Endpoint นี้สำหรับรับไฟล์เสียง (Audio Blob) จากหน้าแชทโดยเฉพาะ
-    """
     try:
         logging.info(f"💬 [API-Audio] Received audio file: {file.filename}")
         audio_bytes = await file.read()
@@ -61,7 +58,6 @@ async def handle_audio_chat(
         logging.error(f"❌ [API-Audio] An unexpected error occurred: {e}", exc_info=True)
         return ChatResponse(answer="ขออภัยค่ะ เกิดข้อผิดพลาดร้ายแรงในการประมวลผลเสียงค่ะ")
 
-
 @router.post("/", response_model=ChatResponse)
 async def handle_text_chat(
     query: ChatQuery, 
@@ -69,10 +65,13 @@ async def handle_text_chat(
 ):
     try:
         query_data = query.query 
+        session_id = query.session_id 
+        
         result = None
 
         if isinstance(query_data, dict) and (action := query_data.get("action")):
-            logging.info(f"⚡️ [API-Text] Received EXPLICIT ACTION: '{action}'")
+            # 🚀 [แก้ไข] เพิ่มการ log session_id
+            logging.info(f"⚡️ [API-Text] Received EXPLICIT ACTION: '{action}' | Session: '{session_id}'")
             
             if action == "GET_DIRECTIONS":
                 entity_slug = query_data.get("entity_slug")
@@ -89,11 +88,15 @@ async def handle_text_chat(
                 result = {"answer": "ขออภัยค่ะ ไม่รู้จักคำสั่ง Action นี้ค่ะ", "action": None}
 
         elif isinstance(query_data, str):
-            logging.info(f"💬 [API-Text] Received IMPLICIT query: '{query_data}'")
-            result = await orchestrator.answer_query(query_data, mode='text')
-        
+            logging.info(f"💬 [API-Text] Received IMPLICIT query: '{query_data}' | Session: '{session_id}'")
+            result = await orchestrator.answer_query(
+                query=query_data, 
+                mode='text', 
+                session_id=session_id 
+            )
         else:
             raise HTTPException(status_code=400, detail="Invalid query format.")
+        
         if not result or "answer" not in result:
             raise HTTPException(status_code=500, detail="AI failed to generate a response.")
         

@@ -37,6 +37,7 @@ class LocationAdminSummaryWithImage(LocationAdminSummary):
 
 class ChatQuery(BaseModel):
     query: Any = Field(..., example="วัดสวยๆ ในน่าน") 
+    session_id: Optional[str] = None
 
 class ActionPayloadPrompt(BaseModel): placeholder: str
 

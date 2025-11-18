@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.innerHTML = `
                 <div class="sm:w-1/3 mb-3 sm:mb-0">
                     <img src="${imageUrl}" 
-                         alt="${item.title}" class="w-full h-36 object-cover rounded-lg">
+                        alt="${item.title}" class="w-full h-36 object-cover rounded-lg">
                 </div>
                 <div class="sm:w-2/3 space-y-2">
                     <span class="step-badge inline-block px-3 py-1 text-xs rounded-full">
@@ -152,8 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function startNavigation() {
         if (!userLatitude || !userLongitude) {
-             alertMessage("กำลังรอตำแหน่งปัจจุบัน... โปรดรอสักครู่ หรืออนุญาตตำแหน่ง", true);
-             return;
+            alertMessage("กำลังรอตำแหน่งปัจจุบัน... โปรดรอสักครู่ หรืออนุญาตตำแหน่ง", true);
+            return;
         }
         
         const currentItem = navigationList[currentStepIndex];

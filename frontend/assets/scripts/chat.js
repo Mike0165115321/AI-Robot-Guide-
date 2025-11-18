@@ -1,7 +1,5 @@
-// แฟ้ม: frontend/assets/scripts/chat.js (ฉบับแก้ไข 3 - ย้อนกลับไปใช้ Browser STT)
+// แฟ้ม: frontend/assets/scripts/chat.js
 
-// 🚀 [เพิ่ม 1/3] สร้าง Class สำหรับไมค์เบราว์เซอร์ (เฉพาะกิจสำหรับไฟล์นี้)
-// เพื่อไม่ให้ชื่อชนกับ VoiceHandler (VAD) ของหน้า Avatar
 class BrowserMicHandler {
     constructor(callbacks) {
         this.callbacks = callbacks;
@@ -18,9 +16,9 @@ class BrowserMicHandler {
         }
         
         const recognition = new SpeechRecognition();
-        recognition.lang = 'th-TH'; // ภาษาไทย
-        recognition.interimResults = true; // ขอผลลัพธ์ระหว่างพูด
-        recognition.continuous = true; // พูดต่อได้เรื่อยๆ
+        recognition.lang = 'th-TH';
+        recognition.interimResults = true;
+        recognition.continuous = true;
 
         recognition.onstart = () => {
             this.isListening = true;
@@ -31,16 +29,13 @@ class BrowserMicHandler {
         recognition.onend = () => {
             this.isListening = false;
             this.callbacks.onStopRecording();
-            // [สำคัญ] ส่งข้อความที่ได้ทั้งหมดกลับไป
             if (this.finalTranscript.trim()) {
                 this.callbacks.onFinalTranscript(this.finalTranscript.trim());
             }
         };
 
         recognition.onerror = (event) => {
-            if (event.error === 'no-speech') {
-                // ไม่พูดอะไร ไม่ต้องทำอะไร
-            } else {
+            if (event.error !== 'no-speech') {
                 this.callbacks.onError(event.error);
             }
         };
@@ -54,7 +49,6 @@ class BrowserMicHandler {
                     interimTranscript += event.results[i][0].transcript;
                 }
             }
-            // อัปเดตข้อความระหว่างพูด (ถ้าต้องการ)
             this.callbacks.onInterimTranscript(this.finalTranscript + interimTranscript);
         };
 
@@ -81,9 +75,9 @@ class BrowserMicHandler {
 }
 
 
-// --- ส่วนหลักของ Chat.js (เหมือนเดิม แต่เรียกใช้ BrowserMicHandler) ---
-
+// --- ส่วนหลักของ Chat.js ---
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Element Selectors ---
     const messageArea = document.getElementById('message-area');
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button-icon');
@@ -91,14 +85,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const convoBtn = document.getElementById('convo-btn'); 
     const faqButton = document.getElementById('faq-button');
     const newChatBtn = document.getElementById('new-chat-btn');
-    const inputArea = document.querySelector('.input-area-container');
     const travelModeBtn = document.getElementById('travel-mode-btn');
 
+    // --- State Variables ---
     let isAnswering = false;
-
-    // 🚀 [เพิ่ม 2/3] ประกาศตัวแปรสำหรับระบบเสียง (Browser)
     let audioContext = null;
-    let browserMicHandler = null; // ใช้อันใหม่
+    let browserMicHandler = null;
+
+    // 🚀 [ผสานและปรับปรุง] ระบบจัดการ Session ID ---
+    const SESSION_ID_KEY = 'nan_chat_session_id'; // ใช้ค่าคงที่เพื่อลดความผิดพลาด
+    let currentSessionId = null;
+
+    function getOrCreateSessionId() {
+        if (currentSessionId) {
+            return currentSessionId;
+        }
+        
+        let sessionId = localStorage.getItem(SESSION_ID_KEY);
+        
+        if (!sessionId) {
+            if (window.crypto && window.crypto.randomUUID) {
+                sessionId = window.crypto.randomUUID();
+            } else {
+                // Fallback for older browsers
+                sessionId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
+            localStorage.setItem(SESSION_ID_KEY, sessionId);
+            console.log("New Session ID Created:", sessionId);
+        } else {
+            console.log("Existing Session ID Found:", sessionId);
+        }
+        
+        currentSessionId = sessionId;
+        return sessionId;
+    }
+    
+    getOrCreateSessionId();
 
     const createEmptyResponse = (answerText) => ({
         answer: answerText,
@@ -109,7 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
         sources: []
     });
     
-    // ... (ฟังก์ชัน sendMessage, addMessage, playVideoInBubble, adjustTextareaHeight ไม่มีการเปลี่ยนแปลง) ...
     async function sendMessage(queryOverride = null) {
         const query = queryOverride || userInput.value.trim();
         if (!query || isAnswering) return;
@@ -122,19 +146,25 @@ document.addEventListener('DOMContentLoaded', () => {
         micButton.disabled = true;
         const thinkingMessageElement = addMessage('กำลังประมวลผล...', 'ai-thinking');
 
+        // 🚀 [ผสาน] ดึง Session ID มาใช้ทุกครั้งที่ส่งข้อความ
+        const sessionId = getOrCreateSessionId();
+
         try {
             const response = await fetch(`${API_BASE_URL}/api/chat/`, { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: query }), 
+                // 🚀 [ผสาน] เพิ่ม session_id เข้าไปใน body ที่ส่งไป
+                body: JSON.stringify({ 
+                    query: query,
+                    session_id: sessionId 
+                }), 
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
 
             thinkingMessageElement?.remove();
             addMessage(data, 'ai');
-        } catch (error)
-        {
+        } catch (error) {
             console.error('Chat error:', error);
             thinkingMessageElement?.remove();
             addMessage(createEmptyResponse('ขออภัยค่ะ เกิดข้อผิดพลาดในการเชื่อมต่อ'), 'ai');
@@ -143,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sendButton.disabled = false;
             micButton.disabled = false;
             if (!document.querySelector('.song-input-field')) {
-                 userInput.focus();
+                userInput.focus();
             }
         }
     }
@@ -229,9 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (type === 'ai' && data.action === 'PROMPT_FOR_SONG_INPUT') {
             const wrapper = document.getElementById(`song-input-wrapper-${messageId}`);
             const inputField = wrapper?.querySelector('.song-input-field');
-            if (inputField) {
-                inputField.focus();
-            }
+            if (inputField) inputField.focus();
         }
         
         if (type === 'ai' && data.action === 'SHOW_SONG_CHOICES') {
@@ -264,7 +292,8 @@ document.addEventListener('DOMContentLoaded', () => {
         el.style.height = `${newHeight}px`;
         el.style.overflowY = (el.scrollHeight > 160) ? 'auto' : 'hidden';
     }
-
+    
+    // --- Event Listeners Setup ---
     sendButton.addEventListener('click', () => sendMessage());
     userInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -282,14 +311,19 @@ document.addEventListener('DOMContentLoaded', () => {
     newChatBtn.addEventListener('click', () => {
         messageArea.innerHTML = ''; 
         addMessage(createEmptyResponse("เริ่มต้นการสนทนาใหม่ค่ะ มีอะไรให้ช่วยเกี่ยวกับจังหวัดน่านไหมคะ?"), 'ai');
+        
+        // 🚀 [ผสาน] บังคับสร้าง Session ID ใหม่เมื่อกด "เริ่มใหม่"
+        localStorage.removeItem(SESSION_ID_KEY);
+        currentSessionId = null; // ล้างค่าที่เก็บไว้ในตัวแปร
+        getOrCreateSessionId(); // สร้างและเก็บค่าใหม่ทันที
+        console.log("New Chat: Session ID has been cleared and recreated.");
+
         userInput.focus();
     });
-
-    // 🚀 [แก้ไข 3/3] "รื้อ" micButton Event Listener เพื่อใช้ BrowserMicHandler
+    
     micButton.addEventListener('click', async () => {
         if (isAnswering) return;
 
-        // 1. สร้าง Context (จำเป็นต้องมี 1 ครั้ง)
         if (!audioContext) {
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -301,27 +335,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // 2. สร้าง Handler (ถ้ายังไม่มี)
         if (!browserMicHandler) {
             try {
                 browserMicHandler = new BrowserMicHandler({
                     onStartRecording: () => {
                         micButton.classList.add('mic-listening');
-                        userInput.value = 'กำลังฟัง...'; // แสดงสถานะในช่องพิมพ์
+                        userInput.placeholder = 'กำลังฟัง...';
+                        userInput.value = '';
                         userInput.disabled = true;
                     },
                     onStopRecording: () => {
                         micButton.classList.remove('mic-listening');
+                        userInput.placeholder = 'พิมพ์ข้อความของคุณ...';
                         userInput.disabled = false;
                     },
                     onInterimTranscript: (text) => {
-                        userInput.value = text; // อัปเดตข้อความระหว่างพูด
+                        userInput.value = text;
                     },
                     onFinalTranscript: (text) => {
-                        // [นี่คือเป้าหมายของคุณ!]
-                        // เมื่อพูดจบ ให้เติมข้อความ และ "ไม่ส่ง"
                         userInput.value = text;
-                        userInput.focus(); // ย้ายเคอร์เซอร์ไปที่ช่องแชท
+                        userInput.focus();
                         adjustTextareaHeight(userInput);
                     },
                     onError: (error) => {
@@ -337,7 +370,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // 3. สั่งเริ่ม/หยุด การฟัง
         if (browserMicHandler.isListening) {
             browserMicHandler.stop();
         } else {
@@ -346,16 +378,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     faqButton.addEventListener('click', () => {
-        // ... (โค้ด FAQ เหมือนเดิม) ...
         const existingFaq = document.getElementById('faq-container');
         if (existingFaq) existingFaq.remove();
+        
         const faqContainer = document.createElement('div');
         faqContainer.id = 'faq-container';
         faqContainer.className = 'flex items-start space-x-3 ai-message';
         
         const faqs = [ "แนะนำที่เที่ยวธรรมชาติหน่อย", "วัดสวยๆ ในตัวเมืองมีที่ไหนบ้าง", "ของกินพื้นเมืองที่ต้องลองคืออะไร", "อยากได้แผนเที่ยว 1 วัน", "เปิดเพลง", "เปิดเครื่องคิดเลข", "ร้านอาหารกลางคืนอร่อยๆ" ];
-        
         let buttonsHtml = faqs.map(q => `<button class="block w-full text-left p-2.5 mt-2 bg-slate-700/60 hover:bg-slate-700 rounded-lg transition">${q.replace(/</g, "&lt;")}</button>`).join('');
+        
         faqContainer.innerHTML = `<div class="robot-icon-container"><div class="icon-head-top-accent"></div><div class="icon-robot-face"><div class="icon-robot-eye"></div><div class="icon-robot-eye"></div></div></div><div class="glass-ai-bubble p-4 rounded-2xl rounded-bl-lg max-w-md w-full"><p class="font-medium text-text-primary mb-2">ลองถามคำถามเหล่านี้ดูสิคะ:</p>${buttonsHtml}</div>`;
         
         faqContainer.querySelectorAll('button').forEach(btn => {
@@ -364,11 +396,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 faqContainer.remove(); 
             });
         });
+        
         messageArea.appendChild(faqContainer);
         messageArea.scrollTop = messageArea.scrollHeight;
     });
 
-    // ... (ส่วน Event Delegation ของ Song Submit เหมือนเดิม) ...
+    // --- Event Delegation for Dynamic Content (e.g., song input) ---
     const handleSongSubmit = (wrapper) => {
         if (!wrapper) return;
         const inputField = wrapper.querySelector('.song-input-field');
@@ -399,6 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- Initial Message ---
     addMessage(createEmptyResponse("สวัสดีเจ้า... ยินดีต้อนรับสู่เมืองน่าน มีอะหยังหื้อน้องน่านช่วยก่อเจ้า?"), 'ai');
     adjustTextareaHeight(userInput);
 });

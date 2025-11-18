@@ -23,12 +23,10 @@ class QueryInterpreter:
     }
 
     _CANNED_RESPONSES = {
-        "GREETING": {"intent": "SMALL_TALK", "entity": None, "is_complex": False, "sub_queries": [""]},
         "THANKS": {"intent": "SMALL_TALK", "entity": None, "is_complex": False, "sub_queries": [""]},
         "FAREWELL": {"intent": "SMALL_TALK", "entity": None, "is_complex": False, "sub_queries": [""]}
     }
     _QUERY_MAP = {
-        "สวัสดี": "GREETING", "หวัดดี": "GREETING", "ดีครับ": "GREETING", "ดีค่ะ": "GREETING",
         "ขอบคุณ": "THANKS", "ขอบใจ": "THANKS", "ขอบคุณครับ": "THANKS", "ขอบคุณค่ะ": "THANKS",
         "ลาก่อน": "FAREWELL", "ไปแล้วนะ": "FAREWELL", "บ๊ายบาย": "FAREWELL",
     }
@@ -121,16 +119,17 @@ class QueryInterpreter:
             "corrected_query": corrected_query, "intent": "INFORMATIONAL", "entity": None,
             "is_complex": False, "sub_queries": [corrected_query]
         }
+        
         system_prompt = f"""You are an expert Thai language interpreter, router, and query decomposer for a Nan province tourism guide AI.
 Your task is to analyze a noisy user query.
 You MUST return a JSON object with exactly these 5 keys: "corrected_query", "intent", "entity", "is_complex", "sub_queries".
 
 1.  **corrected_query**: Reconstruct the query into a clear, natural Thai sentence.
-2.  **intent**: Classify into ONE: "INFORMATIONAL", "PLAY_MUSIC", "SYSTEM_COMMAND", "SMALL_TALK".
+2.  **intent**: Classify into ONE: "INFORMATIONAL", "PLAY_MUSIC", "SYSTEM_COMMAND", "SMALL_TALK", "WELCOME_GREETING".
 3.  **entity**: 
     - If "PLAY_MUSIC", extract song/artist.
     - If "SYSTEM_COMMAND", extract app name.
-    - If "SMALL_TALK", return null.
+    - If "SMALL_TALK" or "WELCOME_GREETING", return null.
     - If "INFORMATIONAL" AND `is_complex: true`, return null.
     - If "INFORMATIONAL" AND `is_complex: false`, extract the SINGLE main topic (e.g., "วัดภูมินทร์", "ปู่ม่านย่าม่าน", "ดอยเสมอดาว"). If no single topic, return null.
 4.  **is_complex**: (Boolean) Is this a complex question that requires multiple separate information retrievals? 
@@ -142,21 +141,22 @@ You MUST return a JSON object with exactly these 5 keys: "corrected_query", "int
 
 **EXAMPLES (Crucial):**
 * Input: "วัด พูมิน ไปไง"
-  Output: {{"corrected_query": "วัดภูมินทร์ไปยังไง", "intent": "INFORMATIONAL", "entity": "วัดภูมินทร์", "is_complex": false, "sub_queries": ["วัดภูมินทร์ไปยังไง"]}}
+Output: {{"corrected_query": "วัดภูมินทร์ไปยังไง", "intent": "INFORMATIONAL", "entity": "วัดภูมินทร์", "is_complex": false, "sub_queries": ["วัดภูมินทร์ไปยังไง"]}}
 * Input: "ขอดูรูปปู่ม่านย่าม่าน"
-  Output: {{"corrected_query": "ขอดูรูปปู่ม่านย่าม่าน", "intent": "INFORMATIONAL", "entity": "ปู่ม่านย่าม่าน", "is_complex": false, "sub_queries": ["ขอดูรูปปู่ม่านย่าม่าน"]}}
+Output: {{"corrected_query": "ขอดูรูปปู่ม่านย่าม่าน", "intent": "INFORMATIONAL", "entity": "ปู่ม่านย่าม่าน", "is_complex": false, "sub_queries": ["ขอดูรูปปู่ม่านย่าม่าน"]}}
 * Input: "วัดสวยๆ ในน่านมีที่ไหนบ้าง"
-  Output: {{"corrected_query": "วัดสวยๆ ในน่านมีที่ไหนบ้าง", "intent": "INFORMATIONAL", "entity": null, "is_complex": false, "sub_queries": ["วัดสวยๆ ในน่านมีที่ไหนบ้าง"]}}
+Output: {{"corrected_query": "วัดสวยๆ ในน่านมีที่ไหนบ้าง", "intent": "INFORMATIONAL", "entity": null, "is_complex": false, "sub_queries": ["วัดสวยๆ ในน่านมีที่ไหนบ้าง"]}}
 * Input: "เปิดเพงเศร้าๆ น่อย"
-  Output: {{"corrected_query": "เปิดเพลงเศร้าๆ หน่อย", "intent": "PLAY_MUSIC", "entity": "เพลงเศร้าๆ", "is_complex": false, "sub_queries": ["เปิดเพลงเศร้าๆ หน่อย"]}}
+Output: {{"corrected_query": "เปิดเพลงเศร้าๆ หน่อย", "intent": "PLAY_MUSIC", "entity": "เพลงเศร้าๆ", "is_complex": false, "sub_queries": ["เปิดเพลงเศร้าๆ หน่อย"]}}
 * Input: "สวัสดี"
-  Output: {{"corrected_query": "สวัสดี", "intent": "SMALL_TALK", "entity": null, "is_complex": false, "sub_queries": ["สวัสดี"]}}
+Output: {{"corrected_query": "สวัสดี", "intent": "WELCOME_GREETING", "entity": null, "is_complex": false, "sub_queries": ["สวัสดี"]}}
 * Input: "วัดภูมินทร์กับวัดแช่แห้งต่างกันยังไง แล้ววัดไหนจอดรถง่ายกว่า?"
-  Output: {{"corrected_query": "วัดภูมินทร์กับวัดพระธาตุแช่แห้งแตกต่างกันยังไง และวัดไหนมีที่จอดรถสะดวกกว่า?", "intent": "INFORMATIONAL", "entity": null, "is_complex": true, "sub_queries": ["เปรียบเทียบ วัดภูมินทร์ และ วัดพระธาตุแช่แห้ง", "ที่จอดรถ วัดภูมินทร์", "ที่จอดรถ วัดพระธาตุแช่แห้ง"]}}
+Output: {{"corrected_query": "วัดภูมินทร์กับวัดพระธาตุแช่แห้งแตกต่างกันยังไง และวัดไหนมีที่จอดรถสะดวกกว่า?", "intent": "INFORMATIONAL", "entity": null, "is_complex": true, "sub_queries": ["เปรียบเทียบ วัดภูมินทร์ และ วัดพระธาตุแช่แห้ง", "ที่จอดรถ วัดภูมินทร์", "ที่จอดรถ วัดพระธาตุแช่แห้ง"]}}
 * Input: "ประวัติศาสตร์น่าน และ ชนเผ่าที่น่าสนใจ"
-  Output: {{"corrected_query": "ประวัติศาสตร์น่าน และ ชนเผ่าที่น่าสนใจ", "intent": "INFORMATIONAL", "entity": null, "is_complex": true, "sub_queries": ["ประวัติศาสตร์จังหวัดน่าน", "ชนเผ่าที่น่าสนใจในจังหวัดน่าน"]}}
+Output: {{"corrected_query": "ประวัติศาสตร์น่าน และ ชนเผ่าที่น่าสนใจ", "intent": "INFORMATIONAL", "entity": null, "is_complex": true, "sub_queries": ["ประวัติศาสตร์จังหวัดน่าน", "ชนเผ่าที่น่าสนใจในจังหวัดน่าน"]}}
 """
-        
+        # --- 🚀 [สิ้นสุดการแก้ไข Prompt] ---
+
         logging.info(f"✍️🧠 [Interpreter] Interpreting with LLM: '{corrected_query}'")
         response_str = await self._get_groq_response(system_prompt, corrected_query)
         if not response_str:

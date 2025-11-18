@@ -8,10 +8,6 @@ from typing import Optional
 load_dotenv()
 
 class Settings:
-    """
-    แผงควบคุมหลักสำหรับโปรเจกต์ AI Guide จังหวัดน่าน
-    โหลดและจัดการการตั้งค่าทั้งหมดของระบบ
-    """
     MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
     MONGO_DATABASE_NAME = "nanaiguide"
     DEVICE: str = "cuda"  # หรือ "cuda" ถ้ามี GPU
@@ -23,7 +19,7 @@ class Settings:
 
     # 3. จำกัดจำนวนภาพจาก Google
     # อย่าให้ Google หาเยอะเกินไป เดี๋ยวจะช้าและเปลืองโควต้า
-    GOOGLE_IMAGE_MAX_RESULTS: int = 2  # (จาก 3 -> 2) ประหยัดขึ้นนิดนึง
+    GOOGLE_IMAGE_MAX_RESULTS: int = 3  # (จาก 3 -> 2) ประหยัดขึ้นนิดนึง
 
     # 4. ภาพใน Source Card (การ์ดอ้างอิงท้ายคำตอบ)
     # โชว์แค่ 1-2 ภาพต่อการ์ดก็พอ จะได้ไม่รก
@@ -34,8 +30,8 @@ class Settings:
     FINAL_GALLERY_IMAGE_LIMIT: int = 4  # (จาก 5 -> 4) โหลดเร็วขึ้นนิดนึง
     
     # --- (ค่าอื่นๆ ที่สำคัญ) ---
-    TOP_K_RERANK_TEXT = 5  # (สำคัญ!) คัดจาก 8 เหลือ 5 ที่ดีที่สุดส่งให้ LLM
-    TOP_K_RERANK_VOICE = 3 # (สำคัญ!) ถ้าเป็นเสียง เอาแค่ 3 พอ เน้นกระชับ
+    TOP_K_RERANK_TEXT = 4  # (สำคัญ!) คัดจาก 8 เหลือ 5 ที่ดีที่สุดส่งให้ LLM
+    TOP_K_RERANK_VOICE = 4 # (สำคัญ!) ถ้าเป็นเสียง เอาแค่ 3 พอ เน้นกระชับ
     
     QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT = int(os.getenv("QDRANT_PORT", 6333))
@@ -47,8 +43,8 @@ class Settings:
     TOP_K_RERANK_VOICE = 5
     TOP_K_RERANK_TEXT = 7
 
-    EMBEDDING_MODEL_NAME = "intfloat/multilingual-e5-large"
-    RERANKER_MODEL_NAME = 'BAAI/bge-reranker-base'
+    EMBEDDING_MODEL_NAME = "/home/mikedev/MyModels/Model-RAG/intfloat-multilingual-e5-large"
+    RERANKER_MODEL_NAME = '/home/mikedev/MyModels/Model-RAG/BAAI-bge-reranker-base'
     
     GEMINI_API_KEYS = [key.strip() for key in os.getenv("GEMINI_API_KEYS", "").split(',') if key.strip()]
     GROQ_API_KEYS = [key.strip() for key in os.getenv("GROQ_API_KEYS", "").split(',') if key.strip()]
