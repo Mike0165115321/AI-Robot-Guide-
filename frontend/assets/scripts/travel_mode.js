@@ -65,13 +65,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Error getting location:", error);
                 alertMessage("โปรดอนุญาตการเข้าถึงตำแหน่งเพื่อนำทาง", true);
                 itineraryStatus.textContent = "โปรดอนุญาตการเข้าถึงตำแหน่ง";
+                // กรณีไม่ได้ตำแหน่ง ก็โหลดแบบปกติ (ไม่เรียงระยะทาง)
+                fetchNavigationList(); 
             }
         );
     }
 
     async function fetchNavigationList() {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/navigation_list`);
+            let url = `${API_BASE_URL}/api/navigation_list`;
+            
+            // [แก้ไข] ถ้ามีพิกัด ให้แนบไปกับ URL
+            if (userLatitude && userLongitude) {
+                url += `?lat=${userLatitude}&lon=${userLongitude}`;
+                console.log("📍 Fetching locations sorted by distance...");
+            } else {
+                console.log("📍 Fetching locations (Default sort)...");
+            }
+
+            const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to fetch list');
             
             navigationList = await response.json();
@@ -108,15 +120,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? item.image_urls[0] 
                 : `https://placehold.co/600x400/112240/CCD6F6?text=${encodeURIComponent(item.title)}`;
 
+            // [แก้ไข] สร้างป้ายบอกระยะทาง (ถ้ามีข้อมูล)
+            let distanceBadge = '';
+            if (item.distance_km !== undefined && item.distance_km !== null) {
+                distanceBadge = `<span class="ml-2 text-xs font-medium px-2 py-0.5 rounded bg-green-900 text-green-100">📍 ${item.distance_km} กม.</span>`;
+            }
+
             card.innerHTML = `
                 <div class="sm:w-1/3 mb-3 sm:mb-0">
                     <img src="${imageUrl}" 
                         alt="${item.title}" class="w-full h-36 object-cover rounded-lg">
                 </div>
                 <div class="sm:w-2/3 space-y-2">
-                    <span class="step-badge inline-block px-3 py-1 text-xs rounded-full">
-                        ${item.topic || 'ปลายทาง'}
-                    </span>
+                    <div class="flex items-center flex-wrap gap-2">
+                        <span class="step-badge inline-block px-3 py-1 text-xs rounded-full">
+                            ${item.topic || 'ปลายทาง'}
+                        </span>
+                        ${distanceBadge}
+                    </div>
                     <h3 class="text-lg font-bold" style="color: var(--color-text-primary);">${item.title}</h3>
                 </div>
             `;
@@ -227,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (editTripBtn) {
         editTripBtn.addEventListener('click', () => {
-             alertMessage('ฟีเจอร์ "จัดการทริป" ยังไม่เปิดให้บริการค่ะ');
+            alertMessage('ฟีเจอร์ "จัดการทริป" ยังไม่เปิดให้บริการค่ะ');
         });
     }
 

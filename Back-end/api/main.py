@@ -2,6 +2,7 @@ import uvicorn
 import os
 import asyncio
 import logging
+from typing import Optional 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, Depends 
 from fastapi.staticfiles import StaticFiles
@@ -91,10 +92,12 @@ app.include_router(avatar_api.router, prefix="/api/avatar")
 
 @app.get("/api/navigation_list", tags=["V-Maps"])
 async def get_navigation_list(
+    lat: Optional[float] = None, 
+    lon: Optional[float] = None, 
     orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator)
 ):
     try:
-        location_list = await orchestrator.get_navigation_list()
+        location_list = await orchestrator.get_navigation_list(user_lat=lat, user_lon=lon)
         return location_list
     except Exception as e:
         logging.error(f"❌ [API-NavList] Error getting navigation list: {e}", exc_info=True)

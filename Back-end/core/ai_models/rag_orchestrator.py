@@ -5,6 +5,7 @@ import logging
 import os
 import random
 import re
+import math
 import urllib.parse
 import json 
 from datetime import datetime, timezone
@@ -326,15 +327,25 @@ class RAGOrchestrator:
             "sources": source_info,
         }
     
-    async def get_navigation_list(self) -> List[Dict[str, Any]]:
-        logging.info("🗺️  [V-Maps] get_navigation_list called.")
+    def _calculate_distance(self, lat1, lon1, lat2, lon2):
+        if lat1 is None or lon1 is None or lat2 is None or lon2 is None:
+            return float('inf')
         
-        query_filter = {
-            "doc_type": "Location"
-        }
-        logging.info(f"✅ [V-Maps] Using dynamic V.2 query filter: {query_filter}")
+        R = 6371 #
+        dLat = math.radians(lat2 - lat1)
+        dLon = math.radians(lon2 - lon1)
+        a = math.sin(dLat/2) * math.sin(dLat/2) + \
+            math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * \
+            math.sin(dLon/2) * math.sin(dLon/2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        d = R * c
+        return d
+
+    async def get_navigation_list(self, user_lat: float = None, user_lon: float = None) -> List[Dict[str, Any]]:
+        logging.info(f"🗺️  [V-Maps] get_navigation_list called. User Loc: {user_lat}, {user_lon}")
         
-        projection = {"title": 1, "slug": 1, "topic": 1, "_id": 0, "metadata": 1} 
+        query_filter = { "doc_type": "Location" }
+        projection = {"title": 1, "slug": 1, "topic": 1, "location_data": 1, "_id": 0, "metadata": 1} 
         
         try:
             results_from_db = await asyncio.to_thread(
@@ -349,11 +360,23 @@ class RAGOrchestrator:
                     all_images = self._find_all_images_by_prefix(prefix)
                     if all_images: image_url = all_images[0]
                 doc["image_urls"] = [image_url] if image_url else []
+
+                doc["distance_km"] = None
+                if user_lat is not None and user_lon is not None:
+                    loc = doc.get("location_data", {})
+                    dist = self._calculate_distance(user_lat, user_lon, loc.get("latitude"), loc.get("longitude"))
+                    
+                    if dist != float('inf'):
+                        doc["distance_km"] = round(dist, 1) 
                 enriched_results.append(doc)
 
-            sorted_results = sorted(enriched_results, key=lambda x: (x.get('topic', 'Z').startswith('วัด'), x.get('title', '')))
+            if user_lat is not None and user_lon is not None:
+                sorted_results = sorted(enriched_results, key=lambda x: x["distance_km"] if x["distance_km"] is not None else 9999)
+                logging.info("[V-Maps] Sorted by DISTANCE.")
+            else:
+                sorted_results = sorted(enriched_results, key=lambda x: (x.get('topic', 'Z').startswith('วัด'), x.get('title', '')))
+                logging.info("[V-Maps] Sorted by TOPIC (Default).")
             
-            logging.info(f"[V-Maps] Found and enriched {len(sorted_results)} navigation-ready locations.")
             return sorted_results
             
         except Exception as e:
