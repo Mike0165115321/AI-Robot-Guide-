@@ -4,87 +4,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Guide - Nan Province Chat</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>AI Guide - Nan Province</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    
-    <link rel="stylesheet" href="assets/styles/chat.css"> 
-    
-    <link
-        href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Inter:wght@400;500;700&display=swap"
-        rel="stylesheet">
-    
-    </head>
+    <link rel="stylesheet" href="assets/styles/chat.css">
+</head>
 
-<body class="font-sans">
+<body>
 
-    <div id="chat-container" class="flex flex-col items-center justify-center p-4 min-h-screen">
-        <div
-            class="w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col h-[95vh] sm:h-[90vh] overflow-hidden chat-card-main">
-            <header class="p-4 flex items-center justify-between border-b border-color-border flex-shrink-0">
-                <div class="flex items-center space-x-4">
-                    <div class="robot-icon-container">
-                        <div class="icon-head-top-accent"></div>
-                        <div class="icon-robot-face">
-                            <div class="icon-robot-eye"></div>
-                            <div class="icon-robot-eye"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <h1 class="text-lg font-bold" style="color: var(--color-text-primary);">AI Guide จังหวัดน่าน</h1>
-                        <p class="text-xs" style="color: var(--color-text-secondary);">สอบถามข้อมูลท่องเที่ยวได้เลย</p>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="robot-avatar-icon">
+                    <div class="head-accent"></div>
+                    <div class="face-plate">
+                        <div class="eye left"></div>
+                        <div class="eye right"></div>
                     </div>
                 </div>
-                <div>
-                    <button id="new-chat-btn" title="New Chat"
-                        class="text-sm hover:brightness-125 transition" style="color: var(--color-accent-teal);">เริ่มใหม่</button>
-                </div>
+                <h2>น้องน่าน AI</h2>
+            </div>
+
+            <nav class="sidebar-menu">
+                <button class="menu-item active">
+                    <i class="fa-solid fa-message"></i> แชทแนะนำเที่ยว
+                </button>
+                <button id="travel-mode-btn" class="menu-item">
+                    <i class="fa-solid fa-map-location-dot"></i> โหมดเดินทาง
+                </button>
+                <button id="convo-btn" class="menu-item">
+                    <i class="fa-solid fa-robot"></i> คุยกับน้องน่าน (3D)
+                </button>
+                <button id="faq-button" class="menu-item">
+                    <i class="fa-solid fa-circle-question"></i> คำถามที่พบบ่อย
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="new-chat-btn" class="btn-reset">
+                    <i class="fa-solid fa-rotate-right"></i> เริ่มต้นใหม่
+                </button>
+            </div>
+        </aside>
+
+        <main class="chat-area">
+            <header class="mobile-header">
+                <span>AI Guide จังหวัดน่าน</span>
             </header>
 
-            <main id="message-area" class="flex-grow p-4 space-y-5 overflow-y-auto flex flex-col">
-                </main>
+            <div id="message-area" class="messages-container">
+            </div>
 
-            <div class="p-4 border-t border-color-border" style="background-color: var(--color-bg-card);">
-                <div class="input-area-container"> 
-
-                    <div
-                        class="flex items-center rounded-xl p-1.5 border border-color-border focus-within:border-blue-500 transition-colors" style="background-color: var(--color-bg-card);">
-                        <textarea id="user-input" placeholder="ถามเกี่ยวกับจังหวัดน่าน หรือลอง 'เปิดเพลง'..." rows="1"
-                            class="flex-grow bg-transparent placeholder-color-text-secondary px-3 py-2 focus:outline-none resize-none" style="color: var(--color-text-primary);"></textarea>
-                        <button id="send-button-icon"
-                            class="w-9 h-9 flex items-center justify-center text-white rounded-lg shadow-lg hover:brightness-110 transform active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 flex-shrink-0"
-                            aria-label="ส่งข้อความ" style="background-color: var(--color-user-bubble);">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <line x1="22" y1="2" x2="11" y2="13" />
-                                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <div class="flex space-x-2 items-center justify-center overflow-x-auto pt-3 pb-1 hide-scrollbar"> <button id="convo-btn" title="โหมดสนทนา (Avatar)" class="convo-highlight-pill">
-                            <span>🤖</span>
-                            <span>คุยกับน้องน่าน</span>
-                        </button>
-                        
-                        <button id="travel-mode-btn" title="สลับไปโหมดเดินทาง" class="action-pill">
-                            <span>🗺️</span>
-                            <span>โหมดเดินทาง</span>
-                        </button>
-                        
-                        <button id="mic-button" title="บันทึกเสียง" class="action-pill">
-                            <span>🎤</span>
-                            <span id="mic-button-text">ไมโครโฟน</span>
-                        </button>
-                        <button id="faq-button" title="คำถามที่พบบ่อย" class="action-pill">
-                            <span>❓</span>
-                            <span>คำถามที่พบบ่อย</span>
-                        </button>
-                    </div>
+            <div class="input-area-wrapper">
+                <div class="input-container">
+                    <button id="mic-button" class="btn-icon" title="พูดด้วยเสียง">
+                        <i class="fa-solid fa-microphone"></i>
+                    </button>
+                    <textarea id="user-input" placeholder="ถามน้องน่านได้เลยเจ้า... (เช่น แนะนำที่เที่ยว, ร้านอาหาร)"
+                        rows="1"></textarea>
+                    <button id="send-button-icon" class="btn-send" title="ส่งข้อความ">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
                 </div>
             </div>
-        </div>
+        </main>
     </div>
 
     <script src="assets/scripts/config.js"></script>

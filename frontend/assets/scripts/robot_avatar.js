@@ -173,20 +173,53 @@ class AvatarAnimator {
         this.resultText.innerHTML = '';
 
         const answerText = data.answer || '';
-        this.resultText.innerHTML = typeof marked !== 'undefined' ? marked.parse(answerText) : answerText;
-        gsap.fromTo(this.resultText, {opacity: 0}, {opacity: 1, duration: 0.6});
+        this.resultText.innerHTML = typeof marked !== 'undefined' ? marked.parse(answerText) : answerText;
+        gsap.fromTo(this.resultText, {opacity: 0}, {opacity: 1, duration: 0.6});
 
-        const allImages = [];
-        if (data.image_url) {
-            allImages.push(data.image_url);
-        }
-        if (data.image_gallery && data.image_gallery.length > 0) {
-            data.image_gallery.forEach(url => {
-                if (url && !allImages.includes(url)) {
-                    allImages.push(url);
-                }
-            });
-        }
+        if (data.action === 'SHOW_MAP_EMBED' && data.action_payload) {
+            const mapUrl = data.action_payload.embed_url;
+            const destName = data.action_payload.destination_name || 'สถานที่';
+            
+            if (mapUrl) {
+                const mapContainer = document.createElement('div');
+                mapContainer.className = 'map-container';
+                mapContainer.style.marginTop = '20px';
+                mapContainer.style.borderRadius = '15px';
+                mapContainer.style.overflow = 'hidden';
+                mapContainer.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+                mapContainer.style.background = '#000';
+                
+                const iframe = document.createElement('iframe');
+                iframe.width = '100%';
+                iframe.height = '300'; 
+                iframe.style.border = 'none';
+                iframe.loading = 'lazy';
+                iframe.allowFullscreen = true;
+                iframe.src = mapUrl;
+                
+                mapContainer.appendChild(iframe);
+                
+                if (data.action_payload.external_link) {
+                    const btnLink = document.createElement('a');
+                    btnLink.href = data.action_payload.external_link;
+                    btnLink.target = '_blank';
+                    btnLink.textContent = `📍 เปิดนำทางไป "${destName}" ใน Google Maps`;
+                    btnLink.style.display = 'block';
+                    btnLink.style.marginTop = '10px';
+                    btnLink.style.padding = '10px';
+                    btnLink.style.textAlign = 'center';
+                    btnLink.style.background = 'var(--color-robot-teal)';
+                    btnLink.style.color = '#000';
+                    btnLink.style.borderRadius = '8px';
+                    btnLink.style.textDecoration = 'none';
+                    btnLink.style.fontWeight = 'bold';
+                    
+                    mapContainer.appendChild(btnLink);
+                }
+
+                this.infoDisplay.appendChild(mapContainer);
+            }
+        }
 
         if (allImages.length > 0) {
             const galleryContainer = document.createElement('div');

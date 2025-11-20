@@ -1,15 +1,13 @@
-# /core/ai_models/speech_handler.py (ฉบับย้อนกลับ: ใช้ openai-whisper + GPU)
-
-import whisper
 import io
+import os
 import re
-import asyncio
 import logging
-from pydub import AudioSegment
-import edge_tts
+import asyncio
 import tempfile
-import numpy as np
-from core.config import settings 
+from groq import Groq
+import edge_tts
+from core.config import settings
+from core.ai_models.key_manager import groq_key_manager
 
 def sanitize_text_for_speech(text: str) -> str:
     text = re.sub(r'^\s*#+\s*', '', text, flags=re.MULTILINE)
@@ -20,45 +18,76 @@ def sanitize_text_for_speech(text: str) -> str:
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
+local_whisper_model = None
+
 class SpeechHandler:
-    def __init__(self, model_size="base"):
-        device_to_use = settings.DEVICE
-        print(f"🔄 [Speech] Loading OpenAI-Whisper model '{model_size}' onto device '{device_to_use}'...")
+    def __init__(self):
+        logging.info("🎤 [Speech] Initializing SpeechHandler (Primary: Groq, Fallback: Local)")
         
-        self.stt_model = whisper.load_model(model_size, device=device_to_use)
+    def _get_groq_client(self):
+        api_key = groq_key_manager.get_key()
+        if api_key:
+            return Groq(api_key=api_key)
+        return None
+
+    def _transcribe_with_groq(self, file_path: str) -> str:
+        client = self._get_groq_client()
+        if not client:
+            raise Exception("No Groq API Key available")
+
+        with open(file_path, "rb") as file:
+            transcription = client.audio.transcriptions.create(
+                file=(file_path, file.read()),
+                model=settings.GROQ_WHISPER_MODEL, 
+                response_format="json",
+                language="th",
+                temperature=0.0
+            )
+        return transcription.text
+
+    def _transcribe_with_local(self, file_path: str) -> str:
+        global local_whisper_model
+        import whisper
         
-        print(f"✅ [Speech] OpenAI-Whisper model '{model_size}' loaded successfully on '{device_to_use}'.")
-
-    def _transcribe_sync(self, audio_bytes: bytes) -> str:
-        if not self.stt_model:
-            raise RuntimeError("Whisper model is not loaded.")
+        if local_whisper_model is None:
+            model_size = settings.WHISPER_MODEL_SIZE
+            logging.info(f"🔄 [Speech] Loading Local Whisper '{model_size}' (Fallback)...")
+            local_whisper_model = whisper.load_model(model_size, device=settings.DEVICE)
         
-        try:
-            webm_file_like_object = io.BytesIO(audio_bytes)
-            audio_segment = AudioSegment.from_file(webm_file_like_object, format="webm")
-            wav_segment = audio_segment.set_channels(1).set_frame_rate(16000)
-
-            with tempfile.NamedTemporaryFile(delete=True, suffix=".wav") as temp_wav_file:
-                wav_segment.export(temp_wav_file.name, format="wav")
-                
-                print(f"🎤 [STT] Transcribing audio with OpenAI-Whisper...")
-
-                result = self.stt_model.transcribe(temp_wav_file.name, language="th", fp16=False)
-            
-            transcribed_text = result.get('text', '').strip()
-            print(f"📝 [STT] OpenAI-Whisper result: '{transcribed_text}'")
-            return transcribed_text
-
-        except Exception as e:
-            logging.error(f"❌ [STT] Error transcribing audio data: {e}", exc_info=True)
-            return ""
+        logging.info("🐢 [Speech] Transcribing with Local Whisper...")
+        result = local_whisper_model.transcribe(file_path, language="th")
+        return result.get('text', '').strip()
 
     async def transcribe_audio_bytes(self, audio_bytes: bytes) -> str:
-        return await asyncio.to_thread(self._transcribe_sync, audio_bytes)
+        if not audio_bytes: return ""
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as temp_file:
+            temp_file.write(audio_bytes)
+            temp_file_path = temp_file.name
 
+        try:
+            logging.info("🚀 [Speech] Trying Groq Whisper...")
+            text = await asyncio.to_thread(self._transcribe_with_groq, temp_file_path)
+            logging.info(f"✅ [Speech] Groq Result: '{text}'")
+            return text
+
+        except Exception as e:
+            logging.warning(f"⚠️ [Speech] Groq failed ({e}). Switching to Local Whisper...")
+            try:
+                text = await asyncio.to_thread(self._transcribe_with_local, temp_file_path)
+                logging.info(f"✅ [Speech] Local Result: '{text}'")
+                return text
+            except Exception as local_e:
+                logging.error(f"❌ [Speech] All STT methods failed: {local_e}")
+                return ""
+        finally:
+            if os.path.exists(temp_file_path):
+                try:
+                    os.remove(temp_file_path)
+                except:
+                    pass
 
     async def synthesize_speech_to_bytes(self, text: str) -> bytes:
-        # (ฟังก์ชัน TTS - เหมือนเดิม ไม่ต้องแก้)
         if not text.strip():
             raise ValueError("Input text for TTS cannot be empty.")
 
@@ -66,7 +95,7 @@ class SpeechHandler:
         print(f"🗣️  [TTS] Synthesizing speech for: '{clean_text[:30]}...'")
         
         try:
-            communicate = edge_tts.Communicate(clean_text, "th-TH-PremwadeeNeural", rate="-10%")
+            communicate = edge_tts.Communicate(clean_text, settings.TTS_VOICE, rate="-10%")
             
             mp3_buffer = io.BytesIO()
             async for chunk in communicate.stream():
@@ -80,4 +109,4 @@ class SpeechHandler:
             logging.error(f"❌ [TTS] Error during edge-tts synthesis: {e}", exc_info=True)
             raise RuntimeError("Failed to synthesize speech.")
 
-speech_handler_instance = SpeechHandler(model_size="medium")
+speech_handler_instance = SpeechHandler()
