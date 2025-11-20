@@ -27,7 +27,6 @@ class MongoDBManager:
             return self.db[collection_name]
         return None
 
-    # ... (โค้ด get_locations_by_ids, add_location, ... , delete_location_by_slug ... เหมือนเดิม) ...
     def get_locations_by_ids(self, mongo_ids: list[str], collection_name: str = "nan_locations") -> list[dict]:
         collection = self.get_collection(collection_name)
         if collection is None or not mongo_ids: return []
@@ -85,9 +84,10 @@ class MongoDBManager:
         collection = self.get_collection(collection_name)
         if collection is not None:
             try:
-                return collection.find_one({"title": {"$regex": f"^{re.escape(title)}$", "$options": "i"}})
+                query = {"title": {"$regex": re.escape(title), "$options": "i"}} 
+                return collection.find_one(query)
             except Exception as e:
-                print(f"❌ Error finding document by case-insensitive title '{title}': {e}")
+                print(f"❌ Error finding document by title '{title}': {e}")
                 return None
         return None
 
@@ -150,7 +150,6 @@ class MongoDBManager:
         return 0
 
     def log_analytics_event(self, log_data: dict, collection_name: str = "analytics_logs"):
-        # (โค้ด Analytics ที่เราทำเสร็จแล้ว)
         collection = self.get_collection(collection_name)
         if collection is not None:
             try:
@@ -161,7 +160,6 @@ class MongoDBManager:
         else:
             print("❌ Error logging analytics: Collection 'analytics_logs' not available.")
             
-    # --- 🚀 [ฟังก์ชัน V.1.5 ที่เราเพิ่ม] ---
     def get_distinct_categories(self, collection_name: str = "nan_locations") -> List[str]:
         """
         (Sync Function) ดึงรายชื่อ 'category' ทั้งหมดที่ไม่ซ้ำกัน

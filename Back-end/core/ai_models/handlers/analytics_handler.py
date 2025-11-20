@@ -1,4 +1,5 @@
-# /core/handlers/analytics_handler.py (ไฟล์ใหม่)
+# /core/ai_models/handlers/analytics_handler.py
+
 import asyncio
 import logging
 import json
@@ -15,11 +16,6 @@ class AnalyticsHandler:
                 orchestrator_callback: Callable[..., Awaitable[dict]]):
         """
         สร้าง Handler สำหรับจัดการ Logic ด้าน Analytics โดยเฉพาะ
-        
-        Args:
-            mongo_manager: instance ของ MongoDBManager
-            query_interpreter: instance ของ QueryInterpreter (เพื่อใช้ LLM สกัดข้อมูล)
-            orchestrator_callback: ฟังก์ชัน answer_query จาก RAGOrchestrator เพื่อใช้ "เรียกกลับ"
         """
         self.mongo_manager = mongo_manager
         self.query_interpreter = query_interpreter
@@ -28,7 +24,7 @@ class AnalyticsHandler:
         logging.info("✅ Analytics Handler initialized.")
 
     async def _log_analytics_event_async(self, log_data: dict):
-        """ (Async Wrapper) เรียกใช้ฟังก์ชัน log_analytics_event (ที่เป็น Sync) ใน Thread แยก """
+        """ (Async Wrapper) เรียกใช้ฟังก์ชัน log_analytics_event ใน Thread แยก """
         if self.analytics_log_collection is None:
             logging.warning("Cannot log analytics: collection not available.")
             return
@@ -66,6 +62,35 @@ EXAMPLES:
             logging.error(f"Failed to parse analytics JSON from LLM: {e}")
             return {"user_origin": None, "interest_topic": None}
 
+    def _get_boost_keywords(self, origin: str) -> str:
+        if not origin: return ""
+        origin_lower = origin.lower()
+        
+        keywords = []
+
+        if any(x in origin_lower for x in ["จีน", "china", "chinese"]):
+            keywords.append("ไทลื้อ สิบสองปันนา ประวัติศาสตร์การอพยพ จีนฮ่อ")
+
+        if any(x in origin_lower for x in ["ลาว", "laos", "lao"]):
+            keywords.append("ชายแดนลาว ด่านห้วยโก๋น อำเภอทุ่งช้าง อำเภอเฉลิมพระเกียรติ ความสัมพันธ์ล้านช้าง")
+
+        if any(x in origin_lower for x in ["พม่า", "myanmar", "burma"]):
+            keywords.append("ประวัติศาสตร์เมืองน่านยุคพม่าปกครอง ศิลปะล้านนาผสมพม่า")
+
+        if any(x in origin_lower for x in ["ญี่ปุ่น", "japan", "japanese"]):
+            keywords.append("คาเฟ่สไตล์ญี่ปุ่น Hani Creativespace มินิมอล ชาเขียวมัทฉะ")
+
+        if any(x in origin_lower for x in ["ยุโรป", "europe", "america", "usa", "uk", "ฝรั่ง", "ตะวันตก", "western"]):
+            keywords.append("สถาปัตยกรรมตะวันตก พิพิธภัณฑสถานแห่งชาติน่าน(หอคำ) ภาพจิตรกรรมวัดภูมินทร์(ชาวต่างชาติ) สวิตเซอร์แลนด์เมืองน่าน(ห้วยงิม)")
+
+        if any(x in origin_lower for x in ["สุโขทัย", "sukhothai"]):
+            keywords.append("วัดพระธาตุแช่แห้ง วัดพระธาตุช้างค้ำ ความสัมพันธ์สุโขทัย ศิลปะสุโขทัย")
+        
+        if any(x in origin_lower for x in ["กรุงเทพ", "bangkok", "กทม", "เมืองหลวง"]):
+            keywords.append("ธรรมชาติ สโลว์ไลฟ์ ดอยเสมอดาว บ่อเกลือ พักผ่อน คาเฟ่")
+
+        return " ".join(keywords)
+
     async def handle_analytics_response(self, user_answer: str, session_id: str, mode: str) -> dict:
         """
         (เมธอดหลัก) จัดการคำตอบที่ผู้ใช้ตอบกลับมาหลังจากถูกถามคำถามต้อนรับ
@@ -86,19 +111,34 @@ EXAMPLES:
         is_implicit_query = False
         if log_data["interest_topic"]:
             is_implicit_query = True 
-        elif "วัด" in user_answer: 
-            log_data["interest_topic"] = "Temple"
+        elif "วัด" in user_answer or "เที่ยว" in user_answer or "อยากไป" in user_answer: 
             is_implicit_query = True
 
         asyncio.create_task(self._log_analytics_event_async(log_data))
 
         if is_implicit_query:
-            logging.info(f"📊 [AnalyticsHandler] Response '{user_answer}' was an implicit query. Re-routing...")
-            return await self.orchestrator_callback(query=user_answer, mode=mode, session_id=session_id)
+            origin = log_data.get("user_origin")
+            boost_keywords = self._get_boost_keywords(origin)
+            
+            final_query = user_answer
+            if boost_keywords:
+                final_query = f"{user_answer} (บริบทเสริม: {boost_keywords})"
+                logging.info(f"🚀 [Analytics] Boosted Query: '{final_query}'")
+
+            return await self.orchestrator_callback(query=final_query, mode=mode, session_id=session_id)
         
         else:
+            keywords = self._get_boost_keywords(log_data.get("user_origin"))
+            msg = "ขอบคุณสำหรับข้อมูลค่ะ! "
+            if log_data.get('user_origin') and keywords:
+                msg += f"ยินดีต้อนรับนักท่องเที่ยวจาก {log_data.get('user_origin')} นะคะ "
+                if "จีน" in str(log_data.get('user_origin')):
+                    msg += "น่านมีวัฒนธรรมไทลื้อที่เชื่อมโยงกับสิบสองปันนาด้วยนะคะ น่าสนใจมากเลย "
+            
+            msg += "ไม่ทราบว่าสนใจสอบถามเรื่องไหนในน่านเป็นพิเศษไหมคะ?"
+            
             return {
-                "answer": "ขอบคุณสำหรับข้อมูลค่ะ! ไม่ทราบว่าสนใจสอบถามเรื่องไหนในน่านเป็นพิเศษไหมคะ?",
+                "answer": msg,
                 "action": None,
                 "sources": [],
                 "image_url": None,

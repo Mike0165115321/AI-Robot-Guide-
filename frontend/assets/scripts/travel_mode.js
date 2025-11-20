@@ -4,22 +4,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let userLatitude = null;
     let userLongitude = null;
-    let navigationList = []; 
-    let currentStepIndex = 0; 
+    let navigationList = [];
+    let currentStepIndex = 0;
 
     const itineraryArea = document.getElementById('itinerary-area');
     const itineraryStatus = document.getElementById('itinerary-status');
     const startNavigationBtn = document.getElementById('start-navigation-btn');
     const navButtonText = document.getElementById('nav-button-text');
-    
+
     const mapOverlay = document.getElementById('map-overlay');
     const mapCanvas = document.getElementById('map-canvas');
     const mapHeaderTitle = document.getElementById('map-header-title');
     const closeMapBtn = document.getElementById('close-map-btn');
-    
+
     const backToChatBtn = document.getElementById('back-to-chat-btn');
     const editTripBtn = document.getElementById('edit-trip-btn');
-    
+
     // --- Helper Functions ---
     function alertMessage(message, isError = false) {
         const existingToast = document.getElementById('mock-toast');
@@ -29,12 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.id = 'mock-toast';
         const bgColor = isError ? 'var(--color-highlight)' : 'var(--color-accent-teal)';
         const textColor = isError ? 'white' : 'var(--color-bg-primary)';
-        
+
         toast.className = 'fixed top-4 right-4 px-4 py-2 rounded-lg shadow-xl z-50 transition-opacity duration-300 font-kanit font-semibold';
         toast.style.backgroundColor = bgColor;
         toast.style.color = textColor;
         toast.textContent = message;
-        
+
         document.body.appendChild(toast);
 
         setTimeout(() => {
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 userLongitude = position.coords.longitude;
                 console.log(`User Location: ${userLatitude}, ${userLongitude}`);
                 itineraryStatus.textContent = "ได้ตำแหน่งแล้ว! กำลังโหลดสถานที่...";
-                startNavigationBtn.disabled = false; 
+                startNavigationBtn.disabled = false;
                 fetchNavigationList();
             },
             (error) => {
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alertMessage("โปรดอนุญาตการเข้าถึงตำแหน่งเพื่อนำทาง", true);
                 itineraryStatus.textContent = "โปรดอนุญาตการเข้าถึงตำแหน่ง";
                 // กรณีไม่ได้ตำแหน่ง ก็โหลดแบบปกติ (ไม่เรียงระยะทาง)
-                fetchNavigationList(); 
+                fetchNavigationList();
             }
         );
     }
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchNavigationList() {
         try {
             let url = `${API_BASE_URL}/api/navigation_list`;
-            
+
             // [แก้ไข] ถ้ามีพิกัด ให้แนบไปกับ URL
             if (userLatitude && userLongitude) {
                 url += `?lat=${userLatitude}&lon=${userLongitude}`;
@@ -85,12 +85,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to fetch list');
-            
+
             navigationList = await response.json();
             console.log("Fetched navigation list:", navigationList);
-            
+
             renderNavigationList();
-            
+
         } catch (error) {
             console.error('Error fetching navigation list:', error);
             alertMessage("ไม่สามารถโหลดรายการสถานที่ได้", true);
@@ -98,8 +98,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderNavigationList() {
-        itineraryArea.innerHTML = ''; 
-        
+        itineraryArea.innerHTML = '';
+
         if (navigationList.length === 0) {
             itineraryArea.innerHTML = '<p class="text-color-text-secondary">ไม่พบสถานที่สำหรับนำทาง...</p>';
             return;
@@ -111,19 +111,19 @@ document.addEventListener('DOMContentLoaded', () => {
             card.setAttribute('data-slug', item.slug);
             card.setAttribute('data-name', item.title);
             card.setAttribute('data-index', index);
-            
+
             if (index === currentStepIndex) {
                 card.classList.add('current-step');
             }
 
-            const imageUrl = item.image_urls && item.image_urls.length > 0 
-                ? item.image_urls[0] 
+            const imageUrl = item.image_urls && item.image_urls.length > 0
+                ? item.image_urls[0]
                 : `https://placehold.co/600x400/112240/CCD6F6?text=${encodeURIComponent(item.title)}`;
 
-            // [แก้ไข] สร้างป้ายบอกระยะทาง (ถ้ามีข้อมูล)
             let distanceBadge = '';
             if (item.distance_km !== undefined && item.distance_km !== null) {
-                distanceBadge = `<span class="ml-2 text-xs font-medium px-2 py-0.5 rounded bg-green-900 text-green-100">📍 ${item.distance_km} กม.</span>`;
+                distanceBadge = `<span class="ml-2 text-xs font-medium px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                        📏 ห่างจากคุณ ${item.distance_km} กม.</span>`;
             }
 
             card.innerHTML = `
@@ -141,12 +141,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h3 class="text-lg font-bold" style="color: var(--color-text-primary);">${item.title}</h3>
                 </div>
             `;
-            
+
             card.addEventListener('click', () => {
                 currentStepIndex = index;
                 updateNavigationState();
             });
-            
+
             itineraryArea.appendChild(card);
         });
 
@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alertMessage("กำลังรอตำแหน่งปัจจุบัน... โปรดรอสักครู่ หรืออนุญาตตำแหน่ง", true);
             return;
         }
-        
+
         const currentItem = navigationList[currentStepIndex];
         if (!currentItem) {
             alertMessage("โปรดเลือกสถานที่ก่อน", true);
@@ -197,23 +197,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 user_lat: userLatitude,
                 user_lon: userLongitude
             };
-            
-            const response = await fetch(`${API_BASE_URL}/api/chat/`, { 
+
+            const response = await fetch(`${API_BASE_URL}/api/chat/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: commandPayload }) 
+                body: JSON.stringify({ query: commandPayload })
             });
-            
+
             if (!response.ok) throw new Error('Failed to get directions');
             const result = await response.json();
 
             if (result.action === "SHOW_MAP_EMBED") {
-                mapCanvas.innerHTML = ''; 
+                mapCanvas.innerHTML = '';
 
                 const iframe = document.createElement('iframe');
                 iframe.src = result.action_payload.embed_url;
                 mapCanvas.appendChild(iframe);
-                
+
                 if (mapHeaderTitle) mapHeaderTitle.textContent = `เส้นทางไป: ${destName}`;
                 showMap();
             } else {
@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alertMessage(error.message || "ไม่สามารถคำนวณเส้นทางได้", true);
         } finally {
             startNavigationBtn.disabled = false;
-            updateNavigationState(); 
+            updateNavigationState();
         }
     }
 
@@ -237,15 +237,15 @@ document.addEventListener('DOMContentLoaded', () => {
         mapOverlay.style.display = 'none';
         mapCanvas.innerHTML = '<p class="text-color-text-secondary">กำลังโหลดแผนที่...</p>';
     }
-    
-    
+
+
     backToChatBtn.addEventListener('click', () => {
         window.location.href = 'chat';
     });
 
     startNavigationBtn.addEventListener('click', startNavigation);
     closeMapBtn.addEventListener('click', closeMap);
-    
+
     if (editTripBtn) {
         editTripBtn.addEventListener('click', () => {
             alertMessage('ฟีเจอร์ "จัดการทริป" ยังไม่เปิดให้บริการค่ะ');

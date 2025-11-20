@@ -1,5 +1,6 @@
-// แฟ้ม: frontend/assets/scripts/chat.js
+// /frontend/assets/scripts/chat.js (Ultimate Final - Pure CSS & Map Support)
 
+// --- Class จัดการไมโครโฟน ---
 class BrowserMicHandler {
     constructor(callbacks) {
         this.callbacks = callbacks;
@@ -7,14 +8,12 @@ class BrowserMicHandler {
         this.isListening = false;
         this.finalTranscript = '';
     }
-
     createRecognition() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            this.callbacks.onError('เบราว์เซอร์นี้ไม่รองรับระบบเสียงพูดค่ะ (โปรดใช้ Chrome หรือ Edge)');
+            this.callbacks.onError('Browser does not support speech recognition.');
             return null;
         }
-        
         const recognition = new SpeechRecognition();
         recognition.lang = 'th-TH';
         recognition.interimResults = true;
@@ -25,414 +24,282 @@ class BrowserMicHandler {
             this.finalTranscript = '';
             this.callbacks.onStartRecording();
         };
-
         recognition.onend = () => {
             this.isListening = false;
             this.callbacks.onStopRecording();
-            if (this.finalTranscript.trim()) {
-                this.callbacks.onFinalTranscript(this.finalTranscript.trim());
-            }
+            if (this.finalTranscript.trim()) this.callbacks.onFinalTranscript(this.finalTranscript.trim());
         };
-
         recognition.onerror = (event) => {
-            if (event.error !== 'no-speech') {
-                this.callbacks.onError(event.error);
-            }
+            if (event.error !== 'no-speech') this.callbacks.onError(event.error);
         };
-
         recognition.onresult = (event) => {
             let interimTranscript = '';
             for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    this.finalTranscript += event.results[i][0].transcript;
-                } else {
-                    interimTranscript += event.results[i][0].transcript;
-                }
+                if (event.results[i].isFinal) this.finalTranscript += event.results[i][0].transcript;
+                else interimTranscript += event.results[i][0].transcript;
             }
             this.callbacks.onInterimTranscript(this.finalTranscript + interimTranscript);
         };
-
         return recognition;
     }
-
-    start() {
-        if (this.isListening || !this.recognition) return;
-        try {
-            this.recognition.start();
-        } catch (e) {
-            console.error("Mic start error:", e);
-        }
-    }
-
-    stop() {
-        if (!this.isListening || !this.recognition) return;
-        try {
-            this.recognition.stop();
-        } catch (e) {
-            console.error("Mic stop error:", e);
-        }
-    }
+    start() { if (!this.isListening && this.recognition) this.recognition.start(); }
+    stop() { if (this.isListening && this.recognition) this.recognition.stop(); }
 }
 
-
-// --- ส่วนหลักของ Chat.js ---
+// --- Main Chat Logic ---
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Element Selectors ---
     const messageArea = document.getElementById('message-area');
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button-icon');
     const micButton = document.getElementById('mic-button');
-    const convoBtn = document.getElementById('convo-btn'); 
-    const faqButton = document.getElementById('faq-button');
     const newChatBtn = document.getElementById('new-chat-btn');
-    const travelModeBtn = document.getElementById('travel-mode-btn');
+    
+    // Sidebar Buttons
+    document.getElementById('travel-mode-btn')?.addEventListener('click', () => window.location.href = 'travel_mode');
+    document.getElementById('convo-btn')?.addEventListener('click', () => window.open('robot_avatar.html', '_blank'));
 
-    // --- State Variables ---
     let isAnswering = false;
-    let audioContext = null;
     let browserMicHandler = null;
 
-    // 🚀 [ผสานและปรับปรุง] ระบบจัดการ Session ID ---
-    const SESSION_ID_KEY = 'nan_chat_session_id'; // ใช้ค่าคงที่เพื่อลดความผิดพลาด
-    let currentSessionId = null;
+    // Session Management
+    const SESSION_ID_KEY = 'nan_chat_session_id';
+    let currentSessionId = localStorage.getItem(SESSION_ID_KEY) || (() => {
+        const id = 'session-' + Date.now();
+        localStorage.setItem(SESSION_ID_KEY, id);
+        return id;
+    })();
 
-    function getOrCreateSessionId() {
-        if (currentSessionId) {
-            return currentSessionId;
-        }
-        
-        let sessionId = localStorage.getItem(SESSION_ID_KEY);
-        
-        if (!sessionId) {
-            if (window.crypto && window.crypto.randomUUID) {
-                sessionId = window.crypto.randomUUID();
-            } else {
-                // Fallback for older browsers
-                sessionId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-                    return v.toString(16);
-                });
-            }
-            localStorage.setItem(SESSION_ID_KEY, sessionId);
-            console.log("New Session ID Created:", sessionId);
-        } else {
-            console.log("Existing Session ID Found:", sessionId);
-        }
-        
-        currentSessionId = sessionId;
-        return sessionId;
-    }
-    
-    getOrCreateSessionId();
+    const createEmptyResponse = (text) => ({ answer: text, image_gallery: [], sources: [] });
 
-    const createEmptyResponse = (answerText) => ({
-        answer: answerText,
-        action: null,
-        action_payload: null,
-        image_url: null,
-        image_gallery: [],
-        sources: []
-    });
-    
     async function sendMessage(queryOverride = null) {
         const query = queryOverride || userInput.value.trim();
         if (!query || isAnswering) return;
 
         addMessage(query, 'user');
         userInput.value = '';
-        adjustTextareaHeight(userInput);
+        userInput.style.height = 'auto'; // Reset height
+        
         isAnswering = true;
         sendButton.disabled = true;
         micButton.disabled = true;
-        const thinkingMessageElement = addMessage('กำลังประมวลผล...', 'ai-thinking');
-
-        // 🚀 [ผสาน] ดึง Session ID มาใช้ทุกครั้งที่ส่งข้อความ
-        const sessionId = getOrCreateSessionId();
+        
+        const loadingMsg = addMessage('กำลังประมวลผล...', 'ai-thinking');
 
         try {
             const response = await fetch(`${API_BASE_URL}/api/chat/`, { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // 🚀 [ผสาน] เพิ่ม session_id เข้าไปใน body ที่ส่งไป
-                body: JSON.stringify({ 
-                    query: query,
-                    session_id: sessionId 
-                }), 
+                body: JSON.stringify({ query: query, session_id: currentSessionId }), 
             });
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
 
-            thinkingMessageElement?.remove();
+            loadingMsg.remove();
             addMessage(data, 'ai');
         } catch (error) {
-            console.error('Chat error:', error);
-            thinkingMessageElement?.remove();
+            console.error(error);
+            loadingMsg.remove();
             addMessage(createEmptyResponse('ขออภัยค่ะ เกิดข้อผิดพลาดในการเชื่อมต่อ'), 'ai');
         } finally {
             isAnswering = false;
             sendButton.disabled = false;
             micButton.disabled = false;
-            if (!document.querySelector('.song-input-field')) {
-                userInput.focus();
-            }
+            userInput.focus();
         }
     }
 
     function addMessage(data, type) {
-        const messageId = `msg-${Date.now()}`;
-        const messageElement = document.createElement('div');
-        messageElement.id = messageId;
-        let html = '';
+        const row = document.createElement('div');
+        // ใช้ class ตาม CSS ใหม่ (message-row)
+        row.className = `message-row ${type === 'user' ? 'user' : 'ai'}`;
+
+        let innerContent = '';
 
         if (type === 'user') {
-            messageElement.className = 'flex justify-end user-message';
-            html = `<div class="bg-blue-600 p-3 rounded-2xl rounded-br-lg max-w-md text-white shadow-md"><p>${data.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p></div>`;
-        } else { 
-            messageElement.className = 'flex items-start space-x-3 ai-message';
-            let contentHtml = '';
-
+            // User Message
+            innerContent = `<div class="bubble user">${data}</div>`;
+        } else {
+            // AI Message
             if (type === 'ai-thinking') {
-                contentHtml = `<p class="italic text-text-secondary animate-pulse">${data}</p>`;
-            } else { 
-                const answerHtml = window.marked ? marked.parse(data.answer || '') : (data.answer || '');
-                contentHtml = `<div class="prose prose-invert max-w-none text-text-primary">${answerHtml}</div>`;
-
+                innerContent = `
+                <div class="robot-icon-mini"><div class="icon-eyes"></div></div>
+                <div class="bubble ai typing-indicator">${data}</div>`;
+            } else {
+                // Markdown Content
+                const answerHtml = window.marked ? marked.parse(data.answer || '') : data.answer;
+                
+                // 1. Images Grid (รูปภาพแบบ Grid)
+                let imagesHtml = '';
                 if (data.image_gallery && data.image_gallery.length > 0) {
-                    const galleryHtml = data.image_gallery.slice(0, 5).map(imgUrl => `
-                        <div class="flex-shrink-0 w-full sm:w-1/2 lg:w-1/3 p-1">
-                            <div class="relative group rounded-lg overflow-hidden border border-border">
-                                <a href="${imgUrl}" target="_blank" rel="noopener noreferrer">
-                                    <img src="${imgUrl}" alt="Gallery Image" class="w-full h-32 object-cover transition-transform duration-300 group-hover:scale-105">
-                                </a>
-                            </div>
-                        </div>
-                    `).join('');
-                    contentHtml += `<div class="mt-4"><h4 class="text-sm font-semibold text-text-secondary mb-2">รูปภาพประกอบ:</h4><div class="flex flex-wrap -m-1">${galleryHtml}</div></div>`;
+                    imagesHtml = `<div class="chat-images-grid">` + 
+                        data.image_gallery.slice(0, 4).map(url => 
+                            `<img src="${url}" class="chat-image" onclick="window.open('${url}')" onerror="this.style.display='none'">`
+                        ).join('') + 
+                    `</div>`;
                 }
 
-                if (data.action === 'PROMPT_FOR_SONG_INPUT') {
-                    const placeholder = data.action_payload?.placeholder || 'พิมพ์ชื่อเพลง หรือ ศิลปิน...';
-                    contentHtml += `
-                        <div id="song-input-wrapper-${messageId}" class="mt-4 flex items-center space-x-2">
-                            <input type="text" placeholder="${placeholder}" class="song-input-field flex-grow bg-slate-700/60 text-text-primary border border-border rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-                            <button class="song-submit-btn bg-blue-600 text-white rounded-lg p-2 hover:bg-blue-500 transition">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                            </button>
+                // 2. Map Embed (แผนที่ - ส่วนที่เคยขาดไป)
+                let mapHtml = '';
+                if (data.action === 'SHOW_MAP_EMBED') {
+                    const { embed_url, external_link } = data.action_payload;
+                    if (embed_url) {
+                        mapHtml = `
+                        <div class="map-wrapper">
+                            <iframe width="100%" height="250" src="${embed_url}" style="border:0;" allowfullscreen loading="lazy"></iframe>
                         </div>
-                    `;
-                }
-                else if (data.action === 'SHOW_SONG_CHOICES' && Array.isArray(data.action_payload)) {
-                    const songsHtml = data.action_payload.map((song, index) => `
-                        <button class="song-choice-btn block w-full text-left p-2.5 mt-2 bg-slate-700/60 hover:bg-slate-700 rounded-lg transition" data-song-index="${index}">
-                            🎵 ${song.title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}
-                        </button>
-                    `).join('');
-                    contentHtml += `<div class="mt-4">${songsHtml}</div>`;
-                }
-
-                else if (!data.action && data.sources && data.sources.length > 0) {
-                    const sourcesWithImages = data.sources.filter(s => s.image_urls && s.image_urls.length > 0);
-                    if (sourcesWithImages.length > 0) {
-                        const sourcesHtml = sourcesWithImages.slice(0, 3).map(source => {
-                            const imageUrlToShow = source.image_urls[0];
-                            const title = source.title || 'แหล่งข้อมูล';
-                            return `
-                                <div class="flex-shrink-0 w-full sm:w-1/2 lg:w-1/3 p-1">
-                                    <div class="relative group rounded-lg overflow-hidden border border-border cursor-pointer" onclick="window.open('${imageUrlToShow}', '_blank')">
-                                        <img src="${imageUrlToShow}" alt="${title}" class="w-full h-32 object-cover transition-transform duration-300 group-hover:scale-105">
-                                        <div class="absolute bottom-0 left-0 w-full p-2 bg-black/60 backdrop-blur-sm">
-                                            <p class="text-xs text-white truncate font-semibold">${title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('');
-                        contentHtml += `<div class="mt-4"><h4 class="text-sm font-semibold text-text-secondary mb-2">แหล่งข้อมูลเพิ่มเติม:</h4><div class="flex flex-wrap -m-1">${sourcesHtml}</div></div>`;
+                        ${external_link ? `<a href="${external_link}" target="_blank" class="btn-map-link"><i class="fa-solid fa-location-arrow"></i> เปิดใน Google Maps</a>` : ''}
+                        `;
                     }
                 }
-            }
-            html = `<div class="robot-icon-container"><div class="icon-head-top-accent"></div><div class="icon-robot-face"><div class="icon-robot-eye"></div><div class="icon-robot-eye"></div></div></div><div class="glass-ai-bubble p-4 rounded-2xl rounded-bl-lg max-w-md w-full shadow-lg">${contentHtml}</div>`;
-        }
-        messageElement.innerHTML = html;
-        messageArea.appendChild(messageElement);
+                
+                // 3. Song Choices (ตัวเลือกเพลง)
+                let songChoicesHtml = '';
+                if (data.action === 'SHOW_SONG_CHOICES' && Array.isArray(data.action_payload)) {
+                    songChoicesHtml = data.action_payload.map((s, index) => 
+                        `<button class="song-choice-btn" data-song-index="${index}">🎵 ${s.title}</button>`
+                    ).join('');
+                }
 
-        if (type === 'ai' && data.action === 'PROMPT_FOR_SONG_INPUT') {
-            const wrapper = document.getElementById(`song-input-wrapper-${messageId}`);
-            const inputField = wrapper?.querySelector('.song-input-field');
-            if (inputField) inputField.focus();
+                // 4. Song Input (ช่องค้นหาเพลง)
+                let songInputHtml = '';
+                if (data.action === 'PROMPT_FOR_SONG_INPUT') {
+                    const placeholder = data.action_payload?.placeholder || 'พิมพ์ชื่อเพลง...';
+                    songInputHtml = `
+                    <div class="song-input-wrapper" id="song-wrapper-${Date.now()}">
+                        <input type="text" class="song-input-field" placeholder="${placeholder}">
+                        <button class="song-submit-btn"><i class="fa-solid fa-music"></i> ค้นหา</button>
+                    </div>`;
+                }
+
+                innerContent = `
+                <div class="robot-icon-mini"><div class="icon-eyes"></div></div>
+                <div class="bubble ai">
+                    <div class="markdown-content">${answerHtml}</div>
+                    ${imagesHtml}
+                    ${mapHtml}
+                    ${songChoicesHtml}
+                    ${songInputHtml}
+                    <div class="youtube-player-container"></div>
+                </div>`;
+            }
         }
+
+        row.innerHTML = innerContent;
+        messageArea.appendChild(row);
         
-        if (type === 'ai' && data.action === 'SHOW_SONG_CHOICES') {
-            messageElement.querySelectorAll('.song-choice-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    const songIndex = parseInt(button.dataset.songIndex, 10);
-                    const selectedSong = data.action_payload[songIndex];
-                    playVideoInBubble(selectedSong, messageElement, data.answer);
+        // Auto-hide broken images
+        row.querySelectorAll('.markdown-content img').forEach(img => {
+            img.classList.add('chat-image'); // ใช้ Style เดียวกัน
+            img.onerror = function() { this.style.display = 'none'; };
+        });
+
+        // --- Event Bindings ---
+
+        // Song Input Handling
+        const songWrapper = row.querySelector('.song-input-wrapper');
+        if (songWrapper) {
+            const input = songWrapper.querySelector('input');
+            const btn = songWrapper.querySelector('button');
+            const submitSong = () => {
+                const val = input.value.trim();
+                if(val) {
+                    sendMessage(val);
+                    input.disabled = true; btn.disabled = true;
+                    songWrapper.style.opacity = 0.7;
+                }
+            };
+            btn.addEventListener('click', submitSong);
+            input.addEventListener('keydown', (e) => { if(e.key==='Enter') submitSong(); });
+            input.focus();
+        }
+
+        // Song Choice Handling
+        const choiceBtns = row.querySelectorAll('.song-choice-btn');
+        if (choiceBtns.length > 0 && data.action_payload) {
+            choiceBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = btn.dataset.songIndex;
+                    const song = data.action_payload[idx];
+                    const playerContainer = row.querySelector('.youtube-player-container');
+                    if(playerContainer && song) {
+                        playerContainer.innerHTML = `
+                        <div class="map-wrapper" style="margin-top:15px;">
+                             <iframe width="100%" height="250" src="https://www.youtube.com/embed/${song.video_id}?autoplay=1" frameborder="0" allowfullscreen></iframe>
+                        </div>
+                        <p style="margin-top:5px; font-size:0.9rem; color:#2dd4bf;">🎵 กำลังเล่น: ${song.title}</p>
+                        `;
+                    }
                 });
             });
         }
+
         messageArea.scrollTop = messageArea.scrollHeight;
-        return messageElement;
+        return row;
     }
 
-    function playVideoInBubble(song, messageElement, originalAnswer) {
-        if (!song || !song.video_id || !messageElement) return;
-        const bubbleContent = messageElement.querySelector('.glass-ai-bubble');
-        if (!bubbleContent) return;
-        const answerHtml = `<div class="prose prose-invert max-w-none text-text-primary"><p>${originalAnswer.replace(/</g, "&lt;")}</p><p>กำลังเล่นเพลง: <strong>${song.title.replace(/</g, "&lt;")}</strong></p></div>`;
-        const iframeHtml = `<div class="youtube-player-wrapper mt-4 rounded-lg overflow-hidden border border-border"><iframe width="100%" height="250" src="https://www.youtube.com/embed/${song.video_id}?autoplay=1&rel=0" title="${song.title}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
-        const fallbackLinkHtml = `<div class="mt-2 text-center text-sm"><p class="text-text-secondary">หากวิดีโอไม่แสดงผล</p><a href="https://www.youtube.com/watch?v=${song.video_id}" target="_blank" rel="noopener noreferrer" class="inline-block mt-1 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition">คลิกเพื่อดูบน YouTube</a></div>`;
-        bubbleContent.innerHTML = answerHtml + iframeHtml + fallbackLinkHtml;
-        messageArea.scrollTop = messageArea.scrollHeight;
-    }
+    // FAQ Button
+    document.getElementById('faq-button')?.addEventListener('click', () => {
+        const existingFaq = document.getElementById('faq-container');
+        if (existingFaq) existingFaq.remove();
 
-    function adjustTextareaHeight(el) {
-        el.style.height = 'auto';
-        const newHeight = Math.min(el.scrollHeight, 160);
-        el.style.height = `${newHeight}px`;
-        el.style.overflowY = (el.scrollHeight > 160) ? 'auto' : 'hidden';
-    }
-    
-    // --- Event Listeners Setup ---
-    sendButton.addEventListener('click', () => sendMessage());
+        const faqs = ["แนะนำที่เที่ยวธรรมชาติ", "วัดสวยๆ ในเมือง", "ของกินพื้นเมือง", "เปิดเพลงให้ฟังหน่อย", "นำทางไปดอยเสมอดาว"];
+        const faqHtml = faqs.map(q => `<button class="song-choice-btn" style="margin-top:5px;">${q}</button>`).join('');
+        
+        const row = document.createElement('div');
+        row.id = 'faq-container';
+        row.className = 'message-row ai';
+        row.innerHTML = `
+            <div class="robot-icon-mini"><div class="icon-eyes"></div></div>
+            <div class="bubble ai">
+                <p>ลองถามเรื่องพวกนี้ดูมั้ยคะ?</p>
+                ${faqHtml}
+            </div>`;
+        
+        messageArea.appendChild(row);
+        messageArea.scrollTop = messageArea.scrollHeight;
+
+        row.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                sendMessage(btn.innerText);
+                row.remove();
+            });
+        });
+    });
+
+    // Reset Chat
+    newChatBtn.addEventListener('click', () => {
+        messageArea.innerHTML = '';
+        localStorage.removeItem(SESSION_ID_KEY);
+        currentSessionId = 'session-' + Date.now();
+        localStorage.setItem(SESSION_ID_KEY, currentSessionId);
+        addMessage(createEmptyResponse("สวัสดีเจ้า... เริ่มทริปใหม่กันเลย! มีอะไรให้น้องน่านช่วยมั้ยคะ?"), 'ai');
+    });
+
+    // Input & Mic Handlers
     userInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     });
-    userInput.addEventListener('input', (e) => adjustTextareaHeight(e.target));
-    convoBtn.addEventListener('click', () => { window.open('robot_avatar.html', '_blank'); });
-
-    if (travelModeBtn) {
-        travelModeBtn.addEventListener('click', () => {
-            console.log('Switching to Travel Mode page...');
-            window.location.href = 'travel_mode';
-        });
-    }
-
-    newChatBtn.addEventListener('click', () => {
-        messageArea.innerHTML = ''; 
-        addMessage(createEmptyResponse("เริ่มต้นการสนทนาใหม่ค่ะ มีอะไรให้ช่วยเกี่ยวกับจังหวัดน่านไหมคะ?"), 'ai');
-        
-        // 🚀 [ผสาน] บังคับสร้าง Session ID ใหม่เมื่อกด "เริ่มใหม่"
-        localStorage.removeItem(SESSION_ID_KEY);
-        currentSessionId = null; // ล้างค่าที่เก็บไว้ในตัวแปร
-        getOrCreateSessionId(); // สร้างและเก็บค่าใหม่ทันที
-        console.log("New Chat: Session ID has been cleared and recreated.");
-
-        userInput.focus();
+    userInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+        if(this.value === '') this.style.height = '40px';
     });
-    
-    micButton.addEventListener('click', async () => {
-        if (isAnswering) return;
+    sendButton.addEventListener('click', () => sendMessage());
 
-        if (!audioContext) {
-            try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                await audioContext.resume();
-            } catch (e) {
-                console.error("Could not create/resume AudioContext", e);
-                addMessage(createEmptyResponse('ขออภัยค่ะ ไม่สามารถเปิดใช้งานระบบเสียงได้'), 'ai');
-                return;
-            }
-        }
-        
+    micButton.addEventListener('click', () => {
         if (!browserMicHandler) {
-            try {
-                browserMicHandler = new BrowserMicHandler({
-                    onStartRecording: () => {
-                        micButton.classList.add('mic-listening');
-                        userInput.placeholder = 'กำลังฟัง...';
-                        userInput.value = '';
-                        userInput.disabled = true;
-                    },
-                    onStopRecording: () => {
-                        micButton.classList.remove('mic-listening');
-                        userInput.placeholder = 'พิมพ์ข้อความของคุณ...';
-                        userInput.disabled = false;
-                    },
-                    onInterimTranscript: (text) => {
-                        userInput.value = text;
-                    },
-                    onFinalTranscript: (text) => {
-                        userInput.value = text;
-                        userInput.focus();
-                        adjustTextareaHeight(userInput);
-                    },
-                    onError: (error) => {
-                        addMessage(createEmptyResponse(`ขออภัยค่ะ เกิดข้อผิดพลาดกับระบบเสียง: ${error}`), 'ai');
-                        userInput.value = '';
-                        userInput.disabled = false;
-                    }
-                });
-            } catch (e) {
-                 console.error("Failed to initialize BrowserMicHandler", e);
-                 addMessage(createEmptyResponse('ขออภัยค่ะ ไม่สามารถเริ่ม BrowserMicHandler ได้'), 'ai');
-                 return;
-            }
+             browserMicHandler = new BrowserMicHandler({
+                onStartRecording: () => { micButton.classList.add('listening'); userInput.placeholder = 'กำลังฟัง...'; },
+                onStopRecording: () => { micButton.classList.remove('listening'); userInput.placeholder = 'ถามน้องน่านได้เลยเจ้า...'; },
+                onInterimTranscript: (txt) => userInput.value = txt,
+                onFinalTranscript: (txt) => { userInput.value = txt; sendMessage(); },
+                onError: (err) => alert(err)
+             });
         }
-        
-        if (browserMicHandler.isListening) {
-            browserMicHandler.stop();
-        } else {
-            browserMicHandler.start();
-        }
-    });
-    
-    faqButton.addEventListener('click', () => {
-        const existingFaq = document.getElementById('faq-container');
-        if (existingFaq) existingFaq.remove();
-        
-        const faqContainer = document.createElement('div');
-        faqContainer.id = 'faq-container';
-        faqContainer.className = 'flex items-start space-x-3 ai-message';
-        
-        const faqs = [ "แนะนำที่เที่ยวธรรมชาติหน่อย", "วัดสวยๆ ในตัวเมืองมีที่ไหนบ้าง", "ของกินพื้นเมืองที่ต้องลองคืออะไร", "อยากได้แผนเที่ยว 1 วัน", "เปิดเพลง", "เปิดเครื่องคิดเลข", "ร้านอาหารกลางคืนอร่อยๆ" ];
-        let buttonsHtml = faqs.map(q => `<button class="block w-full text-left p-2.5 mt-2 bg-slate-700/60 hover:bg-slate-700 rounded-lg transition">${q.replace(/</g, "&lt;")}</button>`).join('');
-        
-        faqContainer.innerHTML = `<div class="robot-icon-container"><div class="icon-head-top-accent"></div><div class="icon-robot-face"><div class="icon-robot-eye"></div><div class="icon-robot-eye"></div></div></div><div class="glass-ai-bubble p-4 rounded-2xl rounded-bl-lg max-w-md w-full"><p class="font-medium text-text-primary mb-2">ลองถามคำถามเหล่านี้ดูสิคะ:</p>${buttonsHtml}</div>`;
-        
-        faqContainer.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', () => { 
-                sendMessage(btn.textContent); 
-                faqContainer.remove(); 
-            });
-        });
-        
-        messageArea.appendChild(faqContainer);
-        messageArea.scrollTop = messageArea.scrollHeight;
+        if (browserMicHandler.isListening) browserMicHandler.stop();
+        else browserMicHandler.start();
     });
 
-    // --- Event Delegation for Dynamic Content (e.g., song input) ---
-    const handleSongSubmit = (wrapper) => {
-        if (!wrapper) return;
-        const inputField = wrapper.querySelector('.song-input-field');
-        const submitButton = wrapper.querySelector('.song-submit-btn');
-
-        if (inputField && !inputField.disabled) {
-            const query = inputField.value.trim();
-            if (query) {
-                sendMessage(query);
-                inputField.disabled = true;
-                submitButton.disabled = true;
-                wrapper.style.opacity = '0.7';
-            }
-        }
-    };
-    
-    messageArea.addEventListener('click', (e) => {
-        const submitButton = e.target.closest('.song-submit-btn');
-        if (submitButton) {
-            handleSongSubmit(submitButton.closest('[id^="song-input-wrapper-"]'));
-        }
-    });
-
-    messageArea.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.target.classList.contains('song-input-field')) {
-            e.preventDefault();
-            handleSongSubmit(e.target.closest('[id^="song-input-wrapper-"]'));
-        }
-    });
-
-    // --- Initial Message ---
-    addMessage(createEmptyResponse("สวัสดีเจ้า... ยินดีต้อนรับสู่เมืองน่าน มีอะหยังหื้อน้องน่านช่วยก่อเจ้า?"), 'ai');
-    adjustTextareaHeight(userInput);
+    // Welcome Message
+    addMessage(createEmptyResponse("สวัสดีเจ้า 🙏 ยินดีต้อนรับสู่เมืองน่าน มีอะหยังหื้อน้องน่านช่วยก่อเจ้า?"), 'ai');
 });
