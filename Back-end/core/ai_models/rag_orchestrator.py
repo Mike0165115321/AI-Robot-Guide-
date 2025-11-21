@@ -1,4 +1,4 @@
-# /Back-end/core/ai_models/rag_orchestrator.py
+# Back-end/core/ai_models/rag_orchestrator.py
 
 import asyncio
 import logging
@@ -26,8 +26,12 @@ from .handlers.analytics_handler import AnalyticsHandler
 from core.database.mongodb_manager import MongoDBManager
 from core.database.qdrant_manager import QdrantManager
 from core.tools.image_search_tool import image_search_tool_instance
+from core.ai_models.llm_handler import get_llm_response
 from core.tools.system_tool import system_tool_instance
 from utils.helper_functions import create_synthetic_document
+from .services.session_manager import SessionManager
+from .services.navigation_service import NavigationService
+from .services.prompt_engine import PromptEngine
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
 IMAGE_DIR = BACKEND_ROOT / "static" / "images"
@@ -49,10 +53,15 @@ class RAGOrchestrator:
         qdrant_manager: QdrantManager,
         query_interpreter: QueryInterpreter,
     ):
-        logging.info("⚙️  RAG Orchestrator (V7.4 - Memory Added) is initializing...")
+        logging.info("⚙️  RAG Orchestrator (Refactored V8.0) is initializing...")
         self.mongo_manager = mongo_manager
         self.qdrant_manager = qdrant_manager
         self.query_interpreter = query_interpreter
+
+        # ✅ เรียกใช้ Services ใหม่
+        self.session_manager = SessionManager(mongo_manager)
+        self.nav_service = NavigationService()
+        self.prompt_engine = PromptEngine()
 
         self.reranker_model_name = settings.RERANKER_MODEL_NAME
         self.device = settings.DEVICE
@@ -62,8 +71,6 @@ class RAGOrchestrator:
         logging.info("✅ Re-ranker Model loaded.")
 
         self.log_collection = self.mongo_manager.get_collection("query_logs")
-        
-        self.session_states: Dict[str, Dict[str, Any]] = {}
         
         self.analytics_handler = AnalyticsHandler(
             mongo_manager=self.mongo_manager,
@@ -121,13 +128,12 @@ class RAGOrchestrator:
             image_url = None
             safe_keyword = keyword.replace(" ", "-").lower()
             for prefix, paths in self.prefixed_image_map.items():
-                 if (safe_keyword in prefix.lower() or prefix.lower().replace("-", " ") in keyword.lower()) and paths:
-                     image_url = random.choice(paths)
-                     break
+                if (safe_keyword in prefix.lower() or prefix.lower().replace("-", " ") in keyword.lower()) and paths:
+                    image_url = random.choice(paths)
+                    break
             if not image_url:
                 try:
                     search_q = f"{keyword} จังหวัดน่าน"
-                    logging.info(f"🖼️ [Injection] Searching Google for tag: '{keyword}'")
                     google_urls = await image_search_tool_instance.get_image_urls(search_q, max_results=1)
                     if google_urls:
                         image_url = google_urls[0]
@@ -166,12 +172,14 @@ class RAGOrchestrator:
 
     async def _handle_welcome_flow(self, session_id: Optional[str] = None, **kwargs) -> dict:
         if session_id:
-            # คงค่า turn_count ไว้ ไม่ reset
-            if session_id not in self.session_states:
-                 self.session_states[session_id] = {"turn_count": 0}
-            
-            self.session_states[session_id]["awaiting"] = "analytics_origin_or_topic"
-            self.session_states[session_id]["timestamp"] = datetime.now(timezone.utc)
+            try:
+                self.session_manager.collection.update_one(
+                    {"session_id": session_id},
+                    {"$set": {"awaiting": "analytics_origin_or_topic", "last_active": datetime.now(timezone.utc)}},
+                    upsert=True
+                )
+            except Exception as e:
+                logging.error(f"Error updating welcome state: {e}")
             
         return {
             "answer": "สวัสดีค่ะ ยินดีต้อนรับสู่จังหวัดน่านค่ะ! น้องน่านเป็นไกด์ AI ที่ช่วยแนะนำที่เที่ยว ที่กิน หรือวัฒนธรรมได้เลยนะคะ\n\nบอกหน่อยได้ไหมคะว่า **มาจากที่ไหน?** หรือ **สนใจเที่ยวแนวไหนเป็นพิเศษคะ?**",
@@ -221,7 +229,6 @@ class RAGOrchestrator:
         if entity:
             search_queries.append(entity)
             search_queries.append(f"ข้อมูลทั่วไป {entity}")
-            # 🚀 [เพิ่ม] ค้นหาแบบเจาะจงจังหวัดน่าน เพื่อลด Hallucination (เช่น ถนนหมายเลข 3)
             search_queries.append(f"{entity} จังหวัดน่าน")
         
         unique_queries = list(set([q for q in search_queries if q.strip()]))
@@ -240,7 +247,7 @@ class RAGOrchestrator:
 
         retrieved_docs = await asyncio.to_thread(self.mongo_manager.get_locations_by_ids, unique_ids)
         if not retrieved_docs:
-             return {"answer": "พบข้อมูลแต่ดึงรายละเอียดไม่ได้ค่ะ", "action": None, "sources": [], "image_url": None, "image_gallery": []}
+            return {"answer": "พบข้อมูลแต่ดึงรายละเอียดไม่ได้ค่ะ", "action": None, "sources": [], "image_url": None, "image_gallery": []}
 
         docs_with_synthetic = await asyncio.to_thread(lambda docs: [(doc, create_synthetic_document(doc)) for doc in docs], retrieved_docs)
         sentence_pairs = [[corrected_query, synthetic_doc] for doc, synthetic_doc in docs_with_synthetic]
@@ -251,57 +258,49 @@ class RAGOrchestrator:
         top_k = settings.TOP_K_RERANK_VOICE if mode == "voice" else settings.TOP_K_RERANK_TEXT
         final_docs = [doc for score, (doc, _) in reranked_results[:top_k]]
         
-        # 🔥 [Memory] จำ Topic ล่าสุดที่คุยกัน ไว้ใช้กับคำสั่ง "นำทาง"
-        if final_docs and session_id and session_id in self.session_states:
-            best_topic = final_docs[0].get("title")
-            self.session_states[session_id]["last_topic"] = best_topic
-            logging.info(f"🧠 [Memory] Remembered topic: {best_topic}")
+        context_str = ""
+        if final_docs:
+            context_parts = []
+            for i, doc in enumerate(final_docs, 1):
+                doc_text = create_synthetic_document(doc)
+                context_parts.append(f"[Document {i}]\nTitle: {doc.get('title')}\nInfo: {doc_text}")
+            context_str = "\n\n----------------\n\n".join(context_parts)
 
-        if final_docs and self.log_collection is not None:
-            try:
-                primary_topic = final_docs[0].get("title", "General")
-                log_document = {
-                    "query": corrected_query,
-                    "primary_topic": primary_topic,
-                    "timestamp": datetime.now(timezone.utc)
-                }
-                asyncio.create_task(asyncio.to_thread(self.log_collection.insert_one, log_document))
-            except Exception as e:
-                logging.error(f"❌ [Analytics] Failed to log query: {e}")
+        history = []
+        if session_id:
+            session = await self.session_manager.get_session(session_id)
+            history = session.get("history", [])
 
-        context_parts = []
-        for i, doc in enumerate(final_docs, 1):
-            doc_text = create_synthetic_document(doc)
-            context_parts.append(f"[Document {i}]\nTitle: {doc.get('title')}\nInfo: {doc_text}")
-        context_str = "\n\n----------------\n\n".join(context_parts)
-
-        insights = await asyncio.to_thread(get_insights_from_logs, self.log_collection)
-        llm_response = await get_groq_rag_response_async(corrected_query, context_str, insights, turn_count=turn_count)
+        prompt_dict = self.prompt_engine.build_rag_prompt(
+            user_query=corrected_query, 
+            context=context_str, 
+            history=history
+        )
         
-        final_answer = llm_response.get("answer", "ขออภัยค่ะ ระบบประมวลผลคำตอบผิดพลาด")
-        llm_sources = llm_response.get("sources_used", [])
+        messages = [
+            {"role": "system", "content": prompt_dict["system"]},
+            {"role": "user", "content": prompt_dict["user"]}
+        ]
 
-        docs_to_show = []
-        if llm_sources:
-            docs_to_show = [d for d in final_docs if d.get("title") in llm_sources]
-        if not docs_to_show and final_docs:
-            docs_to_show = [final_docs[0]] 
-
-        final_answer_with_images = await self._inject_images_into_text(final_answer)
+        raw_answer = await get_llm_response(
+            messages=messages,
+            model_name=settings.GROQ_LLAMA_MODEL 
+        )
+        
+        final_answer_with_images = await self._inject_images_into_text(raw_answer)
+        
+        docs_to_show = final_docs[:3]
         prepared_data = self._prepare_source_and_image_data(docs_to_show)
         static_gallery = prepared_data["image_gallery"]
         
-        if len(static_gallery) < settings.IMAGE_FALLBACK_THRESHOLD:
-            titles = [d.get("title") for d in docs_to_show]
-            if titles:
-                search_q = f"{titles[0]} จังหวัดน่าน" 
-                logging.info(f"🖼️ [Fallback] Searching Google Image for: {search_q}")
-                try:
-                    google_imgs = await image_search_tool_instance.get_image_urls(search_q, max_results=settings.GOOGLE_IMAGE_MAX_RESULTS)
-                    for url in google_imgs:
-                        if url not in static_gallery: static_gallery.append(url)
-                except Exception as e:
-                    logging.error(f"❌ Google Image Search failed: {e}")
+        if len(static_gallery) < settings.IMAGE_FALLBACK_THRESHOLD and final_docs:
+            search_q = f"{final_docs[0].get('title')} จังหวัดน่าน" 
+            try:
+                google_imgs = await image_search_tool_instance.get_image_urls(search_q, max_results=settings.GOOGLE_IMAGE_MAX_RESULTS)
+                for url in google_imgs:
+                    if url not in static_gallery: static_gallery.append(url)
+            except Exception as e:
+                logging.error(f"❌ Google Image Search failed: {e}")
 
         return {
             "answer": final_answer_with_images,
@@ -309,14 +308,8 @@ class RAGOrchestrator:
             "image_url": None, 
             "image_gallery": static_gallery[:settings.FINAL_GALLERY_IMAGE_LIMIT],
             "sources": prepared_data["source_info"],
+            "_primary_topic": final_docs[0].get("title") if final_docs else None # ส่ง Topic กลับไปบันทึก State
         }
-
-    def _calculate_distance(self, lat1, lon1, lat2, lon2):
-        if None in [lat1, lon1, lat2, lon2]: return float('inf')
-        R = 6371 
-        dLat, dLon = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
-        a = math.sin(dLat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLon/2)**2
-        return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
 
     async def get_navigation_list(self, user_lat: float = None, user_lon: float = None) -> List[Dict[str, Any]]:
         try:
@@ -324,24 +317,23 @@ class RAGOrchestrator:
                 {"doc_type": "Location"}, 
                 {"title":1, "slug":1, "topic":1, "summary":1, "category":1, "location_data":1, "metadata":1, "_id":0}
             )))
+            
+            if user_lat and user_lon:
+                docs = self.nav_service.sort_locations_by_distance(docs, user_lat, user_lon)
+            
             for doc in docs:
                 prefix = doc.get("metadata", {}).get("image_prefix")
                 imgs = self._find_all_images_by_prefix(prefix)
                 doc["image_urls"] = [imgs[0]] if imgs else []
-                dist = float('inf')
-                if user_lat and user_lon and doc.get("location_data"):
-                    dist = self._calculate_distance(user_lat, user_lon, doc["location_data"].get("latitude"), doc["location_data"].get("longitude"))
-                doc["distance_km"] = round(dist, 1) if dist != float('inf') else None
-            docs.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 99999)
+            
             return docs
         except Exception as e:
-            logging.error(f"❌ [V-Maps] Error: {e}")
+            logging.error(f"❌ [NavList] Error: {e}")
             return []
 
     async def handle_get_directions(self, entity_slug: str, user_lat: float = None, user_lon: float = None) -> dict:
         logging.info(f"🗺️  [V-Maps] Handling Directions for: '{entity_slug}'")
         
-        # 1. ค้นหาสถานที่ (Slug หรือ Title)
         doc = await asyncio.to_thread(self.mongo_manager.get_location_by_slug, entity_slug)
         if not doc:
             logging.info(f"[V-Maps] Slug not found. Searching by title: '{entity_slug}'")
@@ -355,49 +347,37 @@ class RAGOrchestrator:
 
         nav_data = doc["location_data"]
         dest_name = doc.get("title", "ปลายทาง")
-        dest_lat = nav_data.get("latitude")
-        dest_lon = nav_data.get("longitude")
         
-        # 3. สร้าง URL (✅ สูตรมาตรฐาน: ใช้ maps.google.com/maps?output=embed)
-        # สูตรนี้ขึ้นแน่นอน ไม่ต้องใช้ API Key และไม่โดนบล็อก Iframe
-        embed_url = f"https://maps.google.com/maps?q={dest_lat},{dest_lon}&z=15&output=embed"
+        links = self.nav_service.generate_google_maps_links(
+            nav_data.get("latitude"), nav_data.get("longitude"),
+            user_lat, user_lon
+        )
 
-        # Link สำหรับกดเปิดแอป (External)
-        if user_lat and user_lon:
-             google_maps_link = f"https://www.google.com/maps/dir/?api=1&origin={user_lat},{user_lon}&destination={dest_lat},{dest_lon}&travelmode=driving"
-        else:
-             google_maps_link = f"https://www.google.com/maps/search/?api=1&query={dest_lat},{dest_lon}"
+        answer_text = self.prompt_engine.build_navigation_prompt(dest_name)
 
-        # 4. ส่งผลลัพธ์
         return {
-            "answer": f"จัดให้ตามคำขอค่ะ! นี่คือพิกัดของ **{dest_name}** \n\n(กดปุ่มด้านล่างเพื่อเปิดแอปนำทางได้เลยนะคะ 👇)",
+            "answer": answer_text,
             "action": "SHOW_MAP_EMBED",
             "action_payload": {
-                "embed_url": embed_url,
+                "embed_url": links["embed_url"],
                 "destination_name": dest_name,
-                "external_link": google_maps_link 
+                "external_link": links["external_link"] 
             },
             "image_url": None, "image_gallery": [], "sources": []
         }
     
     async def answer_query(self, query: str, mode: str = "text", session_id: Optional[str] = None, **kwargs) -> dict:
-        # 1. Analytics Logic
-        if session_id and (state := self.session_states.get(session_id)):
-            if state.get("awaiting") == "analytics_origin_or_topic":
-                self.session_states.pop(session_id, None)
-                return await self.analytics_handler.handle_analytics_response(query, session_id, mode)
 
-        # 2. Session Logic
-        current_turn = 1
-        if session_id:
-            if session_id not in self.session_states:
-                self.session_states[session_id] = {"turn_count": 0, "last_topic": None}
-            
-            self.session_states[session_id]["turn_count"] += 1
-            current_turn = self.session_states[session_id]["turn_count"]
-            logging.info(f"🔄 [Session] ID: {session_id} | Turn: {current_turn}")
+        session_data = await self.session_manager.get_session(session_id)
+        current_turn = session_data.get("turn_count", 0) + 1
+        history = session_data.get("history", []) 
+        
+        if session_id and session_data.get("awaiting") == "analytics_origin_or_topic":
+            self.session_manager.collection.update_one({"session_id": session_id}, {"$unset": {"awaiting": ""}})
+            return await self.analytics_handler.handle_analytics_response(query, session_id, mode)
 
-        # 3. Interpretation
+        logging.info(f"🔄 [Session] ID: {session_id} | Turn: {current_turn}")
+
         try:
             interpretation = await self.query_interpreter.interpret_and_route(query)
         except Exception as e:
@@ -410,21 +390,18 @@ class RAGOrchestrator:
         
         logging.info(f"🚦 Intent: {intent} | Query: {query} | Entity: {entity}")
 
-        # 4. Smart Navigation Router
         navigation_keywords = ["นำทาง", "เส้นทาง", "พาไป", "ขอทาง", "ไปยัง", "ไปวัด", "ไปที่"]
         is_nav_request = any(kw in corrected_query for kw in navigation_keywords)
         
         if is_nav_request:
             target_entity = entity
             
-            # 🔥 [Memory Magic] ถ้า User ไม่บอกสถานที่ ให้ไปขุดความจำเก่า (Last Topic)
-            if not target_entity and session_id and session_id in self.session_states:
-                last_topic = self.session_states[session_id].get("last_topic")
+            if not target_entity and session_id:
+                last_topic = await self.session_manager.get_last_topic(session_id)
                 if last_topic:
                     logging.info(f"🧠 [Memory] User didn't say where, assuming last topic: '{last_topic}'")
                     target_entity = last_topic
                 else:
-                    # ถ้าไม่เคยคุยเรื่องสถานที่มาก่อนเลย
                     return {"answer": "ได้เลยค่ะ! แต่ช่วยบอกน้องน่านหน่อยได้ไหมคะว่าจะให้ **นำทางไปที่ไหน?** 😊", "action": None, "sources": [], "image_url": None}
 
             if target_entity:
@@ -434,8 +411,6 @@ class RAGOrchestrator:
                     user_lat=kwargs.get('user_lat', 0.0),
                     user_lon=kwargs.get('user_lon', 0.0)
                 )
-        
-        # 5. Normal Handlers
         handler_map = {
             "WELCOME_GREETING": self._handle_welcome_flow,
             "SMALL_TALK": self._handle_small_talk,
@@ -445,7 +420,7 @@ class RAGOrchestrator:
         }
         handler = handler_map.get(intent, self._handle_informational)
         
-        return await handler(
+        response = await handler(
             corrected_query=corrected_query,
             entity=entity,
             is_complex=interpretation.get("is_complex", False),
@@ -455,3 +430,14 @@ class RAGOrchestrator:
             turn_count=current_turn,
             **kwargs
         )
+
+        if session_id:
+            primary_topic = response.pop("_primary_topic", None) 
+            await self.session_manager.update_turn(
+                session_id, 
+                user_query=query, 
+                ai_response=response.get("answer", ""), 
+                topic=primary_topic
+            )
+            
+        return response
