@@ -1,305 +1,247 @@
-// /frontend/assets/scripts/chat.js (Ultimate Final - Pure CSS & Map Support)
+// /frontend/assets/scripts/chat.js (Improved Image & Content Rendering)
 
-// --- Class จัดการไมโครโฟน ---
-class BrowserMicHandler {
-    constructor(callbacks) {
-        this.callbacks = callbacks;
-        this.recognition = this.createRecognition();
-        this.isListening = false;
-        this.finalTranscript = '';
-    }
-    createRecognition() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            this.callbacks.onError('Browser does not support speech recognition.');
-            return null;
-        }
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'th-TH';
-        recognition.interimResults = true;
-        recognition.continuous = true;
-
-        recognition.onstart = () => {
-            this.isListening = true;
-            this.finalTranscript = '';
-            this.callbacks.onStartRecording();
-        };
-        recognition.onend = () => {
-            this.isListening = false;
-            this.callbacks.onStopRecording();
-            if (this.finalTranscript.trim()) this.callbacks.onFinalTranscript(this.finalTranscript.trim());
-        };
-        recognition.onerror = (event) => {
-            if (event.error !== 'no-speech') this.callbacks.onError(event.error);
-        };
-        recognition.onresult = (event) => {
-            let interimTranscript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) this.finalTranscript += event.results[i][0].transcript;
-                else interimTranscript += event.results[i][0].transcript;
-            }
-            this.callbacks.onInterimTranscript(this.finalTranscript + interimTranscript);
-        };
-        return recognition;
-    }
-    start() { if (!this.isListening && this.recognition) this.recognition.start(); }
-    stop() { if (this.isListening && this.recognition) this.recognition.stop(); }
-}
-
-// --- Main Chat Logic ---
 document.addEventListener('DOMContentLoaded', () => {
     const messageArea = document.getElementById('message-area');
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button-icon');
     const micButton = document.getElementById('mic-button');
     const newChatBtn = document.getElementById('new-chat-btn');
-    
-    // Sidebar Buttons
-    document.getElementById('travel-mode-btn')?.addEventListener('click', () => window.location.href = 'travel_mode');
-    document.getElementById('convo-btn')?.addEventListener('click', () => window.open('robot_avatar.html', '_blank'));
+    const faqButton = document.getElementById('faq-button'); // เพิ่ม FAQ button
+    const mapOverlay = document.getElementById('map-overlay'); // สำหรับ Travel Mode
+    const closeMapBtn = document.getElementById('close-map-btn'); // สำหรับ Travel Mode
 
-    let isAnswering = false;
-    let browserMicHandler = null;
+    let recognition;
+    let isListening = false;
+    let messageCounter = 0; // เพื่อให้แต่ละข้อความมี ID ไม่ซ้ำกัน
 
-    // Session Management
-    const SESSION_ID_KEY = 'nan_chat_session_id';
-    let currentSessionId = localStorage.getItem(SESSION_ID_KEY) || (() => {
-        const id = 'session-' + Date.now();
-        localStorage.setItem(SESSION_ID_KEY, id);
-        return id;
-    })();
+    // --- Voice Handler Integration ---
+    let mainAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+    let websocket;
+    let voiceHandler;
 
-    const createEmptyResponse = (text) => ({ answer: text, image_gallery: [], sources: [] });
+    // Connect WebSocket for chat (only once)
+    function connectChatWebSocket() {
+        if (typeof API_HOST === 'undefined' || typeof API_PORT === 'undefined') {
+            console.error("API_HOST or API_PORT is not defined in config.js");
+            return;
+        }
 
-    async function sendMessage(queryOverride = null) {
-        const query = queryOverride || userInput.value.trim();
-        if (!query || isAnswering) return;
+        // ปิดการเชื่อมต่อเดิมถ้ามี
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.close();
+        }
 
-        addMessage(query, 'user');
-        userInput.value = '';
-        userInput.style.height = 'auto'; // Reset height
-        
-        isAnswering = true;
-        sendButton.disabled = true;
-        micButton.disabled = true;
-        
-        const loadingMsg = addMessage('กำลังประมวลผล...', 'ai-thinking');
+        websocket = new WebSocket(`ws://${API_HOST}:${API_PORT}/api/chat/ws`);
+        websocket.binaryType = 'arraybuffer'; // สำหรับรับข้อมูลเสียง
 
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/chat/`, { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: query, session_id: currentSessionId }), 
+        websocket.onopen = () => {
+            console.log("Chat WS Connected.");
+            // ส่งข้อความต้อนรับครั้งแรกเมื่อเชื่อมต่อ
+            sendSystemMessage("สวัสดีค่ะ น้องน่าน AI ยินดีให้บริการค่ะ มีอะไรให้น้องน่านช่วยแนะนำการท่องเที่ยว หรือข้อมูลวัฒนธรรมประเพณีของน่านไหมคะ? ว่ามาได้เลยเจ้า!");
+        };
+
+        websocket.onmessage = async (event) => {
+            if (typeof event.data === 'string') {
+                const data = JSON.parse(event.data);
+                displayMessage(data.answer || "ขออภัยค่ะ ไม่เข้าใจคำถาม", 'ai', data.image_url, data.image_gallery, data.emotion, data.sources, data.action);
+            } else if (event.data instanceof ArrayBuffer) {
+                // สำหรับการเล่นเสียงตอบกลับของ AI
+                await playAudio(event.data);
+            }
+        };
+
+        websocket.onclose = (event) => {
+            console.log("Chat WS Closed:", event);
+            // พยายามเชื่อมต่อใหม่หากปิดโดยไม่ตั้งใจ
+            if (!event.wasClean) {
+                console.log("Attempting to reconnect Chat WS...");
+                setTimeout(connectChatWebSocket, 3000);
+            }
+        };
+
+        websocket.onerror = (error) => {
+            console.error("Chat WS Error:", error);
+            websocket.close();
+        };
+    }
+
+    // Initialize VoiceHandler for microphone input
+    function initializeVoiceHandler() {
+        if (!voiceHandler) {
+            voiceHandler = new VoiceHandler(mainAudioContext, {
+                onStatusUpdate: (text) => {
+                    if (isListening) updateMicButtonState(text);
+                },
+                onSpeechEnd: (audioBlob) => {
+                    if (websocket && websocket.readyState === WebSocket.OPEN) {
+                        websocket.send(audioBlob);
+                        updateMicButtonState("กำลังประมวลผล...");
+                    }
+                    isListening = false;
+                }
             });
-            if (!response.ok) throw new Error('Network response was not ok');
-            const data = await response.json();
-
-            loadingMsg.remove();
-            addMessage(data, 'ai');
-        } catch (error) {
-            console.error(error);
-            loadingMsg.remove();
-            addMessage(createEmptyResponse('ขออภัยค่ะ เกิดข้อผิดพลาดในการเชื่อมต่อ'), 'ai');
-        } finally {
-            isAnswering = false;
-            sendButton.disabled = false;
-            micButton.disabled = false;
-            userInput.focus();
         }
     }
 
-    function addMessage(data, type) {
-        const row = document.createElement('div');
-        // ใช้ class ตาม CSS ใหม่ (message-row)
-        row.className = `message-row ${type === 'user' ? 'user' : 'ai'}`;
+    // Play audio from AI response
+    async function playAudio(audioData) {
+        try {
+            const audioBuffer = await mainAudioContext.decodeAudioData(audioData);
+            const source = mainAudioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(mainAudioContext.destination);
+            source.start(0);
+        } catch (e) {
+            console.error("Error playing audio:", e);
+        }
+    }
 
-        let innerContent = '';
+    // --- Message Display Logic ---
+    function displayMessage(text, sender, imageUrl = null, imageGallery = [], emotion = 'normal', sources = [], action = null) {
+        messageCounter++;
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', sender);
+        messageElement.id = `msg-${messageCounter}`;
 
-        if (type === 'user') {
-            // User Message
-            innerContent = `<div class="bubble user">${data}</div>`;
-        } else {
-            // AI Message
-            if (type === 'ai-thinking') {
-                innerContent = `
-                <div class="robot-icon-mini"><div class="icon-eyes"></div></div>
-                <div class="bubble ai typing-indicator">${data}</div>`;
-            } else {
-                // Markdown Content
-                const answerHtml = window.marked ? marked.parse(data.answer || '') : data.answer;
-                
-                // 1. Images Grid (รูปภาพแบบ Grid)
-                let imagesHtml = '';
-                if (data.image_gallery && data.image_gallery.length > 0) {
-                    imagesHtml = `<div class="chat-images-grid">` + 
-                        data.image_gallery.slice(0, 4).map(url => 
-                            `<img src="${url}" class="chat-image" onclick="window.open('${url}')" onerror="this.style.display='none'">`
-                        ).join('') + 
-                    `</div>`;
-                }
+        let contentHtml = marked.parse(text);
 
-                // 2. Map Embed (แผนที่ - ส่วนที่เคยขาดไป)
-                let mapHtml = '';
-                if (data.action === 'SHOW_MAP_EMBED') {
-                    const { embed_url, external_link } = data.action_payload;
-                    if (embed_url) {
-                        mapHtml = `
-                        <div class="map-wrapper">
-                            <iframe width="100%" height="250" src="${embed_url}" style="border:0;" allowfullscreen loading="lazy"></iframe>
-                        </div>
-                        ${external_link ? `<a href="${external_link}" target="_blank" class="btn-map-link"><i class="fa-solid fa-location-arrow"></i> เปิดใน Google Maps</a>` : ''}
-                        `;
-                    }
-                }
-                
-                // 3. Song Choices (ตัวเลือกเพลง)
-                let songChoicesHtml = '';
-                if (data.action === 'SHOW_SONG_CHOICES' && Array.isArray(data.action_payload)) {
-                    songChoicesHtml = data.action_payload.map((s, index) => 
-                        `<button class="song-choice-btn" data-song-index="${index}">🎵 ${s.title}</button>`
-                    ).join('');
-                }
+        // Handle image gallery
+        if (imageGallery && imageGallery.length > 0) {
+            contentHtml += `<div class="image-gallery-grid">`;
+            imageGallery.forEach(img => {
+                contentHtml += `<img src="${img.url || img}" alt="${img.alt || 'รูปภาพประกอบ'}" class="responsive-image">`;
+            });
+            contentHtml += `</div>`;
+        } 
+        // Handle single image
+        else if (imageUrl) {
+            contentHtml += `<div class="single-image-container">
+                                <img src="${imageUrl}" alt="รูปภาพประกอบ" class="responsive-image">
+                            </div>`;
+        }
 
-                // 4. Song Input (ช่องค้นหาเพลง)
-                let songInputHtml = '';
-                if (data.action === 'PROMPT_FOR_SONG_INPUT') {
-                    const placeholder = data.action_payload?.placeholder || 'พิมพ์ชื่อเพลง...';
-                    songInputHtml = `
-                    <div class="song-input-wrapper" id="song-wrapper-${Date.now()}">
-                        <input type="text" class="song-input-field" placeholder="${placeholder}">
-                        <button class="song-submit-btn"><i class="fa-solid fa-music"></i> ค้นหา</button>
-                    </div>`;
-                }
+        // Handle sources
+        if (sources && sources.length > 0) {
+            contentHtml += `<div class="sources-container"><h4>แหล่งข้อมูล:</h4><ul>`;
+            sources.forEach(source => {
+                contentHtml += `<li><a href="${source.url}" target="_blank">${source.title || source.url}</a></li>`;
+            });
+            contentHtml += `</ul></div>`;
+        }
 
-                innerContent = `
-                <div class="robot-icon-mini"><div class="icon-eyes"></div></div>
-                <div class="bubble ai">
-                    <div class="markdown-content">${answerHtml}</div>
-                    ${imagesHtml}
-                    ${mapHtml}
-                    ${songChoicesHtml}
-                    ${songInputHtml}
-                    <div class="youtube-player-container"></div>
-                </div>`;
+        messageElement.innerHTML = contentHtml;
+        messageArea.appendChild(messageElement);
+        messageArea.scrollTop = messageArea.scrollHeight;
+
+        // Auto-scroll on image load to prevent cut-off issues
+        messageElement.querySelectorAll('img').forEach(img => {
+            img.onload = () => {
+                messageArea.scrollTop = messageArea.scrollHeight;
+            };
+        });
+
+        // Handle specific actions (e.g., show map)
+        if (action === 'SHOW_MAP_EMBED' && data.map_embed_url) {
+            showMapEmbed(data.map_embed_url, data.map_title || "แผนที่นำทาง");
+        }
+    }
+
+    function sendSystemMessage(text) {
+        displayMessage(text, 'system');
+    }
+
+    // --- User Input & Mic Control ---
+    function sendMessage() {
+        const text = userInput.value.trim();
+        if (text && websocket && websocket.readyState === WebSocket.OPEN) {
+            displayMessage(text, 'user');
+            websocket.send(JSON.stringify({ query: text }));
+            userInput.value = '';
+            // ถ้าไมค์กำลังฟัง ให้หยุด
+            if (voiceHandler && voiceHandler.isListening) {
+                voiceHandler.stop(true);
+                isListening = false;
+                updateMicButtonState("แตะเพื่อพูด");
             }
         }
-
-        row.innerHTML = innerContent;
-        messageArea.appendChild(row);
-        
-        // Auto-hide broken images
-        row.querySelectorAll('.markdown-content img').forEach(img => {
-            img.classList.add('chat-image'); // ใช้ Style เดียวกัน
-            img.onerror = function() { this.style.display = 'none'; };
-        });
-
-        // --- Event Bindings ---
-
-        // Song Input Handling
-        const songWrapper = row.querySelector('.song-input-wrapper');
-        if (songWrapper) {
-            const input = songWrapper.querySelector('input');
-            const btn = songWrapper.querySelector('button');
-            const submitSong = () => {
-                const val = input.value.trim();
-                if(val) {
-                    sendMessage(val);
-                    input.disabled = true; btn.disabled = true;
-                    songWrapper.style.opacity = 0.7;
-                }
-            };
-            btn.addEventListener('click', submitSong);
-            input.addEventListener('keydown', (e) => { if(e.key==='Enter') submitSong(); });
-            input.focus();
-        }
-
-        // Song Choice Handling
-        const choiceBtns = row.querySelectorAll('.song-choice-btn');
-        if (choiceBtns.length > 0 && data.action_payload) {
-            choiceBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const idx = btn.dataset.songIndex;
-                    const song = data.action_payload[idx];
-                    const playerContainer = row.querySelector('.youtube-player-container');
-                    if(playerContainer && song) {
-                        playerContainer.innerHTML = `
-                        <div class="map-wrapper" style="margin-top:15px;">
-                             <iframe width="100%" height="250" src="https://www.youtube.com/embed/${song.video_id}?autoplay=1" frameborder="0" allowfullscreen></iframe>
-                        </div>
-                        <p style="margin-top:5px; font-size:0.9rem; color:#2dd4bf;">🎵 กำลังเล่น: ${song.title}</p>
-                        `;
-                    }
-                });
-            });
-        }
-
-        messageArea.scrollTop = messageArea.scrollHeight;
-        return row;
     }
 
-    // FAQ Button
-    document.getElementById('faq-button')?.addEventListener('click', () => {
-        const existingFaq = document.getElementById('faq-container');
-        if (existingFaq) existingFaq.remove();
-
-        const faqs = ["แนะนำที่เที่ยวธรรมชาติ", "วัดสวยๆ ในเมือง", "ของกินพื้นเมือง", "เปิดเพลงให้ฟังหน่อย", "นำทางไปดอยเสมอดาว"];
-        const faqHtml = faqs.map(q => `<button class="song-choice-btn" style="margin-top:5px;">${q}</button>`).join('');
-        
-        const row = document.createElement('div');
-        row.id = 'faq-container';
-        row.className = 'message-row ai';
-        row.innerHTML = `
-            <div class="robot-icon-mini"><div class="icon-eyes"></div></div>
-            <div class="bubble ai">
-                <p>ลองถามเรื่องพวกนี้ดูมั้ยคะ?</p>
-                ${faqHtml}
-            </div>`;
-        
-        messageArea.appendChild(row);
-        messageArea.scrollTop = messageArea.scrollHeight;
-
-        row.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', () => {
-                sendMessage(btn.innerText);
-                row.remove();
-            });
-        });
-    });
-
-    // Reset Chat
-    newChatBtn.addEventListener('click', () => {
-        messageArea.innerHTML = '';
-        localStorage.removeItem(SESSION_ID_KEY);
-        currentSessionId = 'session-' + Date.now();
-        localStorage.setItem(SESSION_ID_KEY, currentSessionId);
-        addMessage(createEmptyResponse("สวัสดีเจ้า... เริ่มทริปใหม่กันเลย! มีอะไรให้น้องน่านช่วยมั้ยคะ?"), 'ai');
-    });
-
-    // Input & Mic Handlers
-    userInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-    });
-    userInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-        if(this.value === '') this.style.height = '40px';
-    });
-    sendButton.addEventListener('click', () => sendMessage());
-
-    micButton.addEventListener('click', () => {
-        if (!browserMicHandler) {
-             browserMicHandler = new BrowserMicHandler({
-                onStartRecording: () => { micButton.classList.add('listening'); userInput.placeholder = 'กำลังฟัง...'; },
-                onStopRecording: () => { micButton.classList.remove('listening'); userInput.placeholder = 'ถามน้องน่านได้เลยเจ้า...'; },
-                onInterimTranscript: (txt) => userInput.value = txt,
-                onFinalTranscript: (txt) => { userInput.value = txt; sendMessage(); },
-                onError: (err) => alert(err)
-             });
+    function toggleMic() {
+        if (isListening) {
+            voiceHandler.stop(true);
+            isListening = false;
+            updateMicButtonState("แตะเพื่อพูด");
+        } else {
+            // ขออนุญาตใช้ไมค์ก่อน
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    voiceHandler.start();
+                    isListening = true;
+                    updateMicButtonState("กำลังฟัง...");
+                    stream.getTracks().forEach(track => track.stop()); // ปิด stream ทันทีหลังได้สิทธิ์
+                })
+                .catch(err => {
+                    console.error("Error accessing microphone:", err);
+                    alert("ไม่สามารถเข้าถึงไมโครโฟนได้ กรุณาอนุญาตการเข้าถึงไมโครโฟนในเบราว์เซอร์ของคุณ");
+                    updateMicButtonState("ไมค์ไม่พร้อม");
+                });
         }
-        if (browserMicHandler.isListening) browserMicHandler.stop();
-        else browserMicHandler.start();
+    }
+
+    function updateMicButtonState(status) {
+        if (isListening) {
+            micButton.classList.add('listening');
+            micButton.querySelector('i').className = 'fa-solid fa-microphone-lines';
+            micButton.setAttribute('title', status);
+        } else {
+            micButton.classList.remove('listening');
+            micButton.querySelector('i').className = 'fa-solid fa-microphone';
+            micButton.setAttribute('title', status);
+        }
+    }
+
+    // --- Event Listeners ---
+    sendButton.addEventListener('click', sendMessage);
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    micButton.addEventListener('click', toggleMic);
+
+    newChatBtn.addEventListener('click', () => {
+        if (confirm("คุณแน่ใจหรือไม่ที่ต้องการเริ่มการสนทนาใหม่?")) {
+            messageArea.innerHTML = '';
+            connectChatWebSocket(); // Reconnect to get fresh welcome message
+            if (voiceHandler && voiceHandler.isListening) {
+                voiceHandler.stop(true);
+                isListening = false;
+                updateMicButtonState("แตะเพื่อพูด");
+            }
+        }
     });
 
-    // Welcome Message
-    addMessage(createEmptyResponse("สวัสดีเจ้า 🙏 ยินดีต้อนรับสู่เมืองน่าน มีอะหยังหื้อน้องน่านช่วยก่อเจ้า?"), 'ai');
+    // Handle FAQ button click
+    faqButton.addEventListener('click', () => {
+        // Assume FAQ content is a predefined text or fetched from an API
+        const faqContent = `
+            <h3>คำถามที่พบบ่อยเกี่ยวกับการท่องเที่ยวจังหวัดน่าน</h3>
+            <p>น้องน่าน AI สามารถช่วยคุณวางแผนการเดินทางและให้ข้อมูลสถานที่ท่องเที่ยวที่น่าสนใจในจังหวัดน่านได้ค่ะ</p>
+            <ul>
+                <li><strong>"แนะนำที่เที่ยวน่านหน่อย?"</strong></li>
+                <li><strong>"วัดสำคัญในน่านมีที่ไหนบ้าง?"</strong></li>
+                <li><strong>"ประเพณีของคนน่านมีอะไรบ้าง?"</strong></li>
+                <li><strong>"ร้านอาหารพื้นเมืองที่ห้ามพลาด?"</strong></li>
+                <li><strong>"โรงแรมที่พักในเมืองน่าน?"</strong></li>
+            </ul>
+            <p>คุณสามารถพิมพ์คำถามเหล่านี้หรือคำถามอื่นๆ ที่เกี่ยวข้องได้เลยนะคะ</p>
+        `;
+        displayMessage(faqContent, 'system');
+    });
+
+    // --- Initialization ---
+    connectChatWebSocket();
+    initializeVoiceHandler(); // Setup voice handler once
+    updateMicButtonState("แตะเพื่อพูด"); // Initial state for mic button
 });

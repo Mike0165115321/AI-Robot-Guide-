@@ -13,6 +13,12 @@
     
     /* Dimensions */
     --sidebar-width: 280px;
+    
+    /* Colors for Mic */
+    --color-primary: #94a3b8;
+    --color-accent: #f43f5e;
+    --bg-card: #1e293b;
+    --text-placeholder: #64748b;
 }
 
 * {
@@ -436,4 +442,151 @@ textarea {
     .input-area-wrapper { padding: 15px; }
     .bubble { max-width: 90%; }
     .input-container { border-radius: 20px; }
+}
+
+.single-image-container {
+    max-width: 100%;
+    margin-top: 15px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+/* สไตล์สำหรับแกลเลอรีรูปภาพ (Grid Layout) */
+.image-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* ปรับขนาดภาพอัตโนมัติ */
+    gap: 10px; /* ระยะห่างระหว่างภาพ */
+    margin-top: 15px;
+    padding: 5px;
+    background-color: rgba(0,0,0,0.1); /* พื้นหลังจางๆ */
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+/* ภาพในแกลเลอรีและภาพเดี่ยว */
+.responsive-image {
+    max-width: 100%;
+    height: auto;
+    display: block; /* ลบช่องว่างด้านล่างของรูปภาพ */
+    border-radius: 6px; /* ขอบโค้งมนเล็กน้อย */
+    object-fit: cover; /* ครอบคลุมพื้นที่โดยไม่ยืดภาพ */
+    aspect-ratio: 16 / 9; /* กำหนดอัตราส่วนภาพ เพื่อความสม่ำเสมอ */
+}
+
+/* ถ้าเป็นภาพเล็กๆ ให้จัดกลาง */
+.image-gallery-grid img.responsive-image {
+    width: 100%; /* ทำให้ภาพใน grid ยืดเต็มช่อง */
+    height: 120px; /* กำหนดความสูงเพื่อให้ภาพดูสม่ำเสมอ */
+    object-fit: cover;
+}
+
+/* Responsive adjustment for smaller screens */
+@media (max-width: 768px) {
+    .image-gallery-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 8px;
+    }
+    .image-gallery-grid img.responsive-image {
+        height: 100px;
+    }
+}
+
+/* สไตล์สำหรับแหล่งข้อมูล */
+.sources-container {
+    margin-top: 20px;
+    padding: 10px 15px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-left: 4px solid #2dd4bf;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: rgba(255, 255, 255, 0.7);
+}
+.sources-container h4 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    color: #2dd4bf;
+    font-weight: 600;
+}
+.sources-container ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.sources-container li {
+    margin-bottom: 5px;
+}
+.sources-container a {
+    color: #40c4ff;
+    text-decoration: none;
+}
+.sources-container a:hover {
+    text-decoration: underline;
+}
+
+/* เพิ่ม CSS สำหรับ Input Area ให้ขยายได้ */
+.input-area-wrapper {
+    position: relative;
+    padding: 10px 20px;
+    background-color: var(--bg-card);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.input-container {
+    display: flex;
+    align-items: flex-end; /* จัดปุ่มให้อยู่ล่างสุด */
+    background-color: var(--bg-dark);
+    border-radius: 25px;
+    padding: 8px 15px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    border: 1px solid var(--border);
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+textarea#user-input {
+    flex-grow: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text-main);
+    font-family: 'Kanit', sans-serif;
+    font-size: 1rem;
+    padding: 8px 10px;
+    resize: none; /* ป้องกันการลากปรับขนาดด้วยมือ */
+    max-height: 120px; /* กำหนดความสูงสูงสุด */
+    overflow-y: auto; /* ให้มี scrollbar ถ้าข้อความยาว */
+    line-height: 1.5;
+}
+
+.btn-icon, .btn-send {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+    flex-shrink: 0; /* ไม่ให้หด */
+    color: var(--text-placeholder); /* สีเริ่มต้น */
+}
+
+.btn-icon:hover, .btn-send:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn-icon { color: var(--color-primary); } /* สีไมค์ */
+.btn-send { color: var(--color-primary); margin-left: 5px; } /* สีส่งข้อความ */
+
+/* สถานะไมค์ฟังอยู่ */
+.mic-button.listening {
+    color: var(--color-accent); /* สีเปลี่ยนเมื่อฟัง */
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(45, 212, 191, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0); }
 }
