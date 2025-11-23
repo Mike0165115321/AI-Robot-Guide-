@@ -38,9 +38,7 @@ async def get_llm_response(
         return "ขออภัยค่ะ ระบบ AI ขัดข้องชั่วคราว (LLM Error)"
 
 async def get_llama_response_direct_async(user_query: str) -> str:
-    """
-    ใช้สำหรับ Small Talk (คุยเล่น) ที่ต้องการความเร็วสูง
-    """
+
     return await get_llm_response(
         [{"role": "user", "content": user_query}],
         model_name=settings.GROQ_SMALL_TALK_MODEL,
@@ -48,9 +46,6 @@ async def get_llama_response_direct_async(user_query: str) -> str:
     )
 
 async def get_groq_rag_response_async(user_query: str, context: str, insights: str = "", turn_count: int = 1) -> Dict[str, Any]:
-    """
-    [DEPRECATED] ฟังก์ชันเก่า
-    """
     system_msg = f"คุณคือน้องน่าน ไกด์นำเที่ยว\nข้อมูลอ้างอิง:\n{context}"
     if insights:
         system_msg += f"\n\nข้อมูลเพิ่มเติมจากสถิติ:\n{insights}"

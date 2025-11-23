@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
         await app.state.qdrant_manager.initialize()
     except Exception as e:
         logging.critical(f"❌ [Lifespan] CRITICAL: Failed to initialize Qdrant. {e}", exc_info=True)
-        raise e
+        # raise e  <-- Commented out to allow server to start without Qdrant
 
     app.state.cleanup_task = asyncio.create_task(start_background_cleanup())
     logging.info("✅ [Lifespan] Background cleanup task started.")

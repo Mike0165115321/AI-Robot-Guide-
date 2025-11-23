@@ -10,7 +10,7 @@ class NavigationService:
     def calculate_distance(self, lat1, lon1, lat2, lon2) -> float:
         """คำนวณระยะทาง (Haversine Formula)"""
         if None in [lat1, lon1, lat2, lon2]: 
-            return float('inf')
+            return None
         
         R = 6371 # รัศมีโลก (กม.)
         dLat = math.radians(lat2 - lat1)
@@ -48,5 +48,5 @@ class NavigationService:
             loc["distance_km"] = dist
         
         # เรียงจากใกล้ไปไกล (เอา distance_km เป็นเกณฑ์)
-        locations.sort(key=lambda x: x["distance_km"] if x["distance_km"] != float('inf') else 99999)
+        locations.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 99999)
         return locations

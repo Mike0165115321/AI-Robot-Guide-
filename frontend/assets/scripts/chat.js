@@ -99,9 +99,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Message Display Logic ---
     function displayMessage(text, sender, imageUrl = null, imageGallery = [], emotion = 'normal', sources = [], action = null) {
         messageCounter++;
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message', sender);
-        messageElement.id = `msg-${messageCounter}`;
+        const messageRow = document.createElement('div');
+        messageRow.classList.add('message-row', sender);
+        messageRow.id = `msg-${messageCounter}`;
+
+        const bubble = document.createElement('div');
+        bubble.classList.add('bubble', sender);
 
         let contentHtml = marked.parse(text);
 
@@ -112,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 contentHtml += `<img src="${img.url || img}" alt="${img.alt || 'รูปภาพประกอบ'}" class="responsive-image">`;
             });
             contentHtml += `</div>`;
-        } 
+        }
         // Handle single image
         else if (imageUrl) {
             contentHtml += `<div class="single-image-container">
@@ -129,12 +132,13 @@ document.addEventListener('DOMContentLoaded', () => {
             contentHtml += `</ul></div>`;
         }
 
-        messageElement.innerHTML = contentHtml;
-        messageArea.appendChild(messageElement);
+        bubble.innerHTML = contentHtml;
+        messageRow.appendChild(bubble);
+        messageArea.appendChild(messageRow);
         messageArea.scrollTop = messageArea.scrollHeight;
 
         // Auto-scroll on image load to prevent cut-off issues
-        messageElement.querySelectorAll('img').forEach(img => {
+        messageRow.querySelectorAll('img').forEach(img => {
             img.onload = () => {
                 messageArea.scrollTop = messageArea.scrollHeight;
             };

@@ -16,7 +16,6 @@ from sentence_transformers import CrossEncoder
 
 from core.ai_models.llm_handler import (
     get_groq_rag_response_async,
-    get_insights_from_logs,
     get_llama_response_direct_async,
 )
 from core.ai_models.query_interpreter import QueryInterpreter
@@ -235,11 +234,41 @@ class RAGOrchestrator:
         logging.info(f"🛰️ [RAG] Searching for: {unique_queries}")
         
         mongo_ids_from_search = []
+        qdrant_results_combined = []
         for q in unique_queries:
             qdrant_results = await self.qdrant_manager.search_similar(query_text=q, top_k=settings.QDRANT_TOP_K)
+            qdrant_results_combined.extend(qdrant_results)
             for res in qdrant_results:
                 if res.payload and res.payload.get("mongo_id"):
                     mongo_ids_from_search.append(res.payload.get("mongo_id"))
+
+        # [Fallback] If Qdrant returns no results (or is down), try MongoDB text search
+        if not qdrant_results_combined:
+            logging.info("⚠️ [RAG] Qdrant returned no results. Trying MongoDB text search fallback...")
+            # Use entity if available, otherwise corrected_query
+            search_term = entity if entity else corrected_query
+            logging.info(f"⚠️ [RAG] Qdrant returned no results. Trying MongoDB text search fallback with: '{search_term}'")
+            mongo_results = await asyncio.to_thread(self.mongo_manager.get_location_by_title, search_term)
+            if mongo_results:
+                # Convert MongoDB result to a format similar to Qdrant payload
+                # Note: Qdrant results typically have a 'payload' and 'score'
+                # We'll create a mock Qdrant-like result for consistency
+                mock_qdrant_result = {
+                    "payload": {
+                        "mongo_id": str(mongo_results.get("_id")), # Ensure _id is included for later retrieval
+                        "title": mongo_results.get("title"),
+                        "summary": mongo_results.get("summary"),
+                        "category": mongo_results.get("category"),
+                        "slug": mongo_results.get("slug"),
+                        "location_data": mongo_results.get("location_data"),
+                        "image_urls": mongo_results.get("image_urls", []),
+                        "metadata": mongo_results.get("metadata", {})
+                    },
+                    "score": 1.0 # Assign a high score for fallback
+                }
+                qdrant_results_combined.append(mock_qdrant_result)
+                mongo_ids_from_search.append(str(mongo_results.get("_id")))
+                logging.info(f"✅ [RAG] Found fallback result in MongoDB: {mongo_results.get('title')}")
 
         unique_ids = list(dict.fromkeys(mongo_ids_from_search))
         if not unique_ids:
@@ -313,7 +342,34 @@ class RAGOrchestrator:
 
     async def get_navigation_list(self, user_lat: float = None, user_lon: float = None) -> List[Dict[str, Any]]:
         try:
-            docs = await asyncio.to_thread(lambda: list(self.mongo_manager.get_collection("nan_locations").find(
+            collection = self.mongo_manager.get_collection("nan_locations")
+            if collection is None:
+                logging.warning("⚠️ [NavList] MongoDB not available. Returning mock data.")
+                # Mock Data for demonstration when DB is down
+                return [
+                    {
+                        "title": "วัดภูมินทร์ (Mock)",
+                        "slug": "wat-phumin-mock",
+                        "topic": "วัด/สถานที่ศักดิ์สิทธิ์",
+                        "summary": "วัดชื่อดังของจังหวัดน่าน ที่มีภาพจิตรกรรมปู่ม่านย่าม่าน (ข้อมูลจำลอง)",
+                        "category": "Temple",
+                        "location_data": {"latitude": 18.773, "longitude": 100.771},
+                        "image_urls": ["https://thailandtourismdirectory.go.th/assets/upload/2017/11/22/201711221652109890.jpg"],
+                        "distance_km": 1.2
+                    },
+                    {
+                        "title": "พิพิธภัณฑสถานแห่งชาติน่าน (Mock)",
+                        "slug": "nan-museum-mock",
+                        "topic": "พิพิธภัณฑ์",
+                        "summary": "สถานที่จัดแสดงโบราณวัตถุและประวัติศาสตร์ของน่าน (ข้อมูลจำลอง)",
+                        "category": "Museum",
+                        "location_data": {"latitude": 18.775, "longitude": 100.773},
+                        "image_urls": ["https://thai.tourismthailand.org/images/attraction/large/1600.jpg"],
+                        "distance_km": 0.8
+                    }
+                ]
+
+            docs = await asyncio.to_thread(lambda: list(collection.find(
                 {"doc_type": "Location"}, 
                 {"title":1, "slug":1, "topic":1, "summary":1, "category":1, "location_data":1, "metadata":1, "_id":0}
             )))

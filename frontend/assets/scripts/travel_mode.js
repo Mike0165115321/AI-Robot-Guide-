@@ -239,9 +239,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    backToChatBtn.addEventListener('click', () => {
-        window.location.href = 'chat';
-    });
+    if (backToChatBtn) {
+        backToChatBtn.addEventListener('click', () => {
+            window.location.href = 'chat';
+        });
+    }
 
     startNavigationBtn.addEventListener('click', startNavigation);
     closeMapBtn.addEventListener('click', closeMap);

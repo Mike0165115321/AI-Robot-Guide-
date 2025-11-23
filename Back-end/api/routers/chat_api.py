@@ -1,5 +1,6 @@
 import logging
-from fastapi import APIRouter, HTTPException, Depends, status, File, UploadFile
+from fastapi import APIRouter, HTTPException, Depends, status, File, UploadFile, WebSocket, WebSocketDisconnect
+import json
 from ..schemas import ChatQuery, ChatResponse 
 from core.ai_models.rag_orchestrator import RAGOrchestrator
 from core.config import settings
@@ -116,3 +117,43 @@ async def handle_text_chat(
     except Exception as e:
         logging.error(f"❌ [API-Text] An unexpected error occurred: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred.")
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator)):
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive()
+            
+            if "text" in data:
+                try:
+                    query_data = json.loads(data["text"])
+                    query_text = query_data.get("query", "")
+                    logging.info(f"💬 [WS] Received text: {query_text}")
+                    
+                    result = await orchestrator.answer_query(query_text, mode='text')
+                    await websocket.send_json(result)
+                except Exception as e:
+                    logging.error(f"❌ [WS] Error processing text: {e}")
+                    await websocket.send_json({"answer": "เกิดข้อผิดพลาดในการประมวลผลค่ะ"})
+
+            elif "bytes" in data:
+                try:
+                    audio_bytes = data["bytes"]
+                    logging.info(f"🎤 [WS] Received audio bytes: {len(audio_bytes)} bytes")
+                    
+                    transcribed_text = await speech_handler_instance.transcribe_audio_bytes(audio_bytes)
+                    if transcribed_text:
+                        logging.info(f"👂 [WS] Transcribed: {transcribed_text}")
+                        result = await orchestrator.answer_query(transcribed_text, mode='text')
+                        result["transcribed_query"] = transcribed_text
+                        await websocket.send_json(result)
+                    else:
+                        await websocket.send_json({"answer": "ขออภัยค่ะ ไม่ได้ยินเสียงเลย"})
+                except Exception as e:
+                    logging.error(f"❌ [WS] Error processing audio: {e}")
+                    await websocket.send_json({"answer": "เกิดข้อผิดพลาดในการประมวลผลเสียงค่ะ"})
+
+    except WebSocketDisconnect:
+        logging.info("🔌 [WS] Client disconnected")
+    except Exception as e:
+        logging.error(f"❌ [WS] Unexpected error: {e}")

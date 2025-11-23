@@ -81,25 +81,29 @@ class QdrantManager:
         query_with_prefix = f"query: {query_text}"
         query_vector = await self._create_vector(query_with_prefix) 
 
-        search_results = await self.client.search(
-            collection_name=self.collection_name,
-            query_vector=query_vector.tolist(),
-            limit=top_k,
-            with_payload=True
-        )
-        
-        logging.info(f"✅ [Qdrant Raw Results] Query '{query_text}' found {len(search_results)} results (Pre-Reranking):")
-        
-        for i, result in enumerate(search_results):
-            text_preview = result.payload.get('text_content', 'N/A')[:100].strip() + "..."
-            
-            logging.info(
-                f"  Result #{i+1} | "
-                f"Score: {result.score:.4f} | " 
-                f"Mongo_ID: {result.payload.get('mongo_id')} | "
-                f"Content: '{text_preview}'"
+        try:
+            search_results = await self.client.search(
+                collection_name=self.collection_name,
+                query_vector=query_vector.tolist(),
+                limit=top_k,
+                with_payload=True
             )
-        return search_results
+            
+            logging.info(f"✅ [Qdrant Raw Results] Query '{query_text}' found {len(search_results)} results (Pre-Reranking):")
+            
+            for i, result in enumerate(search_results):
+                text_preview = result.payload.get('text_content', 'N/A')[:100].strip() + "..."
+                
+                logging.info(
+                    f"  Result #{i+1} | "
+                    f"Score: {result.score:.4f} | " 
+                    f"Mongo_ID: {result.payload.get('mongo_id')} | "
+                    f"Content: '{text_preview}'"
+                )
+            return search_results
+        except Exception as e:
+            logging.error(f"❌ [Qdrant] Search failed (DB might be down): {e}")
+            return []
     
     async def delete_vector(self, mongo_id: str):
         point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, mongo_id))
