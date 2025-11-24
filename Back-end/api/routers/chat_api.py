@@ -155,5 +155,10 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
 
     except WebSocketDisconnect:
         logging.info("🔌 [WS] Client disconnected")
+    except RuntimeError as e:
+        if "Cannot call \"receive\" once a disconnect message has been received" in str(e):
+            logging.info("🔌 [WS] Client disconnected (RuntimeError handled)")
+        else:
+            logging.error(f"❌ [WS] Runtime error: {e}")
     except Exception as e:
         logging.error(f"❌ [WS] Unexpected error: {e}")
