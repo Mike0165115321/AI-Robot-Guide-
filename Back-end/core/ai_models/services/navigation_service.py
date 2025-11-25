@@ -1,10 +1,14 @@
-# Back-end/core/services/navigation_service.py
 import math
 import logging
-from typing import List, Dict, Any
+import asyncio
+from typing import List, Dict, Any, Optional
+from core.database.mongodb_manager import MongoDBManager
+from .prompt_engine import PromptEngine
 
 class NavigationService:
-    def __init__(self):
+    def __init__(self, mongo_manager: MongoDBManager, prompt_engine: PromptEngine):
+        self.mongo_manager = mongo_manager
+        self.prompt_engine = prompt_engine
         logging.info("🗺️ [NavigationService] Initialized.")
 
     def calculate_distance(self, lat1, lon1, lat2, lon2) -> float:
@@ -50,3 +54,38 @@ class NavigationService:
         # เรียงจากใกล้ไปไกล (เอา distance_km เป็นเกณฑ์)
         locations.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 99999)
         return locations
+
+    async def handle_get_directions(self, entity_slug: str, user_lat: float = None, user_lon: float = None) -> dict:
+        logging.info(f"🗺️  [V-Maps] Handling Directions for: '{entity_slug}'")
+        
+        doc = await asyncio.to_thread(self.mongo_manager.get_location_by_slug, entity_slug)
+        if not doc:
+            logging.info(f"[V-Maps] Slug not found. Searching by title: '{entity_slug}'")
+            doc = await asyncio.to_thread(self.mongo_manager.get_location_by_title, entity_slug)
+
+        if not doc or not doc.get("location_data"):
+            return {
+                "answer": f"ขออภัยค่ะ ไม่พบพิกัดของ **{entity_slug}** ในระบบ ลองระบุชื่อให้ชัดเจนขึ้นอีกนิดนะคะ", 
+                "action": None, "sources": [], "image_url": None
+            }
+
+        nav_data = doc["location_data"]
+        dest_name = doc.get("title", "ปลายทาง")
+        
+        links = self.generate_google_maps_links(
+            nav_data.get("latitude"), nav_data.get("longitude"),
+            user_lat, user_lon
+        )
+
+        answer_text = self.prompt_engine.build_navigation_prompt(dest_name)
+
+        return {
+            "answer": answer_text,
+            "action": "SHOW_MAP_EMBED",
+            "action_payload": {
+                "embed_url": links["embed_url"],
+                "destination_name": dest_name,
+                "external_link": links["external_link"] 
+            },
+            "image_url": None, "image_gallery": [], "sources": []
+        }

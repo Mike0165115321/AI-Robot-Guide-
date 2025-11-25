@@ -1,53 +1,54 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
-    <title>AI Robot Guide - จังหวัดน่าน</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f2f5;
-        }
-        .container {
-            text-align: center;
-            background-color: white;
-            padding: 3em;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-        }
-        nav a {
-            display: inline-block;
-            margin: 1em;
-            padding: 0.8em 1.5em;
-            background-color: #007bff;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            font-size: 1.1em;
-            transition: background-color 0.3s;
-        }
-        nav a:hover {
-            background-color: #0056b3;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Robot Guide - Nan Province</title>
+    <link rel="stylesheet" href="assets/styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
+    <div class="bg-grid"></div>
+
     <div class="container">
-        <h1>Welcome to AI Robot Guide API</h1>
-        <p>โปรเจกต์ไกด์นำเที่ยวอัจฉริยะประจำจังหวัดน่าน</p>
-        <nav>
-            <a href="/chat">ไปที่หน้า Chat</a>
-            <a href="/admin">ไปที่หน้า Admin</a>
-            <a href="/docs" target="_blank">ดูเอกสาร API (Swagger)</a>
-        </nav>
+        <header class="hero">
+            <div class="robot-eye-container">
+                <div class="robot-eye-ring"></div>
+                <div class="robot-eye-core"></div>
+            </div>
+            <h1>AI Robot Guide <br><span class="text-gradient">Nan Province</span></h1>
+            <p>สัมผัสประสบการณ์ท่องเที่ยวรูปแบบใหม่ กับไกด์ AI อัจฉริยะที่จะพาคุณหลงรักน่าน</p>
+        </header>
+
+        <div class="card-grid">
+            <a href="/chat" class="card">
+                <div class="card-icon"><i class="fa-solid fa-robot"></i></div>
+                <h2>Chat AI</h2>
+                <p>พูดคุย สอบถามข้อมูลที่เที่ยว ร้านอาหาร และประเพณีกับน้องน่าน AI ได้ตลอด 24 ชม.</p>
+                <i class="fa-solid fa-arrow-right card-arrow"></i>
+            </a>
+
+            <a href="/travel-mode" class="card">
+                <div class="card-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+                <h2>Travel Mode</h2>
+                <p>โหมดนำทางอัจฉริยะ พร้อมแนะนำสถานที่ใกล้เคียงแบบ Real-time</p>
+                <i class="fa-solid fa-arrow-right card-arrow"></i>
+            </a>
+
+            <a href="/admin" class="card">
+                <div class="card-icon"><i class="fa-solid fa-database"></i></div>
+                <h2>Admin Data</h2>
+                <p>จัดการข้อมูลสถานที่ท่องเที่ยว และอัปเดตฐานความรู้ของ AI</p>
+                <i class="fa-solid fa-arrow-right card-arrow"></i>
+            </a>
+        </div>
+
+        <footer style="margin-top: 4rem; color: var(--text-muted); font-size: 0.9rem;">
+            <p>&copy; 2024 AI Robot Guide Nan. Powered by Gemini & Groq.</p>
+        </footer>
     </div>
 </body>
+
 </html>

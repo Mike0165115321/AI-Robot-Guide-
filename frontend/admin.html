@@ -4,152 +4,148 @@
 <head>
     <meta charset="UTF-8">
     <title>Admin - AI Guide น่าน</title>
-    <link rel="stylesheet" href="/assets/styles/admin.css">
+    <link rel="stylesheet" href="assets/styles/main.css">
+    <link rel="stylesheet" href="assets/styles/admin.css">
 </head>
 
 <body>
-    <h1>Admin Panel: จัดการข้อมูลสถานที่</h1>
-    <hr>
+    <div class="container">
+        <h1>Admin Panel: จัดการข้อมูลสถานที่</h1>
+        <hr>
 
-    <h2>นำเข้าข้อมูลอัจฉริยะ (AI Ingestion)</h2>
-    <div class="form-container"
-        style="background-color: #f3f4f6; border: 1px solid #d1d5db; padding: 20px; margin-bottom: 25px; border-radius: 8px;">
+        <h2>นำเข้าข้อมูลอัจฉริยะ (AI Ingestion)</h2>
+        <div class="form-container">
+            <p>
+                อัปโหลดไฟล์ PDF หรือ .txt แล้ว AI จะวิเคราะห์และ
+                <strong>"กรอกฟอร์มด้านล่าง" (เพิ่มข้อมูลใหม่)</strong> ให้โดยอัตโนมัติ
+            </p>
 
-        <p style="font-size: 1.1em; margin-top: 0;">
-            อัปโหลดไฟล์ PDF หรือ .txt แล้ว AI จะวิเคราะห์และ
-            <strong>"กรอกฟอร์มด้านล่าง" (เพิ่มข้อมูลใหม่)</strong> ให้โดยอัตโนมัติ
-        </p>
+            <div class="form-group">
+                <label for="file-input">เลือกไฟล์เอกสาร (PDF, TXT):</label>
+                <input type="file" id="file-input" name="file" accept=".pdf,.txt">
+            </div>
 
-        <div class="form-group" style="margin-top: 15px;">
-            <label for="file-input" style="font-weight: bold; display: block; margin-bottom: 5px;">เลือกไฟล์เอกสาร (PDF,
-                TXT):</label>
-            <input type="file" id="file-input" name="file" accept=".pdf,.txt"
-                style="display: block; padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 90%;">
+            <button type="button" id="analyze-btn" class="btn btn-cta">
+                🚀 วิเคราะห์เอกสาร
+            </button>
+
+            <span id="loading-spinner" style="display: none;">
+                <div class="spinner"></div>
+                <span class="spinner-text">กำลังประมวลผล...</span>
+            </span>
         </div>
 
-        <button type="button" id="analyze-btn" class="btn btn-cta"
-            style="background-color: #10b981; color: white; padding: 10px 15px; border-radius: 4px; border: none; cursor: pointer; font-size: 16px; margin-top: 10px;">
-            🚀 วิเคราะห์เอกสาร
-        </button>
+        <hr style="border: none; border-top: 2px solid #e5e7eb; margin: 30px 0;">
 
-        <span id="loading-spinner" style="display: none;">
-            <div class="spinner"
-                style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; vertical-align: middle;">
+
+        <h3>เพิ่มข้อมูลใหม่ (Manual Entry)</h3>
+        <form id="add-location-form">
+            Slug (Key): <br>
+            <input type="text" id="form-slug" name="slug" required pattern="^[a-z0-9_-]{3,}$"
+                title="Slug (3+ chars, a-z, 0-9, _, -)"><br>
+
+            Title: <br>
+            <input type="text" id="form-title" name="title" required><br>
+            Summary: <br>
+            <textarea id="form-summary" name="summary" rows="5"></textarea><br>
+            Category: <br>
+            <input type="text" id="form-category" name="category" required><br>
+            Topic: <br>
+            <input type="text" id="form-topic" name="topic" required><br>
+
+            Keywords (คั่นด้วย comma ,): <br>
+            <input type="text" id="form-keywords" name="keywords" placeholder="e.g., วัด,กระซิบรัก,ตำนาน"><br>
+
+            Details (JSON Array): <br>
+            <textarea id="form-details" name="details" rows="8"
+                placeholder='[{"heading": "ภาพรวม", "content": "..."}]'></textarea><br>
+            <hr style="margin: 20px 0;">
+            <h4>Image Management (Add)</h4>
+            <p>Image Prefix ต้องตรงกับ Slug ด้านบน</p>
+
+            Image Prefix (ต้องตรงกับ Slug): <br>
+            <input type="text" id="form-image-prefix" name="image_prefix" placeholder="e.g., wat_phumin_"><br>
+
+            Upload Image File: <br>
+            <input type="file" id="form-image-file" name="image_file" accept="image/*"><br><br>
+
+            <button type="submit" class="btn btn-submit"
+                style="background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Add
+                Location</button>
+        </form>
+        <hr>
+
+        <div id="edit-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-button"
+                    onclick="document.getElementById('edit-modal').style.display='none'">&times;</span>
+                <h2>แก้ไขข้อมูลสถานที่</h2>
+                <div id="edit-form-image-preview-container" style="margin-bottom: 20px; text-align: center;">
+                    <p><strong>รูปภาพปัจจุบัน:</strong></p>
+                    <img id="edit-form-image-preview" src="" alt="Image Preview"
+                        style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #ddd; display: none;">
+                    <p id="edit-form-no-image" style="color: #888;">ไม่มีรูปภาพ</p>
+                </div>
+                <form id="edit-location-form">
+                    <input type="hidden" id="edit-form-mongo-id" name="mongo_id">
+                    <input type="hidden" id="edit-form-slug" name="slug">
+
+                    Slug (ไม่สามารถแก้ไขได้): <br>
+                    <input type="text" id="display-slug" disabled style="background: #eee;"><br>
+
+                    Title: <br>
+                    <input type="text" id="edit-form-title" name="title" required><br>
+                    Summary: <br>
+                    <textarea id="edit-form-summary" name="summary" rows="5"></textarea><br>
+                    Category: <br>
+                    <input type="text" id="edit-form-category" name="category" required><br>
+                    Topic: <br>
+                    <input type="text" id="edit-form-topic" name="topic" required><br>
+
+                    Keywords (คั่นด้วย comma ,): <br>
+                    <input type="text" id="edit-form-keywords" name="keywords"
+                        placeholder="e.g., วัด,กระซิบรัก,ตำนาน"><br>
+
+                    Details (JSON Array): <br>
+                    <textarea id="edit-form-details" name="details" rows="8"
+                        placeholder='[{"heading": "ภาพรวม", "content": "..."}]'></textarea><br>
+                    <hr style="margin: 20px 0;">
+                    <h4>Image Management (Edit)</h4>
+                    <p>Image Prefix ต้องตรงกับ Slug (หรือไม่ต้องกรอกเพื่อลบ)</p>
+
+                    Image Prefix (ต้องตรงกับ Slug หรือเว้นว่าง): <br>
+                    <input type="text" id="edit-form-image-prefix" name="image_prefix"
+                        placeholder="e.g., wat_phumin_"><br>
+
+                    Upload New Image File (Optional): <br>
+                    <input type="file" id="edit-form-image-file" name="image_file" accept="image/*"><br><br>
+
+                    <button type="submit" class="btn btn-submit"
+                        style="background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Save
+                        Changes</button>
+                </form>
             </div>
-            <span class="spinner-text"
-                style="font-style: italic; color: #555; vertical-align: middle;">กำลังประมวลผล...</span>
-        </span>
-    </div>
-
-    <hr style="border: none; border-top: 2px solid #e5e7eb; margin: 30px 0;">
-
-
-    <h3>เพิ่มข้อมูลใหม่ (Manual Entry)</h3>
-    <form id="add-location-form">
-        Slug (Key): <br>
-        <input type="text" id="form-slug" name="slug" required pattern="^[a-z0-9_-]{3,}$"
-            title="Slug (3+ chars, a-z, 0-9, _, -)"><br>
-
-        Title: <br>
-        <input type="text" id="form-title" name="title" required><br>
-        Summary: <br>
-        <textarea id="form-summary" name="summary" rows="5"></textarea><br>
-        Category: <br>
-        <input type="text" id="form-category" name="category" required><br>
-        Topic: <br>
-        <input type="text" id="form-topic" name="topic" required><br>
-
-        Keywords (คั่นด้วย comma ,): <br>
-        <input type="text" id="form-keywords" name="keywords" placeholder="e.g., วัด,กระซิบรัก,ตำนาน"><br>
-
-        Details (JSON Array): <br>
-        <textarea id="form-details" name="details" rows="8"
-            placeholder='[{"heading": "ภาพรวม", "content": "..."}]'></textarea><br>
-        <hr style="margin: 20px 0;">
-        <h4>Image Management (Add)</h4>
-        <p>Image Prefix ต้องตรงกับ Slug ด้านบน</p>
-
-        Image Prefix (ต้องตรงกับ Slug): <br>
-        <input type="text" id="form-image-prefix" name="image_prefix" placeholder="e.g., wat_phumin_"><br>
-
-        Upload Image File: <br>
-        <input type="file" id="form-image-file" name="image_file" accept="image/*"><br><br>
-
-        <button type="submit" class="btn btn-submit"
-            style="background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Add
-            Location</button>
-    </form>
-    <hr>
-
-    <div id="edit-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <span class="close-button"
-                onclick="document.getElementById('edit-modal').style.display='none'">&times;</span>
-            <h2>แก้ไขข้อมูลสถานที่</h2>
-            <div id="edit-form-image-preview-container" style="margin-bottom: 20px; text-align: center;">
-                <p><strong>รูปภาพปัจจุบัน:</strong></p>
-                <img id="edit-form-image-preview" src="" alt="Image Preview"
-                    style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #ddd; display: none;">
-                <p id="edit-form-no-image" style="color: #888;">ไม่มีรูปภาพ</p>
-            </div>
-            <form id="edit-location-form">
-                <input type="hidden" id="edit-form-mongo-id" name="mongo_id">
-                <input type="hidden" id="edit-form-slug" name="slug">
-
-                Slug (ไม่สามารถแก้ไขได้): <br>
-                <input type="text" id="display-slug" disabled style="background: #eee;"><br>
-
-                Title: <br>
-                <input type="text" id="edit-form-title" name="title" required><br>
-                Summary: <br>
-                <textarea id="edit-form-summary" name="summary" rows="5"></textarea><br>
-                Category: <br>
-                <input type="text" id="edit-form-category" name="category" required><br>
-                Topic: <br>
-                <input type="text" id="edit-form-topic" name="topic" required><br>
-
-                Keywords (คั่นด้วย comma ,): <br>
-                <input type="text" id="edit-form-keywords" name="keywords" placeholder="e.g., วัด,กระซิบรัก,ตำนาน"><br>
-
-                Details (JSON Array): <br>
-                <textarea id="edit-form-details" name="details" rows="8"
-                    placeholder='[{"heading": "ภาพรวม", "content": "..."}]'></textarea><br>
-                <hr style="margin: 20px 0;">
-                <h4>Image Management (Edit)</h4>
-                <p>Image Prefix ต้องตรงกับ Slug (หรือไม่ต้องกรอกเพื่อลบ)</p>
-
-                Image Prefix (ต้องตรงกับ Slug หรือเว้นว่าง): <br>
-                <input type="text" id="edit-form-image-prefix" name="image_prefix" placeholder="e.g., wat_phumin_"><br>
-
-                Upload New Image File (Optional): <br>
-                <input type="file" id="edit-form-image-file" name="image_file" accept="image/*"><br><br>
-
-                <button type="submit" class="btn btn-submit"
-                    style="background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Save
-                    Changes</button>
-            </form>
         </div>
-    </div>
 
-    <h2>รายการข้อมูลทั้งหมด</h2>
-    <table id="locations-table">
-        <thead>
-            <tr>
-                <th>Preview</th>
-                <th>Slug</th>
-                <th>Title</th>
-                <th>Category</th>
-                <th>Topic</th>
-                <th>Has Image Link?</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-        </tbody>
-    </table>
+        <h2>รายการข้อมูลทั้งหมด</h2>
+        <table id="locations-table">
+            <thead>
+                <tr>
+                    <th>Preview</th>
+                    <th>Slug</th>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Topic</th>
+                    <th>Has Image Link?</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
 
-    <script src="assets/scripts/config.js"></script>
-    <script src="assets/scripts/admin.js"></script>
+        <script src="assets/scripts/config.js"></script>
+        <script src="assets/scripts/admin.js"></script>
 </body>
 
 </html>

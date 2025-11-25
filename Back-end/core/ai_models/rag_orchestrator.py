@@ -1,5 +1,3 @@
-# Back-end/core/ai_models/rag_orchestrator.py
-
 import asyncio
 import logging
 import os
@@ -31,11 +29,9 @@ from utils.helper_functions import create_synthetic_document
 from .services.session_manager import SessionManager
 from .services.navigation_service import NavigationService
 from .services.prompt_engine import PromptEngine
+from core.services.image_service import ImageService
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
-IMAGE_DIR = BACKEND_ROOT / "static" / "images"
-
-logging.info(f"📂 [RAGOrchestrator] IMAGE_DIR set to: {IMAGE_DIR.absolute()}")
 
 def construct_full_image_url(image_path: str | None) -> str | None:
     if not image_path: return None
@@ -52,15 +48,16 @@ class RAGOrchestrator:
         qdrant_manager: QdrantManager,
         query_interpreter: QueryInterpreter,
     ):
-        logging.info("⚙️  RAG Orchestrator (Refactored V8.0) is initializing...")
+        logging.info("⚙️  RAG Orchestrator (Refactored V8.1) is initializing...")
         self.mongo_manager = mongo_manager
         self.qdrant_manager = qdrant_manager
         self.query_interpreter = query_interpreter
 
         # ✅ เรียกใช้ Services ใหม่
         self.session_manager = SessionManager(mongo_manager)
-        self.nav_service = NavigationService()
         self.prompt_engine = PromptEngine()
+        self.nav_service = NavigationService(mongo_manager, self.prompt_engine)
+        self.image_service = ImageService(mongo_manager)
 
         self.reranker_model_name = settings.RERANKER_MODEL_NAME
         self.device = settings.DEVICE
@@ -77,75 +74,8 @@ class RAGOrchestrator:
             orchestrator_callback=self.answer_query
         )
         
-        self.all_image_files: List[str] = []
-        self.prefixed_image_map: Dict[str, List[str]] = {}
-        self._initialize_image_cache()
-        
         logging.info("✅ RAG Orchestrator is ready.")
 
-    def _initialize_image_cache(self):
-        if IMAGE_DIR.is_dir():
-            try:
-                for f in IMAGE_DIR.iterdir():
-                    if f.is_file() and f.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp"):
-                        file_path_str = f"/static/images/{f.name}"
-                        self.all_image_files.append(file_path_str)
-                        prefix = ""
-                        if "-" in f.name:
-                            prefix = f.name.rsplit("-", 1)[0] + "-"
-                        elif "_" in f.name:
-                            prefix = f.name.split("_")[0] + "_"
-
-                        if prefix:
-                            if prefix not in self.prefixed_image_map:
-                                self.prefixed_image_map[prefix] = []
-                            self.prefixed_image_map[prefix].append(file_path_str)
-                logging.info(f"✅ Image Cache: {len(self.all_image_files)} images.")
-            except Exception as e:
-                logging.error(f"❌ Error scanning image directory: {e}")
-
-    def _find_any_random_image(self) -> str | None:
-        if not self.all_image_files: return None
-        try:
-            return random.choice(self.all_image_files)
-        except:
-            return None
-
-    def _find_all_images_by_prefix(self, prefix: str) -> List[str]:
-        if not prefix: return []
-        cached_files = self.prefixed_image_map.get(prefix, [])
-        if not cached_files: return []
-        matching_files = list(cached_files)
-        random.shuffle(matching_files)
-        return matching_files
-
-    async def _inject_images_into_text(self, text: str) -> str:
-        if not text: return ""
-        pattern = r"\{\{IMAGE:\s*(.*?)\}\}"
-        matches = re.findall(pattern, text)
-        for keyword in matches:
-            image_url = None
-            safe_keyword = keyword.replace(" ", "-").lower()
-            for prefix, paths in self.prefixed_image_map.items():
-                if (safe_keyword in prefix.lower() or prefix.lower().replace("-", " ") in keyword.lower()) and paths:
-                    image_url = random.choice(paths)
-                    break
-            if not image_url:
-                try:
-                    search_q = f"{keyword} จังหวัดน่าน"
-                    google_urls = await image_search_tool_instance.get_image_urls(search_q, max_results=1)
-                    if google_urls:
-                        image_url = google_urls[0]
-                except Exception as e:
-                    logging.warning(f"Image injection search failed for {keyword}: {e}")
-            if image_url:
-                full_url = construct_full_image_url(image_url)
-                replacement = f"\n\n![{keyword}]({full_url})\n\n"
-            else:
-                replacement = ""
-            text = re.sub(r"\{\{IMAGE:\s*" + re.escape(keyword) + r"\}\}", replacement, text, count=1)
-        return text
-            
     def _prepare_source_and_image_data(self, docs_to_show: List[Dict[str, Any]]) -> Dict[str, Any]:
         source_info: List[dict] = []
         static_image_gallery: List[str] = []
@@ -155,7 +85,7 @@ class RAGOrchestrator:
             prefix = doc.get("metadata", {}).get("image_prefix")
             doc_images = []
             if prefix and prefix not in processed_prefixes:
-                found_images = self._find_all_images_by_prefix(prefix)
+                found_images = self.image_service.find_all_images_by_prefix(prefix)
                 if found_images:
                     doc_images.extend(found_images)
                     for img_url in found_images:
@@ -316,7 +246,7 @@ class RAGOrchestrator:
             model_name=settings.GROQ_LLAMA_MODEL 
         )
         
-        final_answer_with_images = await self._inject_images_into_text(raw_answer)
+        final_answer_with_images = await self.image_service.inject_images_into_text(raw_answer)
         
         docs_to_show = final_docs[:3]
         prepared_data = self._prepare_source_and_image_data(docs_to_show)
@@ -345,29 +275,7 @@ class RAGOrchestrator:
             collection = self.mongo_manager.get_collection("nan_locations")
             if collection is None:
                 logging.warning("⚠️ [NavList] MongoDB not available. Returning mock data.")
-                # Mock Data for demonstration when DB is down
-                return [
-                    {
-                        "title": "วัดภูมินทร์ (Mock)",
-                        "slug": "wat-phumin-mock",
-                        "topic": "วัด/สถานที่ศักดิ์สิทธิ์",
-                        "summary": "วัดชื่อดังของจังหวัดน่าน ที่มีภาพจิตรกรรมปู่ม่านย่าม่าน (ข้อมูลจำลอง)",
-                        "category": "Temple",
-                        "location_data": {"latitude": 18.773, "longitude": 100.771},
-                        "image_urls": ["https://thailandtourismdirectory.go.th/assets/upload/2017/11/22/201711221652109890.jpg"],
-                        "distance_km": 1.2
-                    },
-                    {
-                        "title": "พิพิธภัณฑสถานแห่งชาติน่าน (Mock)",
-                        "slug": "nan-museum-mock",
-                        "topic": "พิพิธภัณฑ์",
-                        "summary": "สถานที่จัดแสดงโบราณวัตถุและประวัติศาสตร์ของน่าน (ข้อมูลจำลอง)",
-                        "category": "Museum",
-                        "location_data": {"latitude": 18.775, "longitude": 100.773},
-                        "image_urls": ["https://thai.tourismthailand.org/images/attraction/large/1600.jpg"],
-                        "distance_km": 0.8
-                    }
-                ]
+                return []
 
             docs = await asyncio.to_thread(lambda: list(collection.find(
                 {"doc_type": "Location"}, 
@@ -379,7 +287,7 @@ class RAGOrchestrator:
             
             for doc in docs:
                 prefix = doc.get("metadata", {}).get("image_prefix")
-                imgs = self._find_all_images_by_prefix(prefix)
+                imgs = self.image_service.find_all_images_by_prefix(prefix)
                 doc["image_urls"] = [imgs[0]] if imgs else []
             
             return docs
@@ -388,39 +296,7 @@ class RAGOrchestrator:
             return []
 
     async def handle_get_directions(self, entity_slug: str, user_lat: float = None, user_lon: float = None) -> dict:
-        logging.info(f"🗺️  [V-Maps] Handling Directions for: '{entity_slug}'")
-        
-        doc = await asyncio.to_thread(self.mongo_manager.get_location_by_slug, entity_slug)
-        if not doc:
-            logging.info(f"[V-Maps] Slug not found. Searching by title: '{entity_slug}'")
-            doc = await asyncio.to_thread(self.mongo_manager.get_location_by_title, entity_slug)
-
-        if not doc or not doc.get("location_data"):
-            return {
-                "answer": f"ขออภัยค่ะ ไม่พบพิกัดของ **{entity_slug}** ในระบบ ลองระบุชื่อให้ชัดเจนขึ้นอีกนิดนะคะ", 
-                "action": None, "sources": [], "image_url": None
-            }
-
-        nav_data = doc["location_data"]
-        dest_name = doc.get("title", "ปลายทาง")
-        
-        links = self.nav_service.generate_google_maps_links(
-            nav_data.get("latitude"), nav_data.get("longitude"),
-            user_lat, user_lon
-        )
-
-        answer_text = self.prompt_engine.build_navigation_prompt(dest_name)
-
-        return {
-            "answer": answer_text,
-            "action": "SHOW_MAP_EMBED",
-            "action_payload": {
-                "embed_url": links["embed_url"],
-                "destination_name": dest_name,
-                "external_link": links["external_link"] 
-            },
-            "image_url": None, "image_gallery": [], "sources": []
-        }
+        return await self.nav_service.handle_get_directions(entity_slug, user_lat, user_lon)
     
     async def answer_query(self, query: str, mode: str = "text", session_id: Optional[str] = None, **kwargs) -> dict:
 
