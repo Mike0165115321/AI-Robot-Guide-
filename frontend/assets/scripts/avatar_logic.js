@@ -6,14 +6,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const stopSpeechButton = document.getElementById('stop-speech-btn');
     const musicControls = document.getElementById('music-controls');
     const textQueryForm = document.getElementById('text-query-form');
-    
+
     let websocket = null;
-    let mainAudioContext = null; 
+    let mainAudioContext = null;
     let currentAudioSource = null;
     let conversationLoopActive = false; // เริ่มต้นยังไม่ฟัง จนกว่า setActive จะถูกเรียก
-    
-    let musicHandler = null; 
-    let voiceHandler = null; 
+
+    let musicHandler = null;
+    let voiceHandler = null;
 
     async function waitForAnimator() {
         let attempts = 0;
@@ -45,12 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (active) {
                 console.log("🟢 Avatar Start Sequence...");
                 await waitForAnimator();
-                
+
                 if (!mainAudioContext) await initializeAudioSystem();
                 if (mainAudioContext?.state === 'suspended') await mainAudioContext.resume();
 
                 setTimeout(() => {
-                     startConversationLoop();
+                    startConversationLoop();
                 }, 1000);
             }
         }
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         uiController.setStatus("ฟังอยู่จ้าว... (พูดได้เลย)");
         uiController.setEmotion('listening');
-        
+
         if (stopSpeechButton) stopSpeechButton.classList.add('visible');
         if (voiceHandler && !voiceHandler.isListening) voiceHandler.start();
     }
@@ -71,17 +71,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (forceStop) conversationLoopActive = false;
         stopCurrentAudio();
         if (voiceHandler) voiceHandler.stop(true);
-        
+
         uiController.setEmotion('normal');
         uiController.setStatus("พักผ่อน... (พิมพ์หรือกดเริ่มใหม่)");
-        
+
         if (forceStop && musicHandler) musicHandler.reset();
         if (forceStop && stopSpeechButton) stopSpeechButton.classList.remove('visible');
     }
 
     function stopCurrentAudio() {
         if (currentAudioSource) {
-            try { currentAudioSource.stop(); } catch(e) {}
+            try { currentAudioSource.stop(); } catch (e) { }
             currentAudioSource = null;
         }
         if (window.avatarAnimator) window.avatarAnimator.stopSpeaking();
@@ -119,15 +119,19 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initializeAudioSystem() {
         try {
             if (!mainAudioContext) mainAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-            
+
             if (!voiceHandler) {
                 voiceHandler = new VoiceHandler(mainAudioContext, {
                     onStatusUpdate: (text) => {
-                       // Update status only if needed
+                        // Update status only if needed
                     },
                     onSpeechEnd: (audioBlob) => {
                         uiController.setEmotion('thinking');
                         uiController.setStatus("กำลังคิด...");
+
+                        // [Fix] Stop listening immediately to prevent feedback loop
+                        if (voiceHandler) voiceHandler.stop(false);
+
                         if (websocket?.readyState === WebSocket.OPEN) websocket.send(audioBlob);
                     }
                 });
@@ -137,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     stopSpeechButton: stopSpeechButton,
                     musicControls: musicControls,
                     stopAISpeechAudio: stopCurrentAudio,
-                    resetToListeningState: () => { if(conversationLoopActive) startConversationLoop(); }
+                    resetToListeningState: () => { if (conversationLoopActive) startConversationLoop(); }
                 });
             }
         } catch (e) { console.error(e); }
@@ -149,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
         websocket.binaryType = 'arraybuffer';
 
         websocket.onopen = () => console.log("WS Connected");
-        
+
         websocket.onmessage = async (event) => {
             if (typeof event.data === 'string') {
                 const data = JSON.parse(event.data);
@@ -158,21 +162,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 const hasVisual = data.image_url || data.image_gallery?.length || data.sources?.length || (data.action === 'SHOW_MAP_EMBED');
-                if (hasVisual) uiController.enterPresentation(data);
-                else if (data.answer) uiController.setStatus(data.answer);
-                
+
+                // Trigger presentation if there are visuals OR if there is a text answer
+                const shouldEnterPresentation = hasVisual || (data.answer && data.answer.length > 0);
+
+                if (shouldEnterPresentation) {
+                    uiController.enterPresentation(data);
+                } else if (data.answer) {
+                    uiController.setStatus(data.answer);
+                }
+
                 uiController.setEmotion(data.emotion || 'talking');
 
             } else if (event.data instanceof ArrayBuffer) {
                 if (voiceHandler) voiceHandler.stop(false);
                 await playAudio(event.data);
-                
+
                 if (conversationLoopActive && !musicHandler.isPlaying()) {
                     startConversationLoop();
                 }
             }
         };
-        
+
         websocket.onclose = () => setTimeout(connectWebSocket, 3000);
     }
 

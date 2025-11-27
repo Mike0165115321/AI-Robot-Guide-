@@ -1,47 +1,47 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Guide - Nan Province</title>
-    
+
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+    <link rel="stylesheet" href="assets/styles/main.css">
     <link rel="stylesheet" href="assets/styles/chat.css">
     <link rel="stylesheet" href="assets/styles/travel_mode.css">
 
     <style>
-        body { background-color: var(--bg-dark); color: var(--text-main); overflow: hidden; }
-        .view-section { display: none; width: 100%; height: 100%; position: relative; flex-direction: column; }
-        .view-section.active { display: flex; }
-        
-        /* CSS สำหรับไอคอน Avatar ใน Sidebar (ตกแต่ง) */
-        .robot-avatar-icon {
-            width: 56px; height: 56px; background-color: #fcfcfc; border-radius: 50%;
-            position: relative; display: flex; justify-content: center; align-items: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 2px solid #e2e8f0; overflow: hidden;
+        /* Specific overrides for chat layout if needed */
+        .view-section {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            flex-direction: column;
         }
-        .head-accent { position: absolute; top: 6px; width: 20px; height: 8px; background-color: #2dd4bf; border-radius: 10px; }
-        .face-plate {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -40%);
-            width: 38px; height: 26px; background: linear-gradient(135deg, #2c2f33, #1a1c1e);
-            border-radius: 14px; display: flex; justify-content: space-around; align-items: center; padding: 0 6px;
+
+        .view-section.active {
+            display: flex;
         }
-        .eye { width: 8px; height: 10px; border-radius: 50%; background-color: #40c4ff; box-shadow: 0 0 6px #40c4ff; }
     </style>
 </head>
 
 <body>
     <div class="app-container" style="height: 100vh; display: flex;">
-        
+
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="robot-avatar-icon">
                     <div class="head-accent"></div>
-                    <div class="face-plate"><div class="eye left"></div><div class="eye right"></div></div>
+                    <div class="face-plate">
+                        <div class="eye left"></div>
+                        <div class="eye right"></div>
+                    </div>
                 </div>
                 <h2>น้องน่าน AI</h2>
             </div>
@@ -52,14 +52,15 @@
                 <button class="menu-item" onclick="switchInternalTab('travel', this)">
                     <i class="fa-solid fa-map-location-dot"></i> โหมดเดินทาง
                 </button>
-                
+
                 <hr style="border-color: rgba(255,255,255,0.1); margin: 10px 0;">
 
                 <a href="robot_avatar.html" class="menu-item">
                     <i class="fa-solid fa-robot"></i> คุยกับน้องน่าน (3D)
                 </a>
-                
-                <button id="faq-button" class="menu-item" onclick="switchInternalTab('chat', document.querySelector('.sidebar-menu button:first-child'))">
+
+                <button id="faq-button" class="menu-item"
+                    onclick="switchInternalTab('chat', document.querySelector('.sidebar-menu button:first-child'))">
                     <i class="fa-solid fa-circle-question"></i> คำถามที่พบบ่อย
                 </button>
             </nav>
@@ -85,25 +86,100 @@
             </section>
 
             <section id="view-travel" class="view-section">
-                <div id="travel-mode-container" class="flex flex-col items-center justify-center p-0 sm:p-4 h-full w-full">
-                    <div class="w-full max-w-6xl rounded-2xl shadow-2xl flex flex-col h-full overflow-hidden chat-card-main relative">
-                        <div id="map-overlay" class="absolute inset-0 z-30 bg-gray-900 hidden flex-col">
-                            <header class="p-4 flex justify-between bg-gray-800 border-b border-gray-700">
-                                <h1 id="map-header-title" class="text-white font-bold">แผนที่</h1>
-                                <button id="close-map-btn" class="text-teal-400 hover:text-teal-300">ปิด</button>
+                <div id="travel-mode-container"
+                    class="flex flex-col items-center justify-center p-0 sm:p-4 h-full w-full">
+                    <div
+                        class="w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col h-full overflow-hidden chat-card-main relative">
+
+                        <!-- MAP OVERLAY -->
+                        <div id="map-overlay" class="rounded-2xl overflow-hidden" style="display: none;">
+                            <header
+                                class="p-4 flex items-center justify-between border-b border-color-border flex-shrink-0"
+                                style="background-color: var(--color-bg-card);">
+
+                                <div class="flex items-center space-x-3">
+                                    <div class="robot-icon-container" style="transform: scale(0.9);">
+                                        <div class="icon-head-top-accent"></div>
+                                        <div class="icon-robot-face">
+                                            <div class="icon-robot-eye"></div>
+                                            <div class="icon-robot-eye"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h1 id="map-header-title" class="text-xl font-bold"
+                                            style="color: var(--color-text-primary);">
+                                            แผนที่นำทาง
+                                        </h1>
+                                        <p class="text-xs" style="color: var(--color-text-secondary);">
+                                            มุมมองเส้นทางปัจจุบัน
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button id="close-map-btn" title="ปิดแผนที่"
+                                    class="text-sm hover:brightness-125 transition"
+                                    style="color: var(--color-accent-teal);">
+                                    ปิดแผนที่
+                                </button>
                             </header>
-                            <div id="map-canvas" class="flex-grow bg-gray-900 flex items-center justify-center text-gray-500">Loading Map...</div>
+                            <!-- Canvas ที่จะใช้แสดงแผนที่จริง -->
+                            <div id="map-canvas" class="flex-grow p-0">
+                                <p class="text-color-text-secondary">กำลังโหลดแผนที่...</p>
+                            </div>
                         </div>
 
-                        <header class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
-                            <h1 class="text-xl font-bold text-white">โหมดนำทาง</h1>
-                            <p class="text-xs text-gray-400" id="itinerary-status">กำลังโหลด...</p>
-                        </header>
-                        <main id="itinerary-area" class="flex-grow p-6 overflow-y-auto space-y-4 bg-gray-900"></main>
-                        <div class="p-4 bg-gray-800 border-t border-gray-700">
-                            <button id="start-navigation-btn" class="w-full p-3 bg-blue-600 text-white rounded-xl disabled:bg-gray-700" disabled>
-                                <span id="nav-button-text">รอตำแหน่ง...</span>
+
+                        <header class="p-4 flex items-center justify-between border-b border-color-border flex-shrink-0"
+                            style="background-color: var(--color-bg-card);">
+                            <div class="flex items-center space-x-3">
+
+                                <div class="robot-icon-container" style="transform: scale(0.9);">
+                                    <div class="icon-head-top-accent"></div>
+                                    <div class="icon-robot-face">
+                                        <div class="icon-robot-eye"></div>
+                                        <div class="icon-robot-eye"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h1 class="text-xl font-bold" style="color: var(--color-text-primary);">AI Guide -
+                                        โหมดนำทาง
+                                    </h1>
+                                    <p class="text-xs" style="color: var(--color-text-secondary);"
+                                        id="itinerary-status">
+                                        กำลังดึงข้อมูลตำแหน่ง...
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                onclick="switchInternalTab('chat', document.querySelector('.sidebar-menu button:first-child'))"
+                                title="กลับไปโหมดสนทนา" class="text-sm hover:brightness-125 transition"
+                                style="color: var(--color-accent-teal);">
+                                กลับไปสนทนา
                             </button>
+                        </header>
+
+                        <!-- MAIN ITINERARY AREA -->
+                        <main id="itinerary-area" class="flex-grow p-6 overflow-y-auto space-y-4">
+                            <!-- เนื้อหาจะถูกสร้างโดย JavaScript -->
+                        </main>
+
+                        <!-- FOOTER - Action Buttons -->
+                        <div class="p-4 border-t border-color-border bg-color-bg-card/90 backdrop-blur-sm flex-shrink-0"
+                            style="background-color: var(--color-bg-card);">
+                            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 justify-between">
+                                <button id="start-navigation-btn"
+                                    class="navigation-btn flex-grow flex items-center justify-center space-x-2 p-3 font-bold rounded-xl shadow-lg hover:brightness-110 transform active:scale-[0.98] transition-all duration-200"
+                                    disabled>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" class="lucide lucide-navigation-2">
+                                        <polygon points="12 2 19 21 12 17 5 21 12 2" />
+                                    </svg>
+                                    <span id="nav-button-text">รอตำแหน่งปัจจุบัน...</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -116,12 +192,12 @@
     <script src="assets/scripts/voice-handler.js"></script>
     <script src="assets/scripts/chat.js"></script>
     <script src="assets/scripts/travel_mode.js"></script>
-    
+
     <script>
         function switchInternalTab(viewName, btnElement) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.sidebar-menu .menu-item').forEach(el => {
-                if(el.tagName === 'BUTTON') el.classList.remove('active');
+                if (el.tagName === 'BUTTON') el.classList.remove('active');
             });
 
             document.getElementById(`view-${viewName}`).classList.add('active');
@@ -129,4 +205,5 @@
         }
     </script>
 </body>
+
 </html>
