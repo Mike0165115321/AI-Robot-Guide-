@@ -11,8 +11,8 @@ class Settings:
     MONGO_DATABASE_NAME = "nanaiguide"
     DEVICE: str = "cuda"  # หรือ "cpu"
     
-    EMBEDDING_MODEL_NAME = "/home/mikedev/MyModels/Model-RAG/intfloat-multilingual-e5-large"
-    RERANKER_MODEL_NAME = '/home/mikedev/MyModels/Model-RAG/BAAI-bge-reranker-base'
+    EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "intfloat/multilingual-e5-large")
+    RERANKER_MODEL_NAME = os.getenv("RERANKER_MODEL_NAME", "BAAI/bge-reranker-base")
     
     # 2. LLM Models
     GEMINI_MODEL = "gemini-2.5-flash"          # โมเดลหลัก (Google)

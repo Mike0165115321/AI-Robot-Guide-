@@ -1,56 +1,40 @@
 /* /frontend/assets/styles/chat.css */
 
-:root {
-    /* Color Palette */
-    --bg-dark: #0f172a;       /* พื้นหลังหลัก */
-    --bg-sidebar: #1e293b;    /* พื้นหลัง Sidebar */
-    --bg-chat-bubble: #334155;/* บอลลูน AI */
-    --bg-user-bubble: #2563eb;/* บอลลูน User (Blue) */
-    --text-main: #f1f5f9;     /* สีตัวอักษรหลัก */
-    --text-muted: #94a3b8;    /* สีตัวอักษรรอง */
-    --accent: #2dd4bf;        /* สีเขียวน้ำทะเล (Teal) */
-    --border: #334155;
-    
-    /* Dimensions */
-    --sidebar-width: 280px;
-    
-    /* Colors for Mic */
-    --color-primary: #94a3b8;
-    --color-accent: #f43f5e;
-    --bg-card: #1e293b;
-    --text-placeholder: #64748b;
-}
+/* Note: Core variables are now in main.css */
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+:root {
+    /* Local overrides if needed */
+    --sidebar-width: 280px;
+    --bg-user-bubble: var(--primary);
+    --bg-chat-bubble: rgba(255, 255, 255, 0.05);
 }
 
 body {
-    font-family: 'Kanit', sans-serif;
-    background-color: var(--bg-dark);
-    color: var(--text-main);
-    height: 100vh;
+    /* Inherit from main.css */
     overflow: hidden;
+    /* Chat app needs hidden overflow */
 }
 
 /* --- Layout --- */
 .app-container {
     display: flex;
-    height: 100%;
+    height: 100vh;
     width: 100%;
+    background: transparent;
+    /* Let main.css background show through */
 }
 
 /* --- Sidebar --- */
 .sidebar {
     width: var(--sidebar-width);
-    background-color: var(--bg-sidebar);
-    border-right: 1px solid var(--border);
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
+    border-right: 1px solid var(--glass-border);
     display: flex;
     flex-direction: column;
     padding: 20px;
     flex-shrink: 0;
+    z-index: 10;
 }
 
 .sidebar-header {
@@ -59,76 +43,75 @@ body {
     gap: 15px;
     margin-bottom: 30px;
     padding-bottom: 20px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--glass-border);
 }
 
-/* 🔥 Robot Avatar Icon (Full Head) */
+.sidebar-header h2 {
+    font-size: 1.2rem;
+    color: var(--accent);
+    text-shadow: var(--glow-accent);
+}
+
+/* Robot Avatar (Re-added here as it was removed from inline) */
 .robot-avatar-icon {
-    width: 56px;
-    height: 56px;
-    background-color: #fcfcfc; /* พื้นหลังสีขาว */
+    width: 50px;
+    height: 50px;
+    background: #fff;
     border-radius: 50%;
     position: relative;
     display: flex;
     justify-content: center;
     align-items: center;
-    flex-shrink: 0;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-    border: 2px solid #e2e8f0; /* ขอบสีเทาอ่อนๆ */
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
     overflow: hidden;
 }
 
-/* ส่วนเสาอากาศ (ปุ่มเขียวด้านบน) */
 .head-accent {
     position: absolute;
-    top: 6px; /* ขยับลงมาหน่อยให้อยู่ในวงกลม */
-    width: 20px;
-    height: 8px;
-    background-color: var(--accent); /* สีเขียว Teal */
+    top: 5px;
+    width: 18px;
+    height: 6px;
+    background-color: var(--accent);
     border-radius: 10px;
-    z-index: 2;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-/* ส่วนหน้าจอสีดำ */
 .face-plate {
     position: absolute;
-    top: 50%; /* จัดกึ่งกลางแนวตั้ง */
+    top: 50%;
     left: 50%;
-    transform: translate(-50%, -40%); /* ขยับขึ้นนิดนึงเพื่อให้สมดุลกับเสาอากาศ */
-    width: 38px;
-    height: 26px;
-    background: linear-gradient(135deg, #2c2f33, #1a1c1e); /* ไล่สีดำให้มีมิติ */
-    border-radius: 14px; /* ขอบมน */
+    transform: translate(-50%, -40%);
+    width: 34px;
+    height: 22px;
+    background: #1a1c1e;
+    border-radius: 10px;
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 0 6px;
-    box-shadow: inset 0 0 8px rgba(0,0,0,0.8), 0 4px 6px rgba(0,0,0,0.2);
-    z-index: 1;
+    padding: 0 4px;
 }
 
-/* ส่วนลูกตาเรืองแสง */
 .eye {
-    width: 8px;
-    height: 10px; /* ตารีแนวตั้งนิดๆ */
+    width: 6px;
+    height: 8px;
     border-radius: 50%;
-    background-color: #40c4ff; /* สีฟ้าสด */
-    box-shadow: 0 0 6px #40c4ff, 0 0 12px #40c4ff; /* เรืองแสง */
+    background-color: #40c4ff;
+    box-shadow: 0 0 5px #40c4ff;
     animation: blink-mini 4s infinite;
 }
 
-/* เอฟเฟกต์กระพริบตา */
 @keyframes blink-mini {
-    0%, 96%, 100% { transform: scaleY(1); }
-    98% { transform: scaleY(0.1); }
+
+    0%,
+    96%,
+    100% {
+        transform: scaleY(1);
+    }
+
+    98% {
+        transform: scaleY(0.1);
+    }
 }
 
-.sidebar-header h2 {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: var(--accent);
-}
 
 .sidebar-menu {
     flex-grow: 1;
@@ -145,7 +128,7 @@ body {
     text-align: left;
     font-size: 1rem;
     font-family: 'Kanit', sans-serif;
-    border-radius: 10px;
+    border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
@@ -154,54 +137,59 @@ body {
 }
 
 .menu-item:hover {
-    background-color: rgba(255,255,255,0.05);
+    background: var(--glass);
     color: var(--text-main);
 }
 
 .menu-item.active {
-    background-color: var(--bg-user-bubble);
-    color: white;
-    font-weight: 500;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--primary);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    box-shadow: var(--glow-blue);
 }
 
 .sidebar-footer {
     padding-top: 20px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--glass-border);
 }
 
 .btn-reset {
     width: 100%;
     padding: 12px;
     background: transparent;
-    border: 1px solid var(--border);
-    color: var(--accent);
-    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    border-radius: 12px;
     cursor: pointer;
     font-family: 'Kanit', sans-serif;
     transition: 0.2s;
 }
+
 .btn-reset:hover {
-    background: rgba(45, 212, 191, 0.1);
     border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(45, 212, 191, 0.1);
 }
 
 /* --- Main Chat Area --- */
-.chat-area {
+.chat-area,
+#view-chat {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     position: relative;
-    background-image: radial-gradient(circle at top right, #1e293b 0%, transparent 40%);
+    /* Background handled by main.css body */
 }
 
 .mobile-header {
     display: none;
     padding: 15px;
-    background: var(--bg-sidebar);
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
     text-align: center;
     font-weight: bold;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--glass-border);
+    color: var(--accent);
 }
 
 .messages-container {
@@ -227,42 +215,33 @@ body {
 
 .message-row.ai {
     justify-content: flex-start;
-    align-items: flex-start;
-    gap: 15px;
 }
 
 .bubble {
     max-width: 80%;
     padding: 20px 25px;
-    border-radius: 18px;
+    border-radius: 20px;
     font-size: 1rem;
     line-height: 1.7;
     position: relative;
     word-wrap: break-word;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .bubble.user {
-    background-color: var(--bg-user-bubble);
+    background: linear-gradient(135deg, var(--primary), #2563eb);
     color: white;
     border-bottom-right-radius: 4px;
+    box-shadow: var(--glow-blue);
 }
 
 .bubble.ai {
-    background-color: var(--bg-chat-bubble);
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
     color: var(--text-main);
     border-bottom-left-radius: 4px;
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid var(--glass-border);
 }
-
-/* Typing Animation */
-.typing-indicator {
-    font-style: italic;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    animation: pulse 1.5s infinite;
-}
-@keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
 /* --- Input Area (Floating) --- */
 .input-area-wrapper {
@@ -271,20 +250,28 @@ body {
     left: 0;
     width: 100%;
     padding: 20px 50px;
-    background: linear-gradient(to top, var(--bg-dark) 80%, transparent);
+    background: linear-gradient(to top, var(--bg-dark) 20%, transparent);
+    z-index: 5;
 }
 
 .input-container {
-    background: var(--bg-sidebar);
-    border: 1px solid var(--border);
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--glass-border);
     border-radius: 50px;
     padding: 10px 20px;
     display: flex;
     align-items: center;
     gap: 15px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     max-width: 900px;
     margin: 0 auto;
+    transition: border-color 0.3s;
+}
+
+.input-container:focus-within {
+    border-color: var(--primary);
+    box-shadow: var(--glow-blue);
 }
 
 textarea {
@@ -300,7 +287,8 @@ textarea {
     outline: none;
 }
 
-.btn-icon, .btn-send {
+.btn-icon,
+.btn-send {
     width: 45px;
     height: 45px;
     border-radius: 50%;
@@ -317,276 +305,127 @@ textarea {
     background: transparent;
     color: var(--text-muted);
 }
+
 .btn-icon:hover {
-    background: rgba(255,255,255,0.1);
     color: var(--text-main);
+    background: var(--glass);
 }
+
 .btn-icon.listening {
     color: #f43f5e;
-    background: rgba(244, 63, 94, 0.1);
     animation: pulse-red 1.5s infinite;
 }
-@keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(244,63,94, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(244,63,94, 0); } 100% { box-shadow: 0 0 0 0 rgba(244,63,94, 0); } }
 
 .btn-send {
-    background: var(--bg-user-bubble);
+    background: var(--primary);
     color: white;
+    box-shadow: var(--glow-blue);
 }
+
 .btn-send:hover {
-    background: #1d4ed8;
-    transform: scale(1.05);
+    transform: scale(1.1);
 }
 
 /* --- Content Styles --- */
-.markdown-content h3 { color: var(--accent); margin: 20px 0 10px; font-size: 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
-.markdown-content p { margin-bottom: 12px; }
-.markdown-content strong { color: #fff; font-weight: 600; }
-.markdown-content a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
-.markdown-content ul { margin-left: 20px; margin-bottom: 15px; color: #cbd5e1; }
-.markdown-content li { margin-bottom: 5px; }
+.markdown-content h3 {
+    color: var(--accent);
+    margin: 20px 0 10px;
+    font-size: 1.2rem;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 5px;
+}
+
+.markdown-content p {
+    margin-bottom: 12px;
+}
+
+.markdown-content strong {
+    color: #fff;
+    font-weight: 600;
+}
+
+.markdown-content a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--accent);
+}
+
+.markdown-content ul {
+    margin-left: 20px;
+    margin-bottom: 15px;
+    color: var(--text-muted);
+}
 
 /* --- Images --- */
-.chat-images-grid {
+.image-gallery-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
     margin-top: 15px;
+    padding: 5px;
+    background: var(--glass);
+    border-radius: 12px;
 }
 
-.chat-image {
+.responsive-image {
     width: 100%;
-    height: 150px;
+    height: 120px;
     object-fit: cover;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.1);
-    cursor: pointer;
+    border-radius: 8px;
     transition: transform 0.2s;
 }
-.chat-image:hover {
-    transform: scale(1.02);
+
+.responsive-image:hover {
+    transform: scale(1.05);
 }
 
-/* --- Map Embed --- */
-.map-wrapper {
-    margin-top: 15px;
-    border-radius: 12px;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-}
-
-.btn-map-link {
-    display: inline-block;
-    margin-top: 10px;
-    padding: 10px 20px;
-    background: #059669;
-    color: white;
-    text-decoration: none;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    font-weight: 500;
-    transition: background 0.2s;
-    width: 100%;
-    text-align: center;
-}
-.btn-map-link:hover { background: #047857; }
-
-/* --- Interactive Elements (Music/Choice) --- */
-.song-input-wrapper {
-    margin-top: 15px;
+/* --- Suggested Questions --- */
+.suggested-questions-container {
     display: flex;
+    flex-wrap: wrap;
     gap: 10px;
-}
-.song-input-field {
-    flex-grow: 1;
-    background: rgba(0,0,0,0.2);
-    border: 1px solid var(--border);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 8px;
-}
-.song-submit-btn {
-    background: var(--bg-user-bubble);
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 8px;
-    cursor: pointer;
+    margin-top: 15px;
 }
 
-.song-choice-btn {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 12px;
-    margin-top: 8px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--border);
-    color: var(--text-main);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: 0.2s;
+.suggestion-chip {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    color: var(--accent);
+    padding: 8px 16px;
+    border-radius: 20px;
     font-family: 'Kanit', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
 }
-.song-choice-btn:hover {
-    background: rgba(255,255,255,0.1);
-    border-color: var(--accent);
+
+.suggestion-chip:hover {
+    background: var(--accent);
+    color: var(--bg-dark);
+    box-shadow: var(--glow-accent);
+    transform: translateY(-2px);
 }
 
 /* --- Responsive --- */
 @media (max-width: 768px) {
-    .app-container { flex-direction: column; }
-    .sidebar { display: none; }
-    .mobile-header { display: block; }
-    .messages-container { padding: 15px; padding-bottom: 100px; }
-    .input-area-wrapper { padding: 15px; }
-    .bubble { max-width: 90%; }
-    .input-container { border-radius: 20px; }
-}
-
-.single-image-container {
-    max-width: 100%;
-    margin-top: 15px;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-}
-
-/* สไตล์สำหรับแกลเลอรีรูปภาพ (Grid Layout) */
-.image-gallery-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* ปรับขนาดภาพอัตโนมัติ */
-    gap: 10px; /* ระยะห่างระหว่างภาพ */
-    margin-top: 15px;
-    padding: 5px;
-    background-color: rgba(0,0,0,0.1); /* พื้นหลังจางๆ */
-    border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-}
-
-/* ภาพในแกลเลอรีและภาพเดี่ยว */
-.responsive-image {
-    max-width: 100%;
-    height: auto;
-    display: block; /* ลบช่องว่างด้านล่างของรูปภาพ */
-    border-radius: 6px; /* ขอบโค้งมนเล็กน้อย */
-    object-fit: cover; /* ครอบคลุมพื้นที่โดยไม่ยืดภาพ */
-    aspect-ratio: 16 / 9; /* กำหนดอัตราส่วนภาพ เพื่อความสม่ำเสมอ */
-}
-
-/* ถ้าเป็นภาพเล็กๆ ให้จัดกลาง */
-.image-gallery-grid img.responsive-image {
-    width: 100%; /* ทำให้ภาพใน grid ยืดเต็มช่อง */
-    height: 120px; /* กำหนดความสูงเพื่อให้ภาพดูสม่ำเสมอ */
-    object-fit: cover;
-}
-
-/* Responsive adjustment for smaller screens */
-@media (max-width: 768px) {
-    .image-gallery-grid {
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 8px;
+    .sidebar {
+        display: none;
     }
-    .image-gallery-grid img.responsive-image {
-        height: 100px;
+
+    .mobile-header {
+        display: block;
     }
-}
 
-/* สไตล์สำหรับแหล่งข้อมูล */
-.sources-container {
-    margin-top: 20px;
-    padding: 10px 15px;
-    background-color: rgba(255, 255, 255, 0.05);
-    border-left: 4px solid #2dd4bf;
-    border-radius: 4px;
-    font-size: 0.9em;
-    color: rgba(255, 255, 255, 0.7);
-}
-.sources-container h4 {
-    margin-top: 0;
-    margin-bottom: 8px;
-    color: #2dd4bf;
-    font-weight: 600;
-}
-.sources-container ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-.sources-container li {
-    margin-bottom: 5px;
-}
-.sources-container a {
-    color: #40c4ff;
-    text-decoration: none;
-}
-.sources-container a:hover {
-    text-decoration: underline;
-}
+    .messages-container {
+        padding: 15px;
+        padding-bottom: 100px;
+    }
 
-/* เพิ่ม CSS สำหรับ Input Area ให้ขยายได้ */
-.input-area-wrapper {
-    position: relative;
-    padding: 10px 20px;
-    background-color: var(--bg-card);
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
-}
+    .input-area-wrapper {
+        padding: 15px;
+    }
 
-.input-container {
-    display: flex;
-    align-items: flex-end; /* จัดปุ่มให้อยู่ล่างสุด */
-    background-color: var(--bg-dark);
-    border-radius: 25px;
-    padding: 8px 15px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    border: 1px solid var(--border);
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-textarea#user-input {
-    flex-grow: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    color: var(--text-main);
-    font-family: 'Kanit', sans-serif;
-    font-size: 1rem;
-    padding: 8px 10px;
-    resize: none; /* ป้องกันการลากปรับขนาดด้วยมือ */
-    max-height: 120px; /* กำหนดความสูงสูงสุด */
-    overflow-y: auto; /* ให้มี scrollbar ถ้าข้อความยาว */
-    line-height: 1.5;
-}
-
-.btn-icon, .btn-send {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 1.2rem;
-    padding: 8px;
-    border-radius: 50%;
-    transition: background-color 0.2s;
-    flex-shrink: 0; /* ไม่ให้หด */
-    color: var(--text-placeholder); /* สีเริ่มต้น */
-}
-
-.btn-icon:hover, .btn-send:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-.btn-icon { color: var(--color-primary); } /* สีไมค์ */
-.btn-send { color: var(--color-primary); margin-left: 5px; } /* สีส่งข้อความ */
-
-/* สถานะไมค์ฟังอยู่ */
-.mic-button.listening {
-    color: var(--color-accent); /* สีเปลี่ยนเมื่อฟัง */
-    animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(45, 212, 191, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0); }
+    .bubble {
+        max-width: 90%;
+    }
 }

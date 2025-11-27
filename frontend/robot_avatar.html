@@ -1,64 +1,152 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>คุยกับน้องน่าน (3D)</title>
-    
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap" rel="stylesheet">
-    
+
     <link rel="stylesheet" href="assets/styles/robot_avatar.css">
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="assets/scripts/marked.min.js"></script>
 
     <style>
         /* ปุ่มย้อนกลับ (ลอยมุมซ้าย) */
         .back-home-btn {
-            position: absolute; top: 20px; left: 20px; z-index: 100;
-            background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);
-            padding: 8px 15px; border-radius: 8px; cursor: pointer; text-decoration: none;
-            font-family: 'Kanit', sans-serif; backdrop-filter: blur(5px);
-            display: flex; align-items: center; gap: 8px; transition: 0.2s;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-family: 'Kanit', sans-serif;
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
         }
-        .back-home-btn:hover { background: rgba(255,255,255,0.2); }
+
+        .back-home-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
 
         /* Status Text */
         #status-text {
-            position: absolute; bottom: 100px; width: 100%; 
-            text-align: center; color: rgba(255,255,255,0.8); 
-            font-size: 1.2rem; font-weight: 500; text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-            pointer-events: none; z-index: 50;
+            position: absolute;
+            bottom: 100px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.2rem;
+            font-weight: 500;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            z-index: 50;
         }
 
         /* ปุ่มหยุดพูด */
         .stop-speech-button {
-            display: none; position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            z-index: 60; width: 60px; height: 60px; background-color: rgba(239, 68, 68, 0.9);
-            border-radius: 50%; align-items: center; justify-content: center;
-            font-size: 1.5rem; color: white; cursor: pointer; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4); transition: all 0.3s;
+            display: none;
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 60;
+            width: 60px;
+            height: 60px;
+            background-color: rgba(239, 68, 68, 0.9);
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s;
         }
-        .stop-speech-button.visible { display: flex; animation: popIn 0.3s ease-out; }
-        
+
+        .stop-speech-button.visible {
+            display: flex;
+            animation: popIn 0.3s ease-out;
+        }
+
         /* ช่องพิมพ์ข้อความ */
         .text-input-container {
-            position: fixed; bottom: 25px; right: 25px; z-index: 60;
-            width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.1);
-            display: flex; align-items: center; justify-content: center; cursor: pointer;
-            transition: all 0.4s; overflow: hidden; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.2);
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            z-index: 60;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.4s;
+            overflow: hidden;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        .text-input-container:hover { width: 300px; border-radius: 25px; }
-        .text-query-form { width: 100%; opacity: 0; transition: 0.3s; }
-        .text-input-container:hover .text-query-form { opacity: 1; }
-        .text-input-prompt { position: absolute; font-size: 24px; transition: 0.2s; }
-        .text-input-container:hover .text-input-prompt { opacity: 0; }
-        #text-query-input { width: 100%; background: transparent; border: none; color: white; padding: 0 20px; outline: none; font-family: 'Kanit'; }
 
-        @keyframes popIn { from { transform: translateX(-50%) scale(0); } to { transform: translateX(-50%) scale(1); } }
+        .text-input-container:hover {
+            width: 300px;
+            border-radius: 25px;
+        }
+
+        .text-query-form {
+            width: 100%;
+            opacity: 0;
+            transition: 0.3s;
+        }
+
+        .text-input-container:hover .text-query-form {
+            opacity: 1;
+        }
+
+        .text-input-prompt {
+            position: absolute;
+            font-size: 24px;
+            transition: 0.2s;
+        }
+
+        .text-input-container:hover .text-input-prompt {
+            opacity: 0;
+        }
+
+        #text-query-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 0 20px;
+            outline: none;
+            font-family: 'Kanit';
+        }
+
+        @keyframes popIn {
+            from {
+                transform: translateX(-50%) scale(0);
+            }
+
+            to {
+                transform: translateX(-50%) scale(1);
+            }
+        }
     </style>
 </head>
+
 <body>
 
     <a href="chat.html" class="back-home-btn">
@@ -70,14 +158,15 @@
             <div id="result-text" class="prose"></div>
             <div id="info-display" class="info-display-container"></div>
         </div>
-        
+
         <div id="youtube-display" class="youtube-player-container">
             <div id="youtube-player"></div>
         </div>
 
         <div class="robot-container" id="robot-master-container">
             <div class="robot-body">
-                <div class="body-accent"></div><div class="robot-neck"></div>
+                <div class="body-accent"></div>
+                <div class="robot-neck"></div>
                 <div class="robot-head">
                     <div class="head-top-accent"></div>
                     <div class="robot-face" id="robot-face">
@@ -94,16 +183,16 @@
         </div>
 
         <div id="status-text">กำลังเตรียมความพร้อม...</div>
-        
+
         <button id="stop-speech-btn" class="stop-speech-button" title="หยุด"><i class="fas fa-stop"></i></button>
 
         <div id="text-input-container" class="text-input-container">
-             <div class="text-input-prompt"><span>⌨️</span></div>
-             <form id="text-query-form" class="text-query-form">
-                 <input type="text" id="text-query-input" placeholder="พิมพ์คุย...">
-             </form>
+            <div class="text-input-prompt"><span>⌨️</span></div>
+            <form id="text-query-form" class="text-query-form">
+                <input type="text" id="text-query-input" placeholder="พิมพ์คุย...">
+            </form>
         </div>
-        
+
         <div class="music-controls" id="music-controls">
             <button id="play-pause-btn"><i class="fas fa-play"></i></button>
             <button id="stop-btn"><i class="fas fa-stop"></i></button>
@@ -121,9 +210,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 // บังคับ Active ทันที ไม่ต้องเช็ค Tab
-                if(window.AvatarController) window.AvatarController.setActive(true);
+                if (window.AvatarController) window.AvatarController.setActive(true);
             }, 500);
         });
     </script>
 </body>
+
 </html>
