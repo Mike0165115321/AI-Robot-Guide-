@@ -9,12 +9,21 @@
 </head>
 
 <body>
-    <div class="container">
-        <h1>Admin Panel: จัดการข้อมูลสถานที่</h1>
-        <hr>
+    <div class="bg-grid"></div>
 
-        <h2>นำเข้าข้อมูลอัจฉริยะ (AI Ingestion)</h2>
+    <div class="container" style="align-items: stretch; max-width: 1000px;">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div>
+                <h1 class="text-gradient">Admin Panel</h1>
+                <p style="color: var(--text-muted);">จัดการข้อมูลสถานที่และคลังความรู้ AI</p>
+            </div>
+            <a href="/" class="btn btn-cta" style="text-decoration: none;">
+                <i class="fa-solid fa-house"></i> กลับหน้าหลัก
+            </a>
+        </header>
+
         <div class="form-container">
+            <h2><i class="fa-solid fa-robot"></i> นำเข้าข้อมูลอัจฉริยะ (AI Ingestion)</h2>
             <p>
                 อัปโหลดไฟล์ PDF หรือ .txt แล้ว AI จะวิเคราะห์และ
                 <strong>"กรอกฟอร์มด้านล่าง" (เพิ่มข้อมูลใหม่)</strong> ให้โดยอัตโนมัติ

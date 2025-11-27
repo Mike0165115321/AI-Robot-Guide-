@@ -8,7 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- ★ ปรับปรุง: เรียกใช้ไฟล์ CSS ภายนอก -->
-    <!-- ★ ปรับปรุง: เรียกใช้ไฟล์ CSS ภายนอก -->
     <link rel="stylesheet" href="assets/styles/main.css">
     <link rel="stylesheet" href="assets/styles/travel_mode.css">
 
@@ -19,17 +18,16 @@
 
 <body class="font-sans">
 
-    <div id="travel-mode-container" class="flex flex-col items-center justify-center p-0 sm:p-4 min-h-screen">
+    <div id="travel-mode-container" class="flex flex-col items-center justify-center p-0 sm:p-4 min-h-screen h-screen">
         <div
             class="w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col h-screen sm:h-[90vh] overflow-hidden chat-card-main relative">
 
             <!-- MAP OVERLAY (ซ่อนไว้ก่อน) -->
-            <div id="map-overlay" class="rounded-2xl overflow-hidden">
+            <div id="map-overlay" class="rounded-2xl overflow-hidden" style="display: none;">
                 <header class="p-4 flex items-center justify-between border-b border-color-border flex-shrink-0"
                     style="background-color: var(--color-bg-card);">
 
                     <div class="flex items-center space-x-3">
-                        <!-- 🚀 FIX: เพิ่มไอคอนน้องน่านเข้ามาที่นี่ด้วย -->
                         <div class="robot-icon-container" style="transform: scale(0.9);">
                             <div class="icon-head-top-accent"></div>
                             <div class="icon-robot-face">
@@ -64,7 +62,6 @@
                 style="background-color: var(--color-bg-card);">
                 <div class="flex items-center space-x-3">
 
-                    <!-- 🚀 FIX: เพิ่มไอคอนน้องน่านเข้ามาที่นี่ -->
                     <div class="robot-icon-container" style="transform: scale(0.9);">
                         <div class="icon-head-top-accent"></div>
                         <div class="icon-robot-face">
@@ -74,7 +71,6 @@
                     </div>
 
                     <div>
-                        <!-- 🚀 FIX: ปรับข้อความให้ชัดเจน -->
                         <h1 class="text-xl font-bold" style="color: var(--color-text-primary);">AI Guide - โหมดนำทาง
                         </h1>
                         <p class="text-xs" style="color: var(--color-text-secondary);" id="itinerary-status">
@@ -83,7 +79,6 @@
                     </div>
                 </div>
 
-                <!-- 🚀 FIX: ย้ายปุ่มกลับไปแชทมาไว้ฝั่งขวา เพื่อให้เหมือนหน้าแชทที่มีปุ่ม "เริ่มใหม่" -->
                 <button id="back-to-chat-btn" title="กลับไปโหมดสนทนา" class="text-sm hover:brightness-125 transition"
                     style="color: var(--color-accent-teal);">
                     กลับไปสนทนา

@@ -212,6 +212,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const iframe = document.createElement('iframe');
                 iframe.src = result.action_payload.embed_url;
+                iframe.width = "100%";
+                iframe.height = "100%";
+                iframe.style.border = "0";
+                iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; geolocation";
                 mapCanvas.appendChild(iframe);
 
                 if (mapHeaderTitle) mapHeaderTitle.textContent = `เส้นทางไป: ${destName}`;
