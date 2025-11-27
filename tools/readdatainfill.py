@@ -21,7 +21,7 @@ current_dir = Path(__file__).resolve().parent
 # print(f"✅ กำลังอ่านไฟล์จาก Path: {path_to_data}")
 
 # Correct absolute paths
-BASE_DIR = "/home/mikedev/AI Robot Guide จังหวัดน่าน"
+BASE_DIR = "/home/ratthanan/AI-Robot-Guide-"
 path_to_data = os.path.join(BASE_DIR, "Back-end/core/database/data/_processed/superdata_filtered_attractions.jsonl")
 path_to_images = os.path.join(BASE_DIR, "Back-end/static/images")
 
