@@ -159,13 +159,15 @@ async def analyze_document_endpoint(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred during analysis: {str(e)}")
 
 
-@router.get("/", response_model=List[LocationAdminSummaryWithImage], tags=["Admin :: Locations CRUD"])
+@router.get("/", response_model=Dict[str, Any], tags=["Admin :: Locations CRUD"])
 async def get_all_locations_summary(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1),
     db: MongoDBManager = Depends(get_mongo_manager)
 ):
-    def get_enriched_summaries_sync() -> List[LocationAdminSummaryWithImage]:
+    def get_paginated_summaries_sync() -> Dict[str, Any]:
         try:
-            locations_from_db = db.get_all_locations()
+            locations_from_db, total_count = db.get_locations_paginated(skip=skip, limit=limit)
             enriched_models = []
             for loc_dict in locations_from_db:
                 if not isinstance(loc_dict, dict) or '_id' not in loc_dict:
@@ -184,14 +186,19 @@ async def get_all_locations_summary(
                     logging.warning(f"Skipping location due to validation error: {loc_dict.get('slug', 'N/A')}. Details: {e}")
                     continue
 
-            return enriched_models
+            return {
+                "items": enriched_models,
+                "total_count": total_count,
+                "page": (skip // limit) + 1,
+                "limit": limit
+            }
         except Exception as e:
             logging.error(f"❌ Error enriching summaries in sync thread: {e}", exc_info=True)
-            return []
+            return {"items": [], "total_count": 0, "page": 1, "limit": limit}
 
     try:
-        all_locations_models = await asyncio.to_thread(get_enriched_summaries_sync)
-        return all_locations_models
+        result = await asyncio.to_thread(get_paginated_summaries_sync)
+        return result
     except Exception as e:
         logging.error(f"❌ Unexpected error getting all locations summary: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error retrieving location summaries.")

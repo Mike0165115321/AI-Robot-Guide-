@@ -1,11 +1,10 @@
 console.log("%c ADMIN.JS LOADED - V.ULTIMATE FINAL -> V5.4.0 (Image Previews)", "color: lime; font-size: 16px; font-weight: bold;");
 
 // --- Global Variables ---
-let locationsTableBody, addLocationForm, editModal, editLocationForm, closeModalButton, fileInput, analyzeBtn, loadingSpinner;
-// Assume API_BASE_URL is defined globally in config.js
-// const API_BASE_URL = ''; // DO NOT REDECLARE
-
-// --- Core Functions (V5.4.0 - Image Previews) ---
+let locationsTableBody, addLocationForm, editModal, editLocationForm, closeModalButton, fileInput, analyzeBtn, loadingSpinner, paginationContainer;
+let currentPage = 1;
+let itemsPerPage = 10;
+let totalItems = 0;
 
 async function fetchAndDisplayLocations() {
     if (!locationsTableBody) {
@@ -16,15 +15,26 @@ async function fetchAndDisplayLocations() {
     locationsTableBody.innerHTML = '<tr><td colspan="7">Loading data...</td></tr>';
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/locations/`);
+        const skip = (currentPage - 1) * itemsPerPage;
+        const response = await fetch(`${API_BASE_URL}/api/admin/locations/?skip=${skip}&limit=${itemsPerPage}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const locations = await response.json();
+        const data = await response.json();
+
+        // Handle new response format (paginated) or old format (list)
+        let locations = [];
+        if (Array.isArray(data)) {
+            locations = data; // Fallback for old API
+        } else if (data.items) {
+            locations = data.items;
+            totalItems = data.total_count || 0;
+        }
 
         locationsTableBody.innerHTML = '';
 
         if (!Array.isArray(locations) || locations.length === 0) {
             // [V5.4] Adjusted colspan
             locationsTableBody.innerHTML = '<tr><td colspan="7">No locations found. Add one below!</td></tr>';
+            renderPaginationControls(0, currentPage, itemsPerPage);
             return;
         }
 
@@ -34,7 +44,6 @@ async function fetchAndDisplayLocations() {
                 ? `<span style="color: #4ade80;">✔️ Yes (${location.metadata.image_prefix})</span>`
                 : '<span style="color: #f87171;">❌ No</span>';
 
-            // --- [V5.5] Image Preview Logic (Robust Fallback) ---
             const placeholderImage = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22100%22%20height%3D%2275%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%2075%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_1%20text%20%7B%20fill%3A%23AAAAAA%3Bfont-weight%3Abold%3Bfont-family%3AArial%2C%20Helvetica%2C%20Open%20Sans%2C%20sans-serif%2C%20monospace%3Bfont-size%3A10pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_1%22%3E%3Crect%20width%3D%22100%22%20height%3D%2275%22%20fill%3D%22%23EEEEEE%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2227.5%22%20y%3D%2242%22%3ENo Image%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E';
 
             let primaryUrl = placeholderImage;
@@ -85,11 +94,61 @@ async function fetchAndDisplayLocations() {
             `;
             locationsTableBody.appendChild(row);
         });
+
+        renderPaginationControls(totalItems, currentPage, itemsPerPage);
+
     } catch (error) {
         console.error('Fetch error:', error);
         // [V5.4] Adjusted colspan
         locationsTableBody.innerHTML = '<tr><td colspan="7">Failed to load data. Please check connection.</td></tr>';
     }
+}
+
+function renderPaginationControls(total, current, limit) {
+    if (!paginationContainer) return;
+    paginationContainer.innerHTML = '';
+
+    if (total === 0) return;
+
+    const totalPages = Math.ceil(total / limit);
+
+    // First Button
+    const firstBtn = document.createElement('button');
+    firstBtn.innerText = 'First';
+    firstBtn.className = 'pagination-btn';
+    firstBtn.disabled = current === 1;
+    firstBtn.onclick = () => { currentPage = 1; fetchAndDisplayLocations(); };
+    paginationContainer.appendChild(firstBtn);
+
+    // Prev Button
+    const prevBtn = document.createElement('button');
+    prevBtn.innerText = 'Prev';
+    prevBtn.className = 'pagination-btn';
+    prevBtn.disabled = current === 1;
+    prevBtn.onclick = () => { if (current > 1) { currentPage--; fetchAndDisplayLocations(); } };
+    paginationContainer.appendChild(prevBtn);
+
+    // Page Info
+    const infoSpan = document.createElement('span');
+    infoSpan.className = 'pagination-info';
+    infoSpan.innerText = ` Page ${current} of ${totalPages} (Total: ${total}) `;
+    paginationContainer.appendChild(infoSpan);
+
+    // Next Button
+    const nextBtn = document.createElement('button');
+    nextBtn.innerText = 'Next';
+    nextBtn.className = 'pagination-btn';
+    nextBtn.disabled = current === totalPages;
+    nextBtn.onclick = () => { if (current < totalPages) { currentPage++; fetchAndDisplayLocations(); } };
+    paginationContainer.appendChild(nextBtn);
+
+    // Last Button
+    const lastBtn = document.createElement('button');
+    lastBtn.innerText = 'Last';
+    lastBtn.className = 'pagination-btn';
+    lastBtn.disabled = current === totalPages;
+    lastBtn.onclick = () => { currentPage = totalPages; fetchAndDisplayLocations(); };
+    paginationContainer.appendChild(lastBtn);
 }
 
 async function deleteLocation(slug) {
@@ -152,13 +211,11 @@ async function openEditModal(slug) {
         let secondaryUrl = null;
 
         if (!primaryUrl) {
-            // 1. Try Image Prefix
             if (location.metadata && location.metadata.image_prefix) {
                 let prefixName = location.metadata.image_prefix.trim().replace(/\s+/g, '-').replace(/-+$/, '');
                 primaryUrl = `${API_BASE_URL}/static/images/${prefixName}-01.jpg`;
             }
 
-            // 2. Prepare Slug Fallback
             if (location.slug) {
                 let slugName = location.slug.trim().replace(/\s+/g, '-').replace(/-+$/, '');
                 let slugUrl = `${API_BASE_URL}/static/images/${slugName}-01.jpg`;
@@ -217,8 +274,6 @@ async function openEditModal(slug) {
     }
 }
 
-
-// --- Functions below this line are unchanged from V5.3.1 ---
 
 async function handleAddLocationSubmit(event) {
     event.preventDefault();
@@ -532,7 +587,9 @@ document.addEventListener('DOMContentLoaded', () => {
     closeModalButton = document.querySelector('#edit-modal .close-button');
     fileInput = document.getElementById('file-input');
     analyzeBtn = document.getElementById('analyze-btn');
+    analyzeBtn = document.getElementById('analyze-btn');
     loadingSpinner = document.getElementById('loading-spinner');
+    paginationContainer = document.getElementById('pagination-container');
 
     if (locationsTableBody) {
         fetchAndDisplayLocations();

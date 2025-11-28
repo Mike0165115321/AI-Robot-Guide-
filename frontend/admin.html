@@ -70,8 +70,6 @@
                 placeholder='[{"heading": "ภาพรวม", "content": "..."}]'></textarea><br>
             <hr style="margin: 20px 0;">
             <h4>Image Management (Add)</h4>
-            <p>Image Prefix ต้องตรงกับ Slug ด้านบน</p>
-
             Image Prefix (ต้องตรงกับ Slug): <br>
             <input type="text" id="form-image-prefix" name="image_prefix" placeholder="e.g., wat_phumin_"><br>
 
@@ -137,21 +135,29 @@
         </div>
 
         <h2>รายการข้อมูลทั้งหมด</h2>
-        <table id="locations-table">
-            <thead>
-                <tr>
-                    <th>Preview</th>
-                    <th>Slug</th>
-                    <th>Title</th>
-                    <th>Category</th>
-                    <th>Topic</th>
-                    <th>Has Image Link?</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-            </tbody>
-        </table>
+        <div class="table-container">
+            <table id="locations-table">
+                <thead>
+                    <tr>
+                        <th>Preview</th>
+                        <th>Slug</th>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Topic</th>
+                        <th>Image?</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div id="pagination-container" class="pagination-container">
+            <!-- Buttons will be rendered here by JS -->
+        </div>
 
         <script src="assets/scripts/config.js"></script>
         <script src="assets/scripts/admin.js"></script>

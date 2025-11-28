@@ -372,43 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Navigation Logic (Task 3 Fix) ---
-    const btnTabChat = document.getElementById('btn-tab-chat');
-    const btnTabTravel = document.getElementById('btn-tab-travel');
-    const viewChat = document.getElementById('view-chat');
-    const viewTravel = document.getElementById('view-travel');
-
-    function switchTab(tab) {
-        // Deactivate all sidebar buttons first
-        document.querySelectorAll('.sidebar-menu .menu-item').forEach(el => {
-            if (el.tagName === 'BUTTON') el.classList.remove('active');
-        });
-
-        if (tab === 'chat') {
-            // "Chat" tab: Ensure chat is visible (it always is) and hide travel overlay
-            viewChat.classList.add('active'); // Ensure chat is active
-            viewTravel.classList.remove('active'); // Hide travel overlay
-            if (btnTabChat) btnTabChat.classList.add('active');
-        } else if (tab === 'travel') {
-            // "Travel" tab: Keep chat visible, SHOW travel overlay
-            viewChat.classList.add('active'); // Keep chat active in background
-            viewTravel.classList.add('active'); // Show travel overlay
-            if (btnTabTravel) btnTabTravel.classList.add('active');
-        }
-    }
-
-    if (btnTabChat) {
-        btnTabChat.addEventListener('click', (e) => {
-            e.preventDefault(); // Prevent inline onclick if any
-            switchTab('chat');
-        });
-    }
-
-    if (btnTabTravel) {
-        btnTabTravel.addEventListener('click', (e) => {
-            e.preventDefault(); // Prevent inline onclick if any
-            switchTab('travel');
-        });
-    }
+    // Tab switching logic removed as Travel Mode is now a standalone page.
 
     // --- Initialization ---
     connectChatWebSocket();

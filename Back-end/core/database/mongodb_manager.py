@@ -100,6 +100,19 @@ class MongoDBManager:
                 return []
         return []
 
+    def get_locations_paginated(self, skip: int = 0, limit: int = 10, collection_name: str = "nan_locations"):
+        collection = self.get_collection(collection_name)
+        if collection is not None:
+            try:
+                total_count = collection.count_documents({})
+                cursor = collection.find({}).skip(skip).limit(limit)
+                items = list(cursor)
+                return items, total_count
+            except Exception as e:
+                print(f"❌ Error fetching paginated locations: {e}")
+                return [], 0
+        return [], 0
+
     def update_location(self, mongo_id: str, new_data: dict, collection_name: str = "nan_locations"):
         collection = self.get_collection(collection_name)
         if collection is not None:
