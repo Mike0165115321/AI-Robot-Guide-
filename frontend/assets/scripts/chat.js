@@ -220,7 +220,38 @@ document.addEventListener('DOMContentLoaded', () => {
             bubble.appendChild(questionsContainer);
         }
 
-        messageRow.appendChild(bubble);
+        if (sender === 'ai') {
+            // Create wrapper for AI message (Icon + Bubble)
+            const wrapper = document.createElement('div');
+            wrapper.style.display = 'flex';
+            wrapper.style.alignItems = 'flex-start';
+            wrapper.style.gap = '10px';
+            wrapper.style.maxWidth = '100%';
+
+            // Create Robot Icon
+            const iconContainer = document.createElement('div');
+            iconContainer.className = 'robot-avatar-icon';
+            iconContainer.style.width = '40px';
+            iconContainer.style.height = '40px';
+            iconContainer.style.flexShrink = '0';
+            iconContainer.style.transform = 'scale(0.8)'; // Scale down slightly
+            iconContainer.style.transformOrigin = 'top left';
+
+            iconContainer.innerHTML = `
+                <div class="head-accent"></div>
+                <div class="face-plate" style="width: 28px; height: 18px;">
+                    <div class="eye left" style="width: 4px; height: 6px;"></div>
+                    <div class="eye right" style="width: 4px; height: 6px;"></div>
+                </div>
+            `;
+
+            wrapper.appendChild(iconContainer);
+            wrapper.appendChild(bubble);
+            messageRow.appendChild(wrapper);
+        } else {
+            messageRow.appendChild(bubble);
+        }
+
         messageArea.appendChild(messageRow);
         messageArea.scrollTop = messageArea.scrollHeight;
 
@@ -339,6 +370,45 @@ document.addEventListener('DOMContentLoaded', () => {
         ];
         displayMessage(faqText, 'system', null, [], 'normal', [], null, null, questions);
     });
+
+    // --- Navigation Logic (Task 3 Fix) ---
+    const btnTabChat = document.getElementById('btn-tab-chat');
+    const btnTabTravel = document.getElementById('btn-tab-travel');
+    const viewChat = document.getElementById('view-chat');
+    const viewTravel = document.getElementById('view-travel');
+
+    function switchTab(tab) {
+        // Deactivate all sidebar buttons first
+        document.querySelectorAll('.sidebar-menu .menu-item').forEach(el => {
+            if (el.tagName === 'BUTTON') el.classList.remove('active');
+        });
+
+        if (tab === 'chat') {
+            // "Chat" tab: Ensure chat is visible (it always is) and hide travel overlay
+            viewChat.classList.add('active'); // Ensure chat is active
+            viewTravel.classList.remove('active'); // Hide travel overlay
+            if (btnTabChat) btnTabChat.classList.add('active');
+        } else if (tab === 'travel') {
+            // "Travel" tab: Keep chat visible, SHOW travel overlay
+            viewChat.classList.add('active'); // Keep chat active in background
+            viewTravel.classList.add('active'); // Show travel overlay
+            if (btnTabTravel) btnTabTravel.classList.add('active');
+        }
+    }
+
+    if (btnTabChat) {
+        btnTabChat.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevent inline onclick if any
+            switchTab('chat');
+        });
+    }
+
+    if (btnTabTravel) {
+        btnTabTravel.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevent inline onclick if any
+            switchTab('travel');
+        });
+    }
 
     // --- Initialization ---
     connectChatWebSocket();

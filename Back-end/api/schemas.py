@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from bson import ObjectId
 from typing_extensions import Annotated
 
@@ -16,7 +16,7 @@ class LocationBase(BaseModel):
     image_url: Optional[str] = Field(None, description="Fallback image")
     details: List[Detail] = Field(default_factory=list)
     keywords: List[str] = Field(default_factory=list)
-    related_info: List[RelatedInfoItem] = Field(default_factory=list)
+    related_info: Optional[Dict[str, Any]] = Field(default_factory=dict)
     sources: List[SourceItem] = Field(default_factory=list)
     metadata: Optional[AdminLocationMetadata] = None
 

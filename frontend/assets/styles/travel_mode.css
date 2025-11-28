@@ -6,13 +6,45 @@
 
 /* --- Container --- */
 #travel-mode-container {
-    /* height: 100vh;  <-- REMOVED: Let HTML control height (h-screen or h-full) */
+    position: fixed;
+    bottom: 0;
+    left: var(--sidebar-width);
+    /* Ensure it doesn't cover sidebar */
+    width: calc(100% - var(--sidebar-width));
+    height: 45vh;
+    /* Fixed height, e.g. 45% of screen */
+    z-index: 50;
+    /* Above chat bubbles */
+    padding: 0 1rem 1rem 1rem;
+
     display: flex;
-    align-items: center;
+    align-items: flex-end;
+    /* Align card to bottom */
     justify-content: center;
-    padding: 1rem;
-    position: relative;
-    z-index: 1;
+
+    transform: translateY(100%);
+    /* Start hidden (slid down) */
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    pointer-events: none;
+    /* Let clicks pass through when hidden/transparent parts */
+}
+
+/* When active (added by JS) */
+#view-travel.active #travel-mode-container {
+    transform: translateY(0);
+    /* Slide up */
+    pointer-events: auto;
+    /* Re-enable clicks */
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    #travel-mode-container {
+        left: 0;
+        width: 100%;
+        height: 50vh;
+        padding: 0 0.5rem 0.5rem 0.5rem;
+    }
 }
 
 .chat-card-main {
@@ -22,7 +54,7 @@
     border-radius: 20px;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
     width: 100%;
-    max-width: 1200px;
+    max-width: 1000px;
     height: 100%;
     /* Changed from 90vh to 100% to fill parent */
     display: flex;
