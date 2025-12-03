@@ -85,7 +85,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(admin_api.router, prefix="/api/admin/locations") 
+app.include_router(admin_api.router, prefix="/api/admin") 
 app.include_router(chat_api.router, prefix="/api/chat")   
 app.include_router(avatar_api.router, prefix="/api/avatar")
 
