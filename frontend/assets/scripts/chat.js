@@ -220,7 +220,38 @@ document.addEventListener('DOMContentLoaded', () => {
             bubble.appendChild(questionsContainer);
         }
 
-        messageRow.appendChild(bubble);
+        if (sender === 'ai') {
+            // Create wrapper for AI message (Icon + Bubble)
+            const wrapper = document.createElement('div');
+            wrapper.style.display = 'flex';
+            wrapper.style.alignItems = 'flex-start';
+            wrapper.style.gap = '10px';
+            wrapper.style.maxWidth = '100%';
+
+            // Create Robot Icon
+            const iconContainer = document.createElement('div');
+            iconContainer.className = 'robot-avatar-icon';
+            iconContainer.style.width = '40px';
+            iconContainer.style.height = '40px';
+            iconContainer.style.flexShrink = '0';
+            iconContainer.style.transform = 'scale(0.8)'; // Scale down slightly
+            iconContainer.style.transformOrigin = 'top left';
+
+            iconContainer.innerHTML = `
+                <div class="head-accent"></div>
+                <div class="face-plate" style="width: 28px; height: 18px;">
+                    <div class="eye left" style="width: 4px; height: 6px;"></div>
+                    <div class="eye right" style="width: 4px; height: 6px;"></div>
+                </div>
+            `;
+
+            wrapper.appendChild(iconContainer);
+            wrapper.appendChild(bubble);
+            messageRow.appendChild(wrapper);
+        } else {
+            messageRow.appendChild(bubble);
+        }
+
         messageArea.appendChild(messageRow);
         messageArea.scrollTop = messageArea.scrollHeight;
 
@@ -339,6 +370,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ];
         displayMessage(faqText, 'system', null, [], 'normal', [], null, null, questions);
     });
+
+    // --- Navigation Logic (Task 3 Fix) ---
+    // Tab switching logic removed as Travel Mode is now a standalone page.
 
     // --- Initialization ---
     connectChatWebSocket();

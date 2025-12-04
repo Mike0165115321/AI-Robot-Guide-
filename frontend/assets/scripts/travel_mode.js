@@ -1,4 +1,5 @@
-// /frontend/assets/scripts/travel_mode.js 
+// /frontend/assets/scripts/travel_mode.js
+// Standalone Travel Mode Logic
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -17,9 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const mapHeaderTitle = document.getElementById('map-header-title');
     const closeMapBtn = document.getElementById('close-map-btn');
 
-    const backToChatBtn = document.getElementById('back-to-chat-btn');
-    const editTripBtn = document.getElementById('edit-trip-btn');
-
     // --- Helper Functions ---
     function alertMessage(message, isError = false) {
         const existingToast = document.getElementById('mock-toast');
@@ -27,8 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const toast = document.createElement('div');
         toast.id = 'mock-toast';
-        const bgColor = isError ? 'var(--color-highlight)' : 'var(--color-accent-teal)';
-        const textColor = isError ? 'white' : 'var(--color-bg-primary)';
+        const bgColor = isError ? 'var(--danger-color, #ef4444)' : 'var(--success-color, #22c55e)';
+        const textColor = '#ffffff';
 
         toast.className = 'fixed top-4 right-4 px-4 py-2 rounded-lg shadow-xl z-50 transition-opacity duration-300 font-kanit font-semibold';
         toast.style.backgroundColor = bgColor;
@@ -65,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Error getting location:", error);
                 alertMessage("โปรดอนุญาตการเข้าถึงตำแหน่งเพื่อนำทาง", true);
                 itineraryStatus.textContent = "โปรดอนุญาตการเข้าถึงตำแหน่ง";
-                // กรณีไม่ได้ตำแหน่ง ก็โหลดแบบปกติ (ไม่เรียงระยะทาง)
+                // Load anyway without location sorting
                 fetchNavigationList();
             }
         );
@@ -75,7 +73,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             let url = `${API_BASE_URL}/api/navigation_list`;
 
-            // [แก้ไข] ถ้ามีพิกัด ให้แนบไปกับ URL
             if (userLatitude && userLongitude) {
                 url += `?lat=${userLatitude}&lon=${userLongitude}`;
                 console.log("📍 Fetching locations sorted by distance...");
@@ -101,44 +98,47 @@ document.addEventListener('DOMContentLoaded', () => {
         itineraryArea.innerHTML = '';
 
         if (navigationList.length === 0) {
-            itineraryArea.innerHTML = '<p class="text-color-text-secondary">ไม่พบสถานที่สำหรับนำทาง...</p>';
+            itineraryArea.innerHTML = '<p class="text-gray-400 text-center mt-10">ไม่พบสถานที่สำหรับนำทาง...</p>';
             return;
         }
 
         navigationList.forEach((item, index) => {
             const card = document.createElement('div');
-            card.className = 'travel-card p-4 sm:flex sm:space-x-4';
+            card.className = 'travel-card p-4 sm:flex sm:space-x-4 bg-slate-800/50 rounded-xl border border-slate-700 hover:border-teal-500/50 transition cursor-pointer mb-4';
             card.setAttribute('data-slug', item.slug);
             card.setAttribute('data-name', item.title);
             card.setAttribute('data-index', index);
 
             if (index === currentStepIndex) {
                 card.classList.add('current-step');
+                card.style.borderColor = 'var(--primary-color, #3b82f6)';
+                card.style.boxShadow = '0 0 15px rgba(59, 130, 246, 0.2)';
             }
 
             const imageUrl = item.image_urls && item.image_urls.length > 0
                 ? item.image_urls[0]
-                : `https://placehold.co/600x400/112240/CCD6F6?text=${encodeURIComponent(item.title)}`;
+                : `https://placehold.co/600x400/1e293b/94a3b8?text=${encodeURIComponent(item.title)}`;
 
             let distanceBadge = '';
             if (item.distance_km !== undefined && item.distance_km !== null) {
-                distanceBadge = `<span class="ml-2 text-xs font-medium px-2 py-0.5 rounded bg-blue-100 text-blue-800">
-                        📏 ห่างจากคุณ ${item.distance_km} กม.</span>`;
+                distanceBadge = `<span class="ml-2 text-xs font-medium px-2 py-0.5 rounded bg-blue-900/50 text-blue-200 border border-blue-700">
+                        📏 ${item.distance_km} กม.</span>`;
             }
 
             card.innerHTML = `
-                <div class="sm:w-1/3 mb-3 sm:mb-0">
+                <div class="sm:w-1/3 mb-3 sm:mb-0 flex-shrink-0">
                     <img src="${imageUrl}" 
-                        alt="${item.title}" class="w-full h-36 object-cover rounded-lg">
+                        alt="${item.title}" class="w-full h-32 object-cover rounded-lg">
                 </div>
                 <div class="sm:w-2/3 space-y-2">
                     <div class="flex items-center flex-wrap gap-2">
-                        <span class="step-badge inline-block px-3 py-1 text-xs rounded-full">
+                        <span class="inline-block px-3 py-1 text-xs rounded-full bg-teal-900/50 text-teal-200 border border-teal-700">
                             ${item.topic || 'ปลายทาง'}
                         </span>
                         ${distanceBadge}
                     </div>
-                    <h3 class="text-lg font-bold" style="color: var(--color-text-primary);">${item.title}</h3>
+                    <h3 class="text-lg font-bold text-white">${item.title}</h3>
+                    <p class="text-sm text-gray-400 line-clamp-2">${item.description || 'ไม่มีรายละเอียด'}</p>
                 </div>
             `;
 
@@ -163,9 +163,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const cards = document.querySelectorAll('.travel-card');
         cards.forEach(card => {
-            card.classList.remove('current-step');
+            // Reset styles
+            card.style.borderColor = 'rgba(51, 65, 85, 1)'; // border-slate-700
+            card.style.boxShadow = 'none';
+
             if (card.getAttribute('data-slug') === currentItem.slug) {
-                card.classList.add('current-step');
+                // Active styles
+                card.style.borderColor = '#2dd4bf'; // teal-400
+                card.style.boxShadow = '0 0 15px rgba(45, 212, 191, 0.2)';
                 card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
         });
@@ -198,6 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 user_lon: userLongitude
             };
 
+            // Use the chat API to get directions (reusing backend logic)
             const response = await fetch(`${API_BASE_URL}/api/chat/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -239,25 +245,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function closeMap() {
         mapOverlay.style.display = 'none';
-        mapCanvas.innerHTML = '<p class="text-color-text-secondary">กำลังโหลดแผนที่...</p>';
-    }
-
-
-    if (backToChatBtn) {
-        backToChatBtn.addEventListener('click', () => {
-            window.location.href = 'chat';
-        });
+        mapCanvas.innerHTML = '<p class="text-gray-400">กำลังโหลดแผนที่...</p>';
     }
 
     startNavigationBtn.addEventListener('click', startNavigation);
     closeMapBtn.addEventListener('click', closeMap);
 
-    if (editTripBtn) {
-        editTripBtn.addEventListener('click', () => {
-            alertMessage('ฟีเจอร์ "จัดการทริป" ยังไม่เปิดให้บริการค่ะ');
-        });
-    }
-
+    // Initialize
     getUserLocation();
 
 });

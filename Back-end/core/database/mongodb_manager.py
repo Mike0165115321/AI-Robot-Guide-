@@ -100,6 +100,19 @@ class MongoDBManager:
                 return []
         return []
 
+    def get_locations_paginated(self, skip: int = 0, limit: int = 10, collection_name: str = "nan_locations"):
+        collection = self.get_collection(collection_name)
+        if collection is not None:
+            try:
+                total_count = collection.count_documents({})
+                cursor = collection.find({}).skip(skip).limit(limit)
+                items = list(cursor)
+                return items, total_count
+            except Exception as e:
+                print(f"❌ Error fetching paginated locations: {e}")
+                return [], 0
+        return [], 0
+
     def update_location(self, mongo_id: str, new_data: dict, collection_name: str = "nan_locations"):
         collection = self.get_collection(collection_name)
         if collection is not None:
@@ -179,3 +192,57 @@ class MongoDBManager:
                 print(f"❌ Error getting distinct categories: {e}")
                 return []
         return []
+
+    def get_analytics_summary(self, days: int = 30) -> dict:
+        """
+        ดึงสรุปข้อมูล Analytics ย้อนหลังตามจำนวนวัน (default 30 วัน)
+        คืนค่าเป็น dict ที่มี key: origin_stats, interest_stats, total_conversations
+        """
+        collection = self.get_collection("analytics_logs")
+        if collection is None:
+            return {"origin_stats": [], "interest_stats": [], "total_conversations": 0}
+
+        try:
+            # ต้อง import datetime ที่นี่เพื่อให้มั่นใจว่าใช้งานได้
+            from datetime import datetime, timedelta, timezone
+            
+            # 1. กำหนดช่วงเวลา (ย้อนหลัง X วัน)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            
+            # Filter พื้นฐาน: เอาเฉพาะข้อมูลที่ใหม่กว่า cutoff_date
+            match_stage = {"$match": {"timestamp": {"$gte": cutoff_date}}}
+
+            # 2. Pipeline สำหรับหา User Origin (นักท่องเที่ยวมาจากไหน)
+            origin_pipeline = [
+                match_stage,
+                {"$match": {"user_origin": {"$ne": None}}},  # ไม่เอาค่า Null
+                {"$group": {"_id": "$user_origin", "count": {"$sum": 1}}}, # จัดกลุ่มและนับ
+                {"$sort": {"count": -1}}, # เรียงจากมากไปน้อย
+                {"$limit": 10} # เอาแค่ Top 10 อันดับแรก
+            ]
+            
+            # 3. Pipeline สำหรับหา Interest Topic (เขาสนใจเรื่องอะไร)
+            interest_pipeline = [
+                match_stage,
+                {"$match": {"interest_topic": {"$ne": None}}}, # ไม่เอาค่า Null
+                {"$group": {"_id": "$interest_topic", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}},
+                {"$limit": 10}
+            ]
+
+            # 4. นับจำนวนบทสนทนาทั้งหมดในช่วงเวลา
+            total_count = collection.count_documents({"timestamp": {"$gte": cutoff_date}})
+
+            # Execute Pipelines (สั่งประมวลผล)
+            origins = list(collection.aggregate(origin_pipeline))
+            interests = list(collection.aggregate(interest_pipeline))
+
+            return {
+                "origin_stats": origins,
+                "interest_stats": interests,
+                "total_conversations": total_count
+            }
+
+        except Exception as e:
+            print(f"❌ Error aggregating analytics: {e}")
+            return {"origin_stats": [], "interest_stats": [], "total_conversations": 0}

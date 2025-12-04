@@ -46,12 +46,10 @@
                 <h2>น้องน่าน AI</h2>
             </div>
             <nav class="sidebar-menu">
-                <button class="menu-item active" onclick="switchInternalTab('chat', this)">
+                <button id="btn-tab-chat" class="menu-item active" onclick="switchInternalTab('chat', this)">
                     <i class="fa-solid fa-message"></i> แชทแนะนำเที่ยว
                 </button>
-                <button class="menu-item" onclick="switchInternalTab('travel', this)">
-                    <i class="fa-solid fa-map-location-dot"></i> โหมดเดินทาง
-                </button>
+                <!-- Travel Mode Link Removed -->
 
                 <hr style="border-color: rgba(255,255,255,0.1); margin: 10px 0;">
 
@@ -65,6 +63,10 @@
                 </button>
             </nav>
             <div class="sidebar-footer">
+                <a href="/" class="btn-reset"
+                    style="text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
+                    <i class="fa-solid fa-house"></i> กลับหน้าหลัก
+                </a>
                 <button id="new-chat-btn" class="btn-reset">
                     <i class="fa-solid fa-rotate-right"></i> เริ่มต้นใหม่
                 </button>
@@ -85,105 +87,7 @@
                 </div>
             </section>
 
-            <section id="view-travel" class="view-section">
-                <div id="travel-mode-container"
-                    class="flex flex-col items-center justify-center p-0 sm:p-4 h-full w-full">
-                    <div
-                        class="w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col h-full overflow-hidden chat-card-main relative">
-
-                        <!-- MAP OVERLAY -->
-                        <div id="map-overlay" class="rounded-2xl overflow-hidden" style="display: none;">
-                            <header
-                                class="p-4 flex items-center justify-between border-b border-color-border flex-shrink-0"
-                                style="background-color: var(--color-bg-card);">
-
-                                <div class="flex items-center space-x-3">
-                                    <div class="robot-icon-container" style="transform: scale(0.9);">
-                                        <div class="icon-head-top-accent"></div>
-                                        <div class="icon-robot-face">
-                                            <div class="icon-robot-eye"></div>
-                                            <div class="icon-robot-eye"></div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h1 id="map-header-title" class="text-xl font-bold"
-                                            style="color: var(--color-text-primary);">
-                                            แผนที่นำทาง
-                                        </h1>
-                                        <p class="text-xs" style="color: var(--color-text-secondary);">
-                                            มุมมองเส้นทางปัจจุบัน
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <button id="close-map-btn" title="ปิดแผนที่"
-                                    class="text-sm hover:brightness-125 transition"
-                                    style="color: var(--color-accent-teal);">
-                                    ปิดแผนที่
-                                </button>
-                            </header>
-                            <!-- Canvas ที่จะใช้แสดงแผนที่จริง -->
-                            <div id="map-canvas" class="flex-grow p-0">
-                                <p class="text-color-text-secondary">กำลังโหลดแผนที่...</p>
-                            </div>
-                        </div>
-
-
-                        <header class="p-4 flex items-center justify-between border-b border-color-border flex-shrink-0"
-                            style="background-color: var(--color-bg-card);">
-                            <div class="flex items-center space-x-3">
-
-                                <div class="robot-icon-container" style="transform: scale(0.9);">
-                                    <div class="icon-head-top-accent"></div>
-                                    <div class="icon-robot-face">
-                                        <div class="icon-robot-eye"></div>
-                                        <div class="icon-robot-eye"></div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h1 class="text-xl font-bold" style="color: var(--color-text-primary);">AI Guide -
-                                        โหมดนำทาง
-                                    </h1>
-                                    <p class="text-xs" style="color: var(--color-text-secondary);"
-                                        id="itinerary-status">
-                                        กำลังดึงข้อมูลตำแหน่ง...
-                                    </p>
-                                </div>
-                            </div>
-
-                            <button
-                                onclick="switchInternalTab('chat', document.querySelector('.sidebar-menu button:first-child'))"
-                                title="กลับไปโหมดสนทนา" class="text-sm hover:brightness-125 transition"
-                                style="color: var(--color-accent-teal);">
-                                กลับไปสนทนา
-                            </button>
-                        </header>
-
-                        <!-- MAIN ITINERARY AREA -->
-                        <main id="itinerary-area" class="flex-grow p-6 overflow-y-auto space-y-4">
-                            <!-- เนื้อหาจะถูกสร้างโดย JavaScript -->
-                        </main>
-
-                        <!-- FOOTER - Action Buttons -->
-                        <div class="p-4 border-t border-color-border bg-color-bg-card/90 backdrop-blur-sm flex-shrink-0"
-                            style="background-color: var(--color-bg-card);">
-                            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 justify-between">
-                                <button id="start-navigation-btn"
-                                    class="navigation-btn flex-grow flex items-center justify-center space-x-2 p-3 font-bold rounded-xl shadow-lg hover:brightness-110 transform active:scale-[0.98] transition-all duration-200"
-                                    disabled>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round" class="lucide lucide-navigation-2">
-                                        <polygon points="12 2 19 21 12 17 5 21 12 2" />
-                                    </svg>
-                                    <span id="nav-button-text">รอตำแหน่งปัจจุบัน...</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <!-- Travel Mode Container Removed -->
 
         </main>
     </div>
@@ -191,7 +95,7 @@
     <script src="assets/scripts/config.js"></script>
     <script src="assets/scripts/voice-handler.js"></script>
     <script src="assets/scripts/chat.js"></script>
-    <script src="assets/scripts/travel_mode.js"></script>
+    <script src="assets/scripts/chat.js"></script>
 
     <script>
         function switchInternalTab(viewName, btnElement) {

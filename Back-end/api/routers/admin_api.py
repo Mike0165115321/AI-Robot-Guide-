@@ -34,7 +34,7 @@ def _find_first_image_for_prefix(prefix: str) -> str | None:
         logging.error(f"Error finding first image for prefix '{prefix}': {e}", exc_info=False)
         return None
 
-@router.post("/upload-image/", tags=["Admin :: Image Upload"])
+@router.post("/locations/upload-image/", tags=["Admin :: Image Upload"])
 async def upload_location_image(
     image_prefix: str = Query(..., description="Prefix ที่ตรงกับ 'slug' ของสถานที่"),
     file: UploadFile = File(...)
@@ -76,8 +76,24 @@ async def upload_location_image(
         logging.error(f"❌ Error uploading image for prefix '{image_prefix}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Could not upload image: {e}")
 
+@router.get("/analytics/dashboard", tags=["Admin :: Analytics"])
+async def get_analytics_dashboard(
+    days: int = Query(30, description="จำนวนวันย้อนหลังที่ต้องการดูข้อมูล"),
+    db: MongoDBManager = Depends(get_mongo_manager)
+):
+    """
+    ดึงข้อมูลสรุปสำหรับ Dashboard (กราฟและตัวเลขรวม)
+    """
+    try:
+        # เรียกใช้ฟังก์ชันที่เราเพิ่งสร้างในขั้นตอนที่ 1
+        stats = await asyncio.to_thread(db.get_analytics_summary, days)
+        return stats
+    except Exception as e:
+        logging.error(f"❌ Error fetching analytics dashboard: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch analytics data.")
+
 @router.post(
-    "/",
+    "/locations/",
     response_model=LocationInDB,
     status_code=status.HTTP_201_CREATED,
     tags=["Admin :: Locations CRUD"]
@@ -137,7 +153,7 @@ async def create_location(
             detail=f"Location created but failed to retrieve. Check DB manually for ID {mongo_id_str}."
         )
 
-@router.post("/analyze-document", tags=["Admin :: Document Analysis"])
+@router.post("/locations/analyze-document", tags=["Admin :: Document Analysis"])
 async def analyze_document_endpoint(file: UploadFile = File(...)):
     try:
         file_content = await file.read()
@@ -159,13 +175,15 @@ async def analyze_document_endpoint(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred during analysis: {str(e)}")
 
 
-@router.get("/", response_model=List[LocationAdminSummaryWithImage], tags=["Admin :: Locations CRUD"])
+@router.get("/locations/", response_model=Dict[str, Any], tags=["Admin :: Locations CRUD"])
 async def get_all_locations_summary(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1),
     db: MongoDBManager = Depends(get_mongo_manager)
 ):
-    def get_enriched_summaries_sync() -> List[LocationAdminSummaryWithImage]:
+    def get_paginated_summaries_sync() -> Dict[str, Any]:
         try:
-            locations_from_db = db.get_all_locations()
+            locations_from_db, total_count = db.get_locations_paginated(skip=skip, limit=limit)
             enriched_models = []
             for loc_dict in locations_from_db:
                 if not isinstance(loc_dict, dict) or '_id' not in loc_dict:
@@ -184,20 +202,25 @@ async def get_all_locations_summary(
                     logging.warning(f"Skipping location due to validation error: {loc_dict.get('slug', 'N/A')}. Details: {e}")
                     continue
 
-            return enriched_models
+            return {
+                "items": enriched_models,
+                "total_count": total_count,
+                "page": (skip // limit) + 1,
+                "limit": limit
+            }
         except Exception as e:
             logging.error(f"❌ Error enriching summaries in sync thread: {e}", exc_info=True)
-            return []
+            return {"items": [], "total_count": 0, "page": 1, "limit": limit}
 
     try:
-        all_locations_models = await asyncio.to_thread(get_enriched_summaries_sync)
-        return all_locations_models
+        result = await asyncio.to_thread(get_paginated_summaries_sync)
+        return result
     except Exception as e:
         logging.error(f"❌ Unexpected error getting all locations summary: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error retrieving location summaries.")
 
 
-@router.get("/{slug}", response_model=LocationInDB, tags=["Admin :: Locations CRUD"])
+@router.get("/locations/{slug}", response_model=LocationInDB, tags=["Admin :: Locations CRUD"])
 async def get_location_by_slug(
     slug: str,
     db: MongoDBManager = Depends(get_mongo_manager)
@@ -239,7 +262,7 @@ async def get_location_by_slug(
         )
 
 
-@router.put("/{slug}", response_model=LocationInDB, tags=["Admin :: Locations CRUD"])
+@router.put("/locations/{slug}", response_model=LocationInDB, tags=["Admin :: Locations CRUD"])
 async def update_location_by_slug(
     slug: str,
     location_update: LocationBase,
@@ -303,7 +326,7 @@ async def update_location_by_slug(
             detail=f"An internal error occurred while updating location '{slug}'."
         )
 
-@router.delete("/{slug}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin :: Locations CRUD"])
+@router.delete("/locations/{slug}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin :: Locations CRUD"])
 async def delete_location_by_slug(
     slug: str,
     db: MongoDBManager = Depends(get_mongo_manager),

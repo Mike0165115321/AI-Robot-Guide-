@@ -3,10 +3,19 @@
 /* Note: Core variables are now in main.css */
 
 :root {
-    /* Local overrides if needed */
+    /* Local overrides for Chat Page */
     --sidebar-width: 280px;
-    --bg-user-bubble: var(--primary);
-    --bg-chat-bubble: rgba(255, 255, 255, 0.05);
+    --bg-user-bubble: #3b82f6;
+    /* Bright Blue */
+    --bg-chat-bubble: rgba(30, 41, 59, 0.95);
+    /* Solid Dark Slate (High Contrast) */
+
+    /* Night Owl Inspired Palette (Lighter/Clearer) */
+    --chat-bg-overlay: rgba(15, 23, 42, 0.6);
+    /* Less opaque overlay */
+    --text-ai: #e2e8f0;
+    /* Very Light Gray */
+    --border-ai: rgba(148, 163, 184, 0.2);
 }
 
 body {
@@ -20,14 +29,17 @@ body {
     display: flex;
     height: 100vh;
     width: 100%;
-    background: transparent;
-    /* Let main.css background show through */
+    background: var(--chat-bg-overlay);
+    /* Apply overlay here */
+    backdrop-filter: blur(5px);
+    /* Reduced blur */
 }
 
 /* --- Sidebar --- */
 .sidebar {
     width: var(--sidebar-width);
-    background: var(--bg-card);
+    background: rgba(15, 23, 42, 0.9);
+    /* Darker Sidebar */
     backdrop-filter: blur(10px);
     border-right: 1px solid var(--glass-border);
     display: flex;
@@ -178,7 +190,7 @@ body {
     display: flex;
     flex-direction: column;
     position: relative;
-    /* Background handled by main.css body */
+    /* Background handled by main.css body + app-container overlay */
 }
 
 .mobile-header {
@@ -225,7 +237,7 @@ body {
     line-height: 1.7;
     position: relative;
     word-wrap: break-word;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .bubble.user {
@@ -236,11 +248,13 @@ body {
 }
 
 .bubble.ai {
-    background: var(--bg-card);
-    backdrop-filter: blur(10px);
-    color: var(--text-main);
+    background: var(--bg-chat-bubble);
+    /* Solid background for readability */
+    color: var(--text-ai);
     border-bottom-left-radius: 4px;
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--border-ai);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    /* Stronger shadow */
 }
 
 /* --- Input Area (Floating) --- */
@@ -250,12 +264,14 @@ body {
     left: 0;
     width: 100%;
     padding: 20px 50px;
-    background: linear-gradient(to top, var(--bg-dark) 20%, transparent);
+    background: linear-gradient(to top, rgba(2, 6, 23, 0.9) 20%, transparent);
+    /* Darker gradient */
     z-index: 5;
 }
 
 .input-container {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(30, 41, 59, 0.95);
+    /* More solid */
     backdrop-filter: blur(15px);
     border: 1px solid var(--glass-border);
     border-radius: 50px;
@@ -353,7 +369,8 @@ textarea {
 .markdown-content ul {
     margin-left: 20px;
     margin-bottom: 15px;
-    color: var(--text-muted);
+    color: #cbd5e1;
+    /* Lighter text for lists */
 }
 
 /* --- Images --- */
@@ -363,7 +380,7 @@ textarea {
     gap: 10px;
     margin-top: 15px;
     padding: 5px;
-    background: var(--glass);
+    background: rgba(0, 0, 0, 0.2);
     border-radius: 12px;
 }
 
@@ -388,7 +405,7 @@ textarea {
 }
 
 .suggestion-chip {
-    background: var(--glass);
+    background: rgba(30, 41, 59, 0.8);
     border: 1px solid var(--glass-border);
     color: var(--accent);
     padding: 8px 16px;

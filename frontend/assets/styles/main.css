@@ -6,17 +6,65 @@
     /* Colors */
     --bg-dark: #020617;
     --bg-card: rgba(30, 41, 59, 0.7);
-    --primary: #3b82f6;
-    --accent: #2dd4bf;
-    --purple: #8b5cf6;
-    --text-main: #f8fafc;
+    --primary-color: #3b82f6;
+    --secondary-color: #1e40af;
+    --background-color: #0f172a;
+    --surface-color: #1e293b;
+    --text-color: #f8fafc;
     --text-muted: #94a3b8;
+    --border-color: #334155;
+    --success-color: #22c55e;
+    --danger-color: #ef4444;
+    --warning-color: #f59e0b;
 
     /* Effects */
     --glass: rgba(255, 255, 255, 0.05);
     --glass-border: rgba(255, 255, 255, 0.1);
     --glow-blue: 0 0 20px rgba(59, 130, 246, 0.5);
+    --glow-blue: 0 0 20px rgba(59, 130, 246, 0.5);
     --glow-accent: 0 0 20px rgba(45, 212, 191, 0.5);
+
+    /* Missing Variables Fix */
+    --text-main: var(--text-color);
+    --primary: var(--primary-color);
+    --accent: #2dd4bf;
+    /* Teal-400 */
+}
+
+/* Pagination Styles */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+    gap: 10px;
+    padding: 10px;
+}
+
+.pagination-btn {
+    background-color: var(--surface-color);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-info {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 
 * {
@@ -74,7 +122,7 @@ h3 {
 
 .text-gradient {
     background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);
-    -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     text-shadow: 0 0 30px rgba(45, 212, 191, 0.3);
 }
