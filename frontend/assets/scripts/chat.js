@@ -197,13 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
             contentHtml += `<div class="single-image-container"><img src="${imageUrl}" alt="รูปภาพประกอบ" class="responsive-image"></div>`;
         }
 
-        if (sources && sources.length > 0) {
-            contentHtml += `<div class="sources-container"><h4>แหล่งข้อมูล:</h4><ul>`;
-            sources.forEach(source => {
-                contentHtml += `<li><a href="${source.url}" target="_blank">${source.title || source.url}</a></li>`;
-            });
-            contentHtml += `</ul></div>`;
-        }
+
 
         bubble.innerHTML = contentHtml;
 
@@ -246,7 +240,59 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             wrapper.appendChild(iconContainer);
-            wrapper.appendChild(bubble);
+
+            // Container for Bubble + Actions
+            const bubbleContainer = document.createElement('div');
+            bubbleContainer.style.display = 'flex';
+            bubbleContainer.style.flexDirection = 'column';
+            bubbleContainer.style.gap = '5px';
+            bubbleContainer.style.maxWidth = '80%';
+
+            bubbleContainer.appendChild(bubble);
+
+            // Only show Copy/Print buttons for informational messages (not interactive ones)
+            const interactiveActions = ['SHOW_MAP_EMBED', 'SHOW_SONG_CHOICES', 'PROMPT_FOR_SONG_INPUT'];
+            if (!interactiveActions.includes(action)) {
+                // Print Button
+                const actionsBar = document.createElement('div');
+                actionsBar.style.display = 'flex';
+                actionsBar.style.justifyContent = 'flex-end';
+                actionsBar.style.paddingRight = '10px';
+
+                const printBtn = document.createElement('button');
+                printBtn.className = 'btn-icon';
+                printBtn.style.width = '30px';
+                printBtn.style.height = '30px';
+                printBtn.style.fontSize = '0.9rem';
+                printBtn.title = 'พิมพ์หน้านี้';
+                printBtn.innerHTML = '<i class="fa-solid fa-print"></i>';
+                printBtn.onclick = () => printMessage(text, imageUrl, imageGallery);
+
+                // Copy Button
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'btn-icon';
+                copyBtn.style.width = '30px';
+                copyBtn.style.height = '30px';
+                copyBtn.style.fontSize = '0.9rem';
+                copyBtn.title = 'คัดลอกข้อความ';
+                copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(text).then(() => {
+                        copyBtn.innerHTML = '<i class="fa-solid fa-check" style="color: var(--success-color);"></i>';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy: ', err);
+                    });
+                };
+
+                actionsBar.appendChild(copyBtn);
+                actionsBar.appendChild(printBtn);
+                bubbleContainer.appendChild(actionsBar);
+            }
+
+            wrapper.appendChild(bubbleContainer);
             messageRow.appendChild(wrapper);
         } else {
             messageRow.appendChild(bubble);
@@ -261,7 +307,225 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (action === 'SHOW_MAP_EMBED' && actionPayload && actionPayload.embed_url) {
             showMapEmbed(actionPayload.embed_url, actionPayload.destination_name || "แผนที่นำทาง");
+        } else if (action === 'SHOW_SONG_CHOICES' && actionPayload) {
+            showSongChoices(actionPayload);
+        } else if (action === 'PROMPT_FOR_SONG_INPUT' && actionPayload) {
+            showSongInput(actionPayload.placeholder || "พิมพ์ชื่อเพลง...");
         }
+    }
+
+    function showSongInput(placeholder) {
+        const lastMessage = messageArea.lastElementChild;
+        if (!lastMessage) return;
+
+        const bubble = lastMessage.querySelector('.bubble');
+        if (!bubble) return;
+
+        const inputContainer = document.createElement('div');
+        inputContainer.className = 'song-input-container mt-3 flex gap-2';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'flex-1 bg-black/30 border border-glass-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent transition';
+        input.placeholder = placeholder;
+
+        const searchBtn = document.createElement('button');
+        searchBtn.className = 'bg-accent/20 hover:bg-accent/40 text-accent border border-accent/50 rounded-lg px-3 transition';
+        searchBtn.innerHTML = '<i class="fa-solid fa-search"></i>';
+
+        const submitSong = () => {
+            const songName = input.value.trim();
+            if (songName) {
+                sendMessage(songName); // Send as a normal message
+                inputContainer.remove(); // Remove input after sending
+            }
+        };
+
+        searchBtn.onclick = submitSong;
+        input.onkeypress = (e) => {
+            if (e.key === 'Enter') submitSong();
+        };
+
+        inputContainer.appendChild(input);
+        inputContainer.appendChild(searchBtn);
+        bubble.appendChild(inputContainer);
+
+        // Auto-focus the input
+        setTimeout(() => input.focus(), 100);
+        messageArea.scrollTop = messageArea.scrollHeight;
+    }
+
+    function showSongChoices(songs) {
+        const lastMessage = messageArea.lastElementChild;
+        if (!lastMessage) return;
+
+        const bubble = lastMessage.querySelector('.bubble');
+        if (!bubble) return;
+
+        const songContainer = document.createElement('div');
+        songContainer.className = 'song-choices-container mt-4 grid grid-cols-1 gap-2';
+
+        songs.forEach(song => {
+            const songCard = document.createElement('div');
+            songCard.className = 'flex items-center gap-3 p-3 bg-black/40 rounded-lg hover:bg-black/60 transition cursor-pointer border border-glass-border';
+            songCard.innerHTML = `
+                <div class="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent">
+                    <i class="fa-solid fa-music"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-white truncate">${song.title}</div>
+                    <div class="text-xs text-gray-400 truncate">${song.channel}</div>
+                </div>
+                <button class="text-primary hover:text-white transition">
+                    <i class="fa-solid fa-play"></i>
+                </button>
+            `;
+            songCard.onclick = () => {
+                // Embed YouTube Player
+                songContainer.innerHTML = `
+                    <div class="youtube-embed-container w-full rounded-lg overflow-hidden border border-glass-border">
+                        <div class="bg-black/50 p-2 flex justify-between items-center">
+                            <span class="text-xs text-accent font-bold"><i class="fa-solid fa-music mr-2"></i>กำลังเล่น: ${song.title}</span>
+                            <button onclick="this.closest('.song-choices-container').remove()" class="text-xs text-red-400 hover:text-red-300"><i class="fa-solid fa-times"></i> ปิด</button>
+                        </div>
+                        <iframe width="100%" height="250" src="https://www.youtube.com/embed/${song.id}?autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                    </div>
+                `;
+            };
+            songContainer.appendChild(songCard);
+        });
+
+        bubble.appendChild(songContainer);
+        messageArea.scrollTop = messageArea.scrollHeight;
+    }
+
+    // --- Print Functionality ---
+    function printMessage(content, imageUrl, imageGallery) {
+        const printWindow = window.open('', '_blank');
+
+        let imagesHtml = '';
+        if (imageUrl) {
+            imagesHtml += `<img src="${imageUrl}" class="main-image" alt="Main Image">`;
+        }
+        if (imageGallery && imageGallery.length > 0) {
+            imagesHtml += '<div class="gallery">';
+            imageGallery.forEach(img => {
+                imagesHtml += `<img src="${img.url || img}" alt="Gallery Image">`;
+            });
+            imagesHtml += '</div>';
+        }
+
+        const htmlContent = marked.parse(content);
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="th">
+            <head>
+                <meta charset="UTF-8">
+                <title>พิมพ์เอกสาร - AI Guide Nan</title>
+                <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+                <style>
+                    body {
+                        font-family: 'Sarabun', sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 210mm; /* A4 width */
+                        margin: 0 auto;
+                        padding: 20px;
+                        background: white;
+                    }
+                    @page {
+                        size: A4;
+                        margin: 20mm;
+                    }
+                    header {
+                        border-bottom: 2px solid #3b82f6;
+                        padding-bottom: 10px;
+                        margin-bottom: 20px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    .brand {
+                        font-size: 1.5rem;
+                        font-weight: bold;
+                        color: #1e40af;
+                    }
+                    .date {
+                        font-size: 0.9rem;
+                        color: #666;
+                    }
+                    .content {
+                        font-size: 14px;
+                    }
+                    h1, h2, h3 { color: #1e3a8a; margin-top: 15px; }
+                    ul { margin-left: 20px; }
+                    .main-image {
+                        width: auto;
+                        max-width: 100%;
+                        max-height: 200px; /* Reduced height for print */
+                        object-fit: cover;
+                        border-radius: 8px;
+                        margin: 10px auto;
+                        display: block;
+                    }
+                    .content img {
+                        max-width: 80%; /* Don't let inline images take full width */
+                        max-height: 200px; /* Limit height */
+                        width: auto;
+                        display: block;
+                        margin: 10px auto; /* Center */
+                        border-radius: 4px;
+                    }
+                    .gallery {
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        gap: 10px;
+                        margin-top: 15px;
+                    }
+                    .gallery img {
+                        width: 100%;
+                        height: 100px;
+                        object-fit: cover;
+                        border-radius: 4px;
+                    }
+                    .footer {
+                        margin-top: 30px;
+                        padding-top: 10px;
+                        border-top: 1px solid #ddd;
+                        text-align: center;
+                        font-size: 0.8rem;
+                        color: #888;
+                    }
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <header>
+                    <div class="brand"><i class="fa-solid fa-robot"></i> AI Guide Nan</div>
+                    <div class="date">พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')}</div>
+                </header>
+                
+                <div class="content">
+                    ${htmlContent}
+                    ${imagesHtml}
+                </div>
+
+                <div class="footer">
+                    เอกสารนี้สร้างโดยระบบ AI Robot Guide จังหวัดน่าน | ข้อมูลเพื่อการท่องเที่ยวเท่านั้น
+                </div>
+
+                <script>
+                    window.onload = () => { setTimeout(() => window.print(), 500); };
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
     }
 
     function sendSystemMessage(text) {

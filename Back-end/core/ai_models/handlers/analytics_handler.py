@@ -144,3 +144,22 @@ EXAMPLES:
                 "image_url": None,
                 "image_gallery": [],
             }
+
+    async def log_interest_event(self, session_id: str, topic: str, query: str):
+        """
+        บันทึกความสนใจของผู้ใช้ (Interest) จากการถามปกติ (ไม่ใช่ Welcome Flow)
+        """
+        if not topic: return
+
+        log_data = {
+            "session_id": session_id,
+            "timestamp": datetime.now(timezone.utc),
+            "raw_query": query,
+            "user_origin": None, # ไม่รู้ Origin จากการถามปกติ
+            "interest_topic": topic,
+            "detected_language": "th",
+            "event_type": "query_interest" # ระบุว่าเป็น event จากการถาม
+        }
+        
+        # บันทึกลง DB แบบ Fire-and-forget
+        asyncio.create_task(self._log_analytics_event_async(log_data))

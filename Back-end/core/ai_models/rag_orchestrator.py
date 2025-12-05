@@ -372,4 +372,8 @@ class RAGOrchestrator:
                 topic=primary_topic
             )
             
+            # 🚀 [Analytics] Log Interest Event if topic is found
+            if primary_topic:
+                await self.analytics_handler.log_interest_event(session_id, primary_topic, query)
+            
         return response

@@ -230,8 +230,11 @@ class MongoDBManager:
                 {"$limit": 10}
             ]
 
-            # 4. นับจำนวนบทสนทนาทั้งหมดในช่วงเวลา
-            total_count = collection.count_documents({"timestamp": {"$gte": cutoff_date}})
+            # 4. นับจำนวนบทสนทนาทั้งหมดในช่วงเวลา (นับจาก chat_sessions ที่ active)
+            session_collection = self.get_collection("chat_sessions")
+            total_count = 0
+            if session_collection is not None:
+                total_count = session_collection.count_documents({"last_active": {"$gte": cutoff_date}})
 
             # Execute Pipelines (สั่งประมวลผล)
             origins = list(collection.aggregate(origin_pipeline))
