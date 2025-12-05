@@ -44,37 +44,8 @@ async function fetchAndDisplayLocations() {
                 ? `<span style="color: #4ade80;">✔️ Yes (${location.metadata.image_prefix})</span>`
                 : '<span style="color: #f87171;">❌ No</span>';
 
-            const placeholderImage = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22100%22%20height%3D%2275%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%2075%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_1%20text%20%7B%20fill%3A%23AAAAAA%3Bfont-weight%3Abold%3Bfont-family%3AArial%2C%20Helvetica%2C%20Open%20Sans%2C%20sans-serif%2C%20monospace%3Bfont-size%3A10pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_1%22%3E%3Crect%20width%3D%22100%22%20height%3D%2275%22%20fill%3D%22%23EEEEEE%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2227.5%22%20y%3D%2242%22%3ENo Image%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E';
-
-            let primaryUrl = placeholderImage;
-            let secondaryUrl = null;
-
-            if (location.preview_image_url) {
-                primaryUrl = `${API_BASE_URL}${location.preview_image_url}`;
-            } else {
-                // 1. Try Image Prefix
-                if (location.metadata && location.metadata.image_prefix) {
-                    let prefixName = location.metadata.image_prefix.trim().replace(/\s+/g, '-').replace(/-+$/, '');
-                    primaryUrl = `${API_BASE_URL}/static/images/${prefixName}-01.jpg`;
-                }
-
-                // 2. Prepare Slug Fallback
-                if (location.slug) {
-                    let slugName = location.slug.trim().replace(/\s+/g, '-').replace(/-+$/, '');
-                    let slugUrl = `${API_BASE_URL}/static/images/${slugName}-01.jpg`;
-
-                    if (primaryUrl === placeholderImage) {
-                        primaryUrl = slugUrl; // No prefix, so slug is primary
-                    } else if (primaryUrl !== slugUrl) {
-                        secondaryUrl = slugUrl; // Prefix exists, so slug is secondary
-                    }
-                }
-            }
-
-            let imgOnError = `this.onerror=null; this.src='${placeholderImage}';`;
-            if (secondaryUrl) {
-                imgOnError = `if (!this.dataset.triedSlug) { this.dataset.triedSlug=true; this.src='${secondaryUrl}'; } else { this.src='${placeholderImage}'; }`;
-            }
+            // [Refactored Phase 3] Use shared utils
+            const { primaryUrl, imgOnError } = getLocationImages(location, API_BASE_URL);
 
             const imagePreviewHtml = `<img src="${primaryUrl}" alt="Preview for ${location.slug}" style="width: 100px; height: 75px; object-fit: cover; border-radius: 4px; background-color: #f0f0f0;" onerror="${imgOnError}">`;
             // --- [END V5.5] ---
@@ -195,54 +166,41 @@ async function openEditModal(slug) {
         if (!response.ok) throw new Error(`Failed to fetch location details for "${slug}". Status: ${response.status}`);
         const location = await response.json();
 
-        // --- [V5.5] Populate Image Preview in Modal (Robust Fallback) ---
+        // --- [Refactored Phase 3] Use shared utils for Modal Preview ---
         const imagePreviewEl = document.getElementById('edit-form-image-preview');
         const noImageTextEl = document.getElementById('edit-form-no-image');
 
         // Reset state
         if (imagePreviewEl) {
-            imagePreviewEl.onerror = null;
-            imagePreviewEl.removeAttribute('data-tried-slug');
             imagePreviewEl.style.display = 'none';
+            imagePreviewEl.onerror = null;
+            delete imagePreviewEl.dataset.triedSlug;
         }
         if (noImageTextEl) noImageTextEl.style.display = 'none';
 
-        let primaryUrl = location.preview_image_url ? `${API_BASE_URL}${location.preview_image_url}` : null;
-        let secondaryUrl = null;
+        const { primaryUrl, secondaryUrl, placeholder } = getLocationImages(location, API_BASE_URL);
 
-        if (!primaryUrl) {
-            if (location.metadata && location.metadata.image_prefix) {
-                let prefixName = location.metadata.image_prefix.trim().replace(/\s+/g, '-').replace(/-+$/, '');
-                primaryUrl = `${API_BASE_URL}/static/images/${prefixName}-01.jpg`;
+        // Logic: if primaryUrl IS the placeholder and no secondary, it means no image found at all.
+        const isPlaceholder = (primaryUrl === placeholder || primaryUrl.startsWith('data:image/svg+xml'));
+
+        if (isPlaceholder) {
+            if (noImageTextEl) noImageTextEl.style.display = 'block';
+        } else {
+            if (imagePreviewEl) {
+                imagePreviewEl.src = primaryUrl;
+                imagePreviewEl.style.display = 'block';
+
+                imagePreviewEl.onerror = function () {
+                    if (secondaryUrl && !this.dataset.triedSlug) {
+                        this.dataset.triedSlug = "true";
+                        this.src = secondaryUrl;
+                    } else {
+                        // Failed both
+                        this.style.display = 'none';
+                        if (noImageTextEl) noImageTextEl.style.display = 'block';
+                    }
+                };
             }
-
-            if (location.slug) {
-                let slugName = location.slug.trim().replace(/\s+/g, '-').replace(/-+$/, '');
-                let slugUrl = `${API_BASE_URL}/static/images/${slugName}-01.jpg`;
-
-                if (!primaryUrl) {
-                    primaryUrl = slugUrl;
-                } else if (primaryUrl !== slugUrl) {
-                    secondaryUrl = slugUrl;
-                }
-            }
-        }
-
-        if (primaryUrl && imagePreviewEl && noImageTextEl) {
-            imagePreviewEl.src = primaryUrl;
-            imagePreviewEl.style.display = 'block';
-
-            imagePreviewEl.onerror = function () {
-                if (secondaryUrl && !this.dataset.triedSlug) {
-                    this.dataset.triedSlug = "true";
-                    this.src = secondaryUrl;
-                } else {
-                    this.style.display = 'none';
-                    noImageTextEl.style.display = 'block';
-                }
-            };
-        } else if (noImageTextEl) {
-            noImageTextEl.style.display = 'block';
         }
         // --- [END V5.5] ---
 

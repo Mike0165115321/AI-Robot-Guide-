@@ -4,7 +4,9 @@ import json
 from ..schemas import ChatQuery, ChatResponse 
 from core.ai_models.rag_orchestrator import RAGOrchestrator
 from core.config import settings
-from ..dependencies import get_rag_orchestrator
+from core.config import settings
+from ..dependencies import get_rag_orchestrator, get_analytics_service
+from core.services.analytics_service import AnalyticsService
 
 from core.ai_models.speech_handler import speech_handler_instance
 
@@ -62,13 +64,15 @@ async def handle_audio_chat(
 @router.post("/", response_model=ChatResponse)
 async def handle_text_chat(
     query: ChatQuery, 
-    orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator)
+    orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator),
+    analytics: AnalyticsService = Depends(get_analytics_service)
 ):
     try:
         query_data = query.query 
         session_id = query.session_id 
         
         result = None
+        user_intent = None # To track for analytics
 
         if isinstance(query_data, dict) and (action := query_data.get("action")):
             # 🚀 [แก้ไข] เพิ่มการ log session_id
@@ -112,6 +116,18 @@ async def handle_text_chat(
                 raw_urls = source.get("image_urls", []) 
                 source["image_urls"] = [construct_full_image_url(url) for url in raw_urls if url]
         logging.info(f"✅ [API-Text] Sending response back to client.")
+        
+        # 📊 Async Log to Analytics
+        user_query_str = query_data if isinstance(query_data, str) else str(query_data)
+        topic = result.get("category") or result.get("topic") 
+        
+        await analytics.log_interaction(
+            session_id=session_id,
+            user_query=user_query_str,
+            response=result.get("answer", ""),
+            topic=topic
+        )
+
         return result
     
     except Exception as e:

@@ -28,3 +28,13 @@ def get_youtube_handler(request: HTTPConnection) -> YouTubeHandler:
     if handler is None:
         raise HTTPException(status_code=503, detail="YouTube service not available.")
     return handler
+
+from core.services.analytics_service import AnalyticsService
+
+def get_analytics_service(request: HTTPConnection) -> AnalyticsService:
+    service = getattr(request.app.state, "analytics_service", None)
+    if service is None:
+        # Fallback: Create on fly if missed in startup (though should be in state)
+        mongo = get_mongo_manager(request)
+        return AnalyticsService(mongo)
+    return service

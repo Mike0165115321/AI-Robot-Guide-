@@ -130,19 +130,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.style.boxShadow = '0 0 15px rgba(59, 130, 246, 0.2)';
             }
 
-            let imageUrl = 'https://placehold.co/600x400/1e293b/94a3b8?text=' + encodeURIComponent(item.title);
-
-            // 1. Try Backend provided URL
-            if (item.image_urls && item.image_urls.length > 0) {
-                imageUrl = item.image_urls[0];
-            }
-            // 2. Fallback: Try constructing from slug (matches Admin logic)
-            else if (item.slug) {
-                imageUrl = `/static/images/${item.slug}-01.jpg`;
-            }
-
-            // Error handler to revert to placeholder if slug deduction fails
-            const imgOnError = `this.onerror=null; this.src='https://placehold.co/600x400/1e293b/94a3b8?text=${encodeURIComponent(item.title)}';`;
+            // [Refactored Phase 4] Use shared utils
+            const { primaryUrl: imageUrl, imgOnError } = getLocationImages(item);
 
             let distanceBadge = '';
             if (item.distance_km !== undefined && item.distance_km !== null) {

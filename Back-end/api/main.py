@@ -39,6 +39,9 @@ async def lifespan(app: FastAPI):
         query_interpreter=app.state.query_interpreter
     )
     
+    from core.services.analytics_service import AnalyticsService
+    app.state.analytics_service = AnalyticsService(app.state.mongo_manager)
+    
     try:
         await app.state.qdrant_manager.initialize()
     except Exception as e:
@@ -127,8 +130,8 @@ async def get_stream_url(video_url: str):
 
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-FRONTEND_DIR = PROJECT_ROOT / "frontend"
+
+FRONTEND_DIR = settings.FRONTEND_DIR
 
 logging.info(f"✅ Serving frontend from directory: {FRONTEND_DIR}")
 if not FRONTEND_DIR.is_dir():
