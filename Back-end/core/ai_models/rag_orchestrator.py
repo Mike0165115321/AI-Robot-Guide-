@@ -288,6 +288,19 @@ class RAGOrchestrator:
             for doc in docs:
                 prefix = doc.get("metadata", {}).get("image_prefix")
                 imgs = self.image_service.find_all_images_by_prefix(prefix)
+                if not imgs and doc.get("slug"):
+                    # Fallback: try using slug as prefix
+                    fallback_prefix = doc.get("slug") + "-"
+                    imgs = self.image_service.find_all_images_by_prefix(fallback_prefix)
+
+                # Fallback: try using title as prefix (cleaned)
+                if not imgs and doc.get("title"):
+                     # Simple clean: replace spaces with hyphens, remove special chars if needed (basic version)
+                     fallback_prefix_title = str(doc.get("title")).replace(" ", "-") + "-"
+                     # This might be less reliable, but worth a shot for some cases
+                     # imgs = self.image_service.find_all_images_by_prefix(fallback_prefix_title) 
+                     pass 
+
                 doc["image_urls"] = [imgs[0]] if imgs else []
             
             return docs

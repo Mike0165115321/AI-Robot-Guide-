@@ -98,7 +98,8 @@ async def get_navigation_list(
 ):
     try:
         location_list = await orchestrator.get_navigation_list(user_lat=lat, user_lon=lon)
-        return location_list
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content=location_list, media_type="application/json; charset=utf-8")
     except Exception as e:
         logging.error(f"❌ [API-NavList] Error getting navigation list: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Could not retrieve navigation list.")
@@ -116,8 +117,15 @@ async def get_stream_url(video_url: str):
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
-        logging.error(f"❌ [API-Stream] An unexpected error occurred: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์ขณะประมวลผลสตรีมเสียง")
+        print(f"Error checking status: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+
+
+
+
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
@@ -128,6 +136,8 @@ if not FRONTEND_DIR.is_dir():
 
 app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="assets")
 templates = Jinja2Templates(directory=str(FRONTEND_DIR))
+
+
 
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_frontend(request: Request, full_path: str):
@@ -154,3 +164,5 @@ if __name__ == "__main__":
         port=settings.API_PORT, 
         reload=True
     )
+
+# Trigger reload (Fix applied)

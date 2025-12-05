@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const itineraryStatus = document.getElementById('itinerary-status');
     const startNavigationBtn = document.getElementById('start-navigation-btn');
     const navButtonText = document.getElementById('nav-button-text');
+    const searchInput = document.getElementById('search-input');
 
     const mapOverlay = document.getElementById('map-overlay');
     const mapCanvas = document.getElementById('map-canvas');
@@ -61,8 +62,11 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             (error) => {
                 console.error("Error getting location:", error);
-                alertMessage("โปรดอนุญาตการเข้าถึงตำแหน่งเพื่อนำทาง", true);
-                itineraryStatus.textContent = "โปรดอนุญาตการเข้าถึงตำแหน่ง";
+
+                // Don't show annoying alert immediately on page load, just default to list
+                // alertMessage("โปรดอนุญาตการเข้าถึงตำแหน่งเพื่อนำทาง", true);
+
+                itineraryStatus.textContent = "ไม่พบตำแหน่ง (แสดงรายการทั้งหมด)";
                 // Load anyway without location sorting
                 fetchNavigationList();
             }
@@ -94,30 +98,51 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderNavigationList() {
+    function renderNavigationList(filterText = '') {
         itineraryArea.innerHTML = '';
 
-        if (navigationList.length === 0) {
+        // Filter list
+        const filteredList = navigationList.filter(item => {
+            if (!filterText) return true;
+            const term = filterText.toLowerCase();
+            return (item.title && item.title.toLowerCase().includes(term)) ||
+                (item.topic && item.topic.toLowerCase().includes(term));
+        });
+
+        if (filteredList.length === 0) {
             itineraryArea.innerHTML = '<p class="text-gray-400 text-center mt-10">ไม่พบสถานที่สำหรับนำทาง...</p>';
             return;
         }
 
-        navigationList.forEach((item, index) => {
+        filteredList.forEach((item, index) => {
+            // Find original index in full list for click handler
+            const originalIndex = navigationList.findIndex(x => x.slug === item.slug);
+
             const card = document.createElement('div');
             card.className = 'travel-card p-4 sm:flex sm:space-x-4 bg-slate-800/50 rounded-xl border border-slate-700 hover:border-teal-500/50 transition cursor-pointer mb-4';
             card.setAttribute('data-slug', item.slug);
             card.setAttribute('data-name', item.title);
-            card.setAttribute('data-index', index);
+            card.setAttribute('data-index', originalIndex);
 
-            if (index === currentStepIndex) {
+            if (originalIndex === currentStepIndex) {
                 card.classList.add('current-step');
                 card.style.borderColor = 'var(--primary-color, #3b82f6)';
                 card.style.boxShadow = '0 0 15px rgba(59, 130, 246, 0.2)';
             }
 
-            const imageUrl = item.image_urls && item.image_urls.length > 0
-                ? item.image_urls[0]
-                : `https://placehold.co/600x400/1e293b/94a3b8?text=${encodeURIComponent(item.title)}`;
+            let imageUrl = 'https://placehold.co/600x400/1e293b/94a3b8?text=' + encodeURIComponent(item.title);
+
+            // 1. Try Backend provided URL
+            if (item.image_urls && item.image_urls.length > 0) {
+                imageUrl = item.image_urls[0];
+            }
+            // 2. Fallback: Try constructing from slug (matches Admin logic)
+            else if (item.slug) {
+                imageUrl = `/static/images/${item.slug}-01.jpg`;
+            }
+
+            // Error handler to revert to placeholder if slug deduction fails
+            const imgOnError = `this.onerror=null; this.src='https://placehold.co/600x400/1e293b/94a3b8?text=${encodeURIComponent(item.title)}';`;
 
             let distanceBadge = '';
             if (item.distance_km !== undefined && item.distance_km !== null) {
@@ -127,8 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             card.innerHTML = `
                 <div class="sm:w-1/3 mb-3 sm:mb-0 flex-shrink-0">
-                    <img src="${imageUrl}" 
-                        alt="${item.title}" class="w-full h-32 object-cover rounded-lg">
+                    <img src="${imageUrl}" onerror="${imgOnError}"
+                        alt="${item.title}" class="w-full h-48 sm:h-full object-cover rounded-lg sm:rounded-l-lg sm:rounded-r-none">
                 </div>
                 <div class="sm:w-2/3 space-y-2">
                     <div class="flex items-center flex-wrap gap-2">
@@ -138,12 +163,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${distanceBadge}
                     </div>
                     <h3 class="text-lg font-bold text-white">${item.title}</h3>
-                    <p class="text-sm text-gray-400 line-clamp-2">${item.description || 'ไม่มีรายละเอียด'}</p>
+                    <p class="text-sm text-gray-400 line-clamp-3">${item.summary || item.description || 'ไม่มีรายละเอียด'}</p>
                 </div>
             `;
 
             card.addEventListener('click', () => {
-                currentStepIndex = index;
+                currentStepIndex = originalIndex;
                 updateNavigationState();
             });
 
@@ -248,8 +273,15 @@ document.addEventListener('DOMContentLoaded', () => {
         mapCanvas.innerHTML = '<p class="text-gray-400">กำลังโหลดแผนที่...</p>';
     }
 
+    // Event Listeners
     startNavigationBtn.addEventListener('click', startNavigation);
     closeMapBtn.addEventListener('click', closeMap);
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            renderNavigationList(e.target.value);
+        });
+    }
 
     // Initialize
     getUserLocation();
