@@ -200,9 +200,112 @@
             <button id="play-pause-btn"><i class="fas fa-play"></i></button>
             <button id="stop-btn"><i class="fas fa-stop"></i></button>
         </div>
+
+        <!-- Floating Action Panel (Collapsible) -->
+        <div class="fab-panel" id="fab-panel">
+            <button class="fab-toggle" id="fab-toggle" title="เครื่องมือ">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+            <div class="fab-actions" id="fab-actions">
+                <button id="avatar-music-btn" class="fab-btn" title="🎵 เปิดเพลง">
+                    <i class="fa-solid fa-music"></i>
+                    <span>เพลง</span>
+                </button>
+                <button id="avatar-faq-btn" class="fab-btn" title="❓ คำถามที่พบบ่อย">
+                    <i class="fa-solid fa-circle-question"></i>
+                    <span>FAQ</span>
+                </button>
+                <button id="avatar-calc-btn" class="fab-btn" title="🔢 เครื่องคิดเลข">
+                    <i class="fa-solid fa-calculator"></i>
+                    <span>คำนวณ</span>
+                </button>
+                <button id="avatar-nav-btn" class="fab-btn" title="🗺️ นำทาง">
+                    <i class="fa-solid fa-route"></i>
+                    <span>นำทาง</span>
+                </button>
+            </div>
+        </div>
     </main>
 
+    <style>
+        /* Floating Action Panel */
+        .fab-panel {
+            position: fixed;
+            right: 25px;
+            bottom: 120px;
+            z-index: 60;
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .fab-toggle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .fab-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        .fab-toggle.active {
+            transform: rotate(45deg);
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .fab-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+        }
+
+        .fab-actions.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .fab-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-radius: 25px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            color: #10b981;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: 'Kanit', sans-serif;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .fab-btn:hover {
+            background: rgba(16, 185, 129, 0.2);
+            transform: translateX(-5px);
+        }
+    </style>
+
     <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/music_player.js"></script>
     <script src="assets/scripts/voice-handler.js"></script>
     <script src="assets/scripts/avatar_music_handler.js"></script>
     <script src="assets/scripts/robot_avatar.js"></script>

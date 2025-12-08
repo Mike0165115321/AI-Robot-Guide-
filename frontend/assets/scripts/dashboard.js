@@ -6,11 +6,13 @@ Chart.defaults.scale.grid.color = 'rgba(255, 255, 255, 0.05)';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const ctxOrigin = document.getElementById('originChart').getContext('2d');
+    const ctxProvince = document.getElementById('provinceChart').getContext('2d');
     const ctxInterest = document.getElementById('interestChart').getContext('2d');
     const totalEl = document.getElementById('total-conversations');
     const loader = document.getElementById('loader');
 
     let originChartInstance = null;
+    let provinceChartInstance = null;
     let interestChartInstance = null;
 
     async function fetchData() {
@@ -72,6 +74,44 @@ document.addEventListener('DOMContentLoaded', async () => {
                         cutout: '70%',
                         plugins: {
                             legend: { position: 'right', labels: { usePointStyle: true, padding: 20 } }
+                        }
+                    }
+                });
+            }
+
+            // 🆕 Province Chart (Horizontal Bar) - จังหวัดที่มาเยือน
+            const provinceLabels = (data.province_stats || []).map(item => item._id || "ไม่ระบุ");
+            const provinceCounts = (data.province_stats || []).map(item => item.count);
+
+            if (provinceChartInstance) {
+                provinceChartInstance.data.labels = provinceLabels;
+                provinceChartInstance.data.datasets[0].data = provinceCounts;
+                provinceChartInstance.update('none');
+            } else if (provinceLabels.length > 0) {
+                provinceChartInstance = new Chart(ctxProvince, {
+                    type: 'bar',
+                    data: {
+                        labels: provinceLabels,
+                        datasets: [{
+                            label: 'จำนวนผู้เยี่ยมชม',
+                            data: provinceCounts,
+                            backgroundColor: [
+                                '#34d399', '#4ade80', '#22d3ee', '#38bdf8', '#818cf8',
+                                '#a78bfa', '#c084fc', '#f472b6', '#fb7185', '#fbbf24',
+                                '#a3e635', '#2dd4bf', '#60a5fa', '#f97316', '#14b8a6'
+                            ],
+                            borderRadius: 6,
+                            barThickness: 18
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y', // Horizontal bars
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { beginAtZero: true, grid: { borderDash: [5, 5] } },
+                            y: { grid: { display: false } }
                         }
                     }
                 });

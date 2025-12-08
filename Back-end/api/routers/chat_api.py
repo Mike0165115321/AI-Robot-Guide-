@@ -4,7 +4,6 @@ import json
 from ..schemas import ChatQuery, ChatResponse 
 from core.ai_models.rag_orchestrator import RAGOrchestrator
 from core.config import settings
-from core.config import settings
 from ..dependencies import get_rag_orchestrator, get_analytics_service
 from core.services.analytics_service import AnalyticsService
 

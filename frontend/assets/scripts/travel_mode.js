@@ -62,12 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             (error) => {
                 console.error("Error getting location:", error);
-
-                // Don't show annoying alert immediately on page load, just default to list
-                // alertMessage("โปรดอนุญาตการเข้าถึงตำแหน่งเพื่อนำทาง", true);
-
                 itineraryStatus.textContent = "ไม่พบตำแหน่ง (แสดงรายการทั้งหมด)";
-                // Load anyway without location sorting
                 fetchNavigationList();
             }
         );

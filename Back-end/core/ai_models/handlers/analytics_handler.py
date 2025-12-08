@@ -39,18 +39,22 @@ class AnalyticsHandler:
 
     async def _extract_analytics_data_with_llm(self, user_answer: str) -> Dict[str, Any]:
         system_prompt = f"""You are an entity extractor. Analyze the user's text, which is a response to the question "Where are you from? OR What are you interested in?".
-You MUST return a JSON object with two keys: "user_origin" (str or null) and "interest_topic" (str or null).
-- If the user mentions a place (country, city, region), put it in "user_origin".
-- If the user mentions a topic (e.g., temples, food, nature, cafes), put it in "interest_topic".
+You MUST return a JSON object with three keys: "user_origin" (str or null), "user_province" (str or null), and "interest_topic" (str or null).
+- "user_origin": The country/nationality mentioned (e.g., "Japan", "Thailand", "China")
+- "user_province": If Thai, extract the Thai province (จังหวัด) mentioned (e.g., "กรุงเทพ", "เชียงใหม่", "ขอนแก่น", "สุราษฎร์ธานี")
+- "interest_topic": The topic of interest (e.g., temples, food, nature, cafes)
 - If the user asks a question, extract the main topic (e.g., "วัดภูมินทร์ไปไง" -> "Temple").
-- If you can't tell, return null for both.
+- If you can't tell, return null for that field.
 
 EXAMPLES:
-- Input: "มาจากญี่ปุ่นครับ" -> {{"user_origin": "Japan", "interest_topic": null}}
-- Input: "อยากไปคาเฟ่สวยๆ" -> {{"user_origin": null, "interest_topic": "Cafe"}}
-- Input: "คนไทยนี่แหละ" -> {{"user_origin": "Thailand", "interest_topic": null}}
-- Input: "ไม่บอก" -> {{"user_origin": "Declined", "interest_topic": null}}
-- Input: "วัดภูมินทร์ไปไง" -> {{"user_origin": null, "interest_topic": "Temple"}}
+- Input: "มาจากญี่ปุ่นครับ" -> {{"user_origin": "Japan", "user_province": null, "interest_topic": null}}
+- Input: "มาจากกรุงเทพครับ" -> {{"user_origin": "Thailand", "user_province": "กรุงเทพ", "interest_topic": null}}
+- Input: "คนเชียงใหม่ค่ะ" -> {{"user_origin": "Thailand", "user_province": "เชียงใหม่", "interest_topic": null}}
+- Input: "มาจากขอนแก่น อยากดูวัดสวยๆ" -> {{"user_origin": "Thailand", "user_province": "ขอนแก่น", "interest_topic": "Temple"}}
+- Input: "อยากไปคาเฟ่สวยๆ" -> {{"user_origin": null, "user_province": null, "interest_topic": "Cafe"}}
+- Input: "คนไทยนี่แหละ" -> {{"user_origin": "Thailand", "user_province": null, "interest_topic": null}}
+- Input: "ไม่บอก" -> {{"user_origin": "Declined", "user_province": null, "interest_topic": null}}
+- Input: "วัดภูมินทร์ไปไง" -> {{"user_origin": null, "user_province": null, "interest_topic": "Temple"}}
 """
         
         extracted_data_str = await self.query_interpreter._get_groq_response(system_prompt, user_answer)
@@ -60,7 +64,7 @@ EXAMPLES:
             return data
         except Exception as e:
             logging.error(f"Failed to parse analytics JSON from LLM: {e}")
-            return {"user_origin": None, "interest_topic": None}
+            return {"user_origin": None, "user_province": None, "interest_topic": None}
 
     def _get_boost_keywords(self, origin: str) -> str:
         if not origin: return ""
@@ -104,6 +108,7 @@ EXAMPLES:
             "timestamp": datetime.now(timezone.utc),
             "raw_query": user_answer,
             "user_origin": extracted_data.get("user_origin"),
+            "user_province": extracted_data.get("user_province"),  # เก็บจังหวัด (สำหรับคนไทย)
             "interest_topic": extracted_data.get("interest_topic"),
             "detected_language": "th"
         }
@@ -128,18 +133,19 @@ EXAMPLES:
             return await self.orchestrator_callback(query=final_query, mode=mode, session_id=session_id)
         
         else:
-            keywords = self._get_boost_keywords(log_data.get("user_origin"))
-            msg = "ขอบคุณสำหรับข้อมูลค่ะ! "
-            if log_data.get('user_origin') and keywords:
-                msg += f"ยินดีต้อนรับนักท่องเที่ยวจาก {log_data.get('user_origin')} นะคะ "
-                if "จีน" in str(log_data.get('user_origin')):
-                    msg += "น่านมีวัฒนธรรมไทลื้อที่เชื่อมโยงกับสิบสองปันนาด้วยนะคะ น่าสนใจมากเลย "
+            # ✅ แค่ขอบคุณ ไม่ต้องถามอะไรเพิ่ม - ป้องกันการถามถี่เกิน
+            origin = log_data.get('user_origin')
+            province = log_data.get('user_province')
             
-            msg += "ไม่ทราบว่าสนใจสอบถามเรื่องไหนในน่านเป็นพิเศษไหมคะ?"
+            if origin:
+                location_text = province if province else origin
+                msg = f"ขอบคุณค่ะ! ยินดีต้อนรับจาก{location_text}นะคะ 🎉 ถามอะไรก็ได้เลยค่ะ"
+            else:
+                msg = "ขอบคุณค่ะ! ถามอะไรก็ได้เลยนะคะ 😊"
             
             return {
                 "answer": msg,
-                "action": None,
+                "action": None,  # ไม่ต้อง await อะไรเพิ่ม
                 "sources": [],
                 "image_url": None,
                 "image_gallery": [],

@@ -178,8 +178,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (voiceHandler) voiceHandler.stop(false);
                 await playAudio(event.data);
 
+                // [FIX] เพิ่ม delay ก่อนเริ่มฟังใหม่ - ป้องกัน AI พูดแทรก/จับเสียงสะท้อน
                 if (conversationLoopActive && !musicHandler.isPlaying()) {
-                    startConversationLoop();
+                    setTimeout(() => {
+                        if (conversationLoopActive) {
+                            startConversationLoop();
+                        }
+                    }, 1000); // รอ 1 วินาทีก่อนเริ่มฟังใหม่
                 }
             }
         };
@@ -205,6 +210,104 @@ document.addEventListener('DOMContentLoaded', () => {
                 uiController.setEmotion('thinking');
                 uiController.setStatus("กำลังอ่าน...");
                 conversationLoopActive = true;
+            }
+        });
+    }
+
+    // FAB Panel Toggle
+    const fabToggle = document.getElementById('fab-toggle');
+    const fabActions = document.getElementById('fab-actions');
+
+    if (fabToggle && fabActions) {
+        fabToggle.addEventListener('click', () => {
+            fabToggle.classList.toggle('active');
+            fabActions.classList.toggle('open');
+        });
+
+        // ปิด FAB เมื่อคลิกที่ปุ่ม action
+        fabActions.querySelectorAll('.fab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                fabToggle.classList.remove('active');
+                fabActions.classList.remove('open');
+            });
+        });
+    }
+
+    // FAB Button Handlers
+    const avatarMusicBtn = document.getElementById('avatar-music-btn');
+    const avatarFaqBtn = document.getElementById('avatar-faq-btn');
+    const avatarCalcBtn = document.getElementById('avatar-calc-btn');
+
+    function sendQuery(query) {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            stopCurrentAudio();
+            if (voiceHandler) voiceHandler.stop(false);
+            websocket.send(JSON.stringify({ "query": query }));
+            uiController.setEmotion('thinking');
+            uiController.setStatus("กำลังค้นหา...");
+            conversationLoopActive = true;
+        }
+    }
+
+    if (avatarMusicBtn) {
+        avatarMusicBtn.addEventListener('click', () => sendQuery("เปิดเพลงให้หน่อย"));
+    }
+    if (avatarFaqBtn) {
+        avatarFaqBtn.addEventListener('click', () => sendQuery("คำถามที่พบบ่อยเกี่ยวกับการท่องเที่ยวน่าน"));
+    }
+    if (avatarCalcBtn) {
+        avatarCalcBtn.addEventListener('click', () => sendQuery("เปิดเครื่องคิดเลข"));
+    }
+
+    // Navigation button handler
+    const avatarNavBtn = document.getElementById('avatar-nav-btn');
+    if (avatarNavBtn) {
+        avatarNavBtn.addEventListener('click', () => {
+            // Show navigation prompt in presentation area
+            const resultText = document.getElementById('result-text');
+            const infoDisplay = document.getElementById('info-display');
+
+            if (resultText && infoDisplay) {
+                resultText.innerHTML = `<h3 style="margin:0;">🗺️ จะไปไหนดีคะ?</h3><p>เลือกสถานที่ยอดนิยม หรือพิมพ์ชื่อสถานที่:</p>`;
+
+                infoDisplay.innerHTML = `
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <button class="nav-quick-btn" data-query="พาไปวัดภูมินทร์" style="padding: 12px 20px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 25px; color: #3b82f6; cursor: pointer; font-size: 1rem;">🛕 วัดภูมินทร์</button>
+                            <button class="nav-quick-btn" data-query="นำทางไปดอยเสมอดาว" style="padding: 12px 20px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 25px; color: #3b82f6; cursor: pointer; font-size: 1rem;">⛰️ ดอยเสมอดาว</button>
+                            <button class="nav-quick-btn" data-query="พาไปวัดช้างค้ำ" style="padding: 12px 20px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 25px; color: #3b82f6; cursor: pointer; font-size: 1rem;">🐘 วัดช้างค้ำ</button>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 10px;">
+                            <input type="text" id="avatar-nav-input" placeholder="พิมพ์ชื่อสถานที่..." style="flex:1; padding:12px 16px; border:1px solid rgba(255,255,255,0.2); border-radius:8px; background:rgba(0,0,0,0.3); color:white; font-size:1rem;">
+                            <button id="avatar-nav-search-btn" style="padding:12px 24px; background:linear-gradient(135deg,#3b82f6,#2563eb); border:none; border-radius:8px; color:white; cursor:pointer; font-weight:bold;">🗺️ นำทาง</button>
+                        </div>
+                    </div>
+                `;
+
+                // Enter presentation mode
+                if (window.avatarAnimator) {
+                    window.avatarAnimator.enterPresentationMode({ html_is_pre_rendered: true });
+                }
+                uiController.setEmotion('listening');
+                uiController.setStatus("รอเลือกสถานที่...");
+
+                // Event listeners
+                document.querySelectorAll('.nav-quick-btn').forEach(btn => {
+                    btn.addEventListener('click', () => sendQuery(btn.dataset.query));
+                });
+
+                const navInput = document.getElementById('avatar-nav-input');
+                const navSearchBtn = document.getElementById('avatar-nav-search-btn');
+
+                if (navSearchBtn && navInput) {
+                    navSearchBtn.addEventListener('click', () => {
+                        if (navInput.value.trim()) sendQuery(`นำทางไป ${navInput.value.trim()}`);
+                    });
+                    navInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter' && navInput.value.trim()) sendQuery(`นำทางไป ${navInput.value.trim()}`);
+                    });
+                    setTimeout(() => navInput.focus(), 100);
+                }
             }
         });
     }

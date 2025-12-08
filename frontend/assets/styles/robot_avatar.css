@@ -893,3 +893,85 @@ body {
 .song-choice-btn:hover {
     background: rgba(255, 255, 255, 0.15);
 }
+
+/* ===================================== */
+/* 🎨 Improved Presentation Styling */
+/* ===================================== */
+
+#result-text {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+}
+
+#result-text p {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 12px;
+}
+
+#result-text h1,
+#result-text h2,
+#result-text h3 {
+    color: #2dd4bf;
+    margin-top: 20px;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+#result-text h3 {
+    font-size: 1.2rem;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(45, 212, 191, 0.3);
+}
+
+#result-text ul,
+#result-text ol {
+    padding-left: 20px;
+    margin: 12px 0;
+}
+
+#result-text li {
+    margin-bottom: 8px;
+    line-height: 1.6;
+    position: relative;
+}
+
+#result-text li::marker {
+    color: #2dd4bf;
+}
+
+#result-text strong {
+    color: #60a5fa;
+    font-weight: 600;
+}
+
+#result-text em {
+    color: #f472b6;
+    font-style: italic;
+}
+
+#result-text a {
+    color: #38bdf8;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+#result-text a:hover {
+    color: #7dd3fc;
+}
+
+/* Presentation container improvements */
+.presentation-container {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.85));
+}
+
+#info-display {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}

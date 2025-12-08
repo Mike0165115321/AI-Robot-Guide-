@@ -203,16 +203,31 @@ class AvatarAnimator {
                     const btnLink = document.createElement('a');
                     btnLink.href = data.action_payload.external_link;
                     btnLink.target = '_blank';
-                    btnLink.textContent = `📍 เปิดนำทางไป "${destName}" ใน Google Maps`;
-                    btnLink.style.display = 'block';
-                    btnLink.style.marginTop = '10px';
-                    btnLink.style.padding = '10px';
-                    btnLink.style.textAlign = 'center';
-                    btnLink.style.background = 'var(--color-robot-teal)';
-                    btnLink.style.color = '#000';
-                    btnLink.style.borderRadius = '8px';
-                    btnLink.style.textDecoration = 'none';
-                    btnLink.style.fontWeight = 'bold';
+                    btnLink.innerHTML = `<i class="fa-solid fa-route" style="margin-right: 8px;"></i> เริ่มนำทางไป "${destName}"`;
+                    btnLink.style.cssText = `
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 8px;
+                        margin-top: 15px;
+                        padding: 14px 24px;
+                        background: linear-gradient(135deg, #3b82f6, #2563eb);
+                        color: white;
+                        border-radius: 10px;
+                        text-decoration: none;
+                        font-weight: bold;
+                        font-size: 1rem;
+                        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+                        transition: transform 0.2s, box-shadow 0.2s;
+                    `;
+                    btnLink.onmouseover = () => {
+                        btnLink.style.transform = 'scale(1.02)';
+                        btnLink.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.6)';
+                    };
+                    btnLink.onmouseout = () => {
+                        btnLink.style.transform = 'scale(1)';
+                        btnLink.style.boxShadow = '0 4px 15px rgba(59, 130, 246, 0.4)';
+                    };
 
                     mapContainer.appendChild(btnLink);
                 }
@@ -233,67 +248,76 @@ class AvatarAnimator {
         if (allImages.length > 0) {
             const galleryContainer = document.createElement('div');
             galleryContainer.className = 'gallery-container';
+            galleryContainer.style.cssText = `
+                margin-top: 25px;
+                padding: 20px;
+                background: rgba(15, 23, 42, 0.6);
+                border-radius: 16px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(10px);
+            `;
 
             const title = document.createElement('h3');
-            title.textContent = 'รูปภาพประกอบ:';
+            title.textContent = '📸 รูปภาพประกอบ';
+            title.style.cssText = `
+                margin: 0 0 15px 0;
+                font-size: 1.1rem;
+                color: #2dd4bf;
+                font-weight: 600;
+            `;
             galleryContainer.appendChild(title);
 
             const imagesWrapper = document.createElement('div');
             imagesWrapper.className = 'gallery-images-wrapper';
+            imagesWrapper.style.cssText = `
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 12px;
+            `;
 
-            allImages.forEach(url => {
-                const imgLink = document.createElement('a');
-                imgLink.href = url;
-                imgLink.target = '_blank';
-                imgLink.rel = 'noopener noreferrer';
+            allImages.slice(0, 6).forEach((url, index) => {
+                const imgContainer = document.createElement('div');
+                imgContainer.style.cssText = `
+                    position: relative;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    aspect-ratio: 4/3;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+                    transition: transform 0.3s, box-shadow 0.3s;
+                    cursor: pointer;
+                `;
+                imgContainer.onmouseover = () => {
+                    imgContainer.style.transform = 'scale(1.05)';
+                    imgContainer.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.4)';
+                };
+                imgContainer.onmouseout = () => {
+                    imgContainer.style.transform = 'scale(1)';
+                    imgContainer.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.3)';
+                };
+                imgContainer.onclick = () => window.open(url, '_blank');
+
                 const img = document.createElement('img');
                 img.src = url;
                 img.alt = 'ภาพประกอบ';
-                imgLink.appendChild(img);
-                imagesWrapper.appendChild(imgLink);
+                img.style.cssText = `
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                `;
+                imgContainer.appendChild(img);
+                imagesWrapper.appendChild(imgContainer);
             });
+
             galleryContainer.appendChild(imagesWrapper);
             this.infoDisplay.appendChild(galleryContainer);
         }
 
-
-        if (data.sources && data.sources.length > 0) {
-            const sourcesContainer = document.createElement('div');
-            sourcesContainer.className = 'sources-container';
-
-            const title = document.createElement('h3');
-            title.textContent = 'แหล่งข้อมูลเพิ่มเติม:';
-            sourcesContainer.appendChild(title);
-
-            const cardsWrapper = document.createElement('div');
-            cardsWrapper.className = 'sources-cards-wrapper';
-
-            data.sources.forEach(source => {
-                if (source.title && source.image_urls && source.image_urls.length > 0) {
-                    const card = document.createElement('div');
-                    card.className = 'source-card';
-                    card.onclick = () => window.open(source.image_urls[0], '_blank');
-
-                    const img = document.createElement('img');
-                    img.src = source.image_urls[0];
-                    img.alt = source.title;
-                    card.appendChild(img);
-
-                    const cardTitle = document.createElement('p');
-                    cardTitle.textContent = source.title;
-                    card.appendChild(cardTitle);
-
-                    cardsWrapper.appendChild(card);
-                }
-            });
-            sourcesContainer.appendChild(cardsWrapper);
-            this.infoDisplay.appendChild(sourcesContainer);
-        }
+        // ❌ ลบส่วน "แหล่งข้อมูลเพิ่มเติม" ออกตามที่ user ต้องการ
 
         gsap.fromTo(this.infoDisplay.children, {
             opacity: 0, y: 20
         }, {
-            opacity: 1, y: 0, duration: 0.5, stagger: 0.2, ease: 'power2.out', delay: 0.5
+            opacity: 1, y: 0, duration: 0.5, stagger: 0.2, ease: 'power2.out', delay: 0.3
         });
     }
 }

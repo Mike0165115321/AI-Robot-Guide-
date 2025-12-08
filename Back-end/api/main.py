@@ -79,7 +79,14 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 logging.info(f"✅ Serving static files from directory: {STATIC_DIR}")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-origins = ["*"] 
+# CORS Configuration - กำหนด origins ที่อนุญาตอย่างชัดเจนเพื่อความปลอดภัย
+origins = [
+    "http://localhost:9090",
+    "http://127.0.0.1:9090",
+    f"http://{settings.API_HOST}:{settings.API_PORT}",
+    # เพิ่ม production domain ที่นี่ เช่น:
+    # "https://your-production-domain.com",
+] 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -91,6 +98,40 @@ app.add_middleware(
 app.include_router(admin_api.router, prefix="/api/admin") 
 app.include_router(chat_api.router, prefix="/api/chat")   
 app.include_router(avatar_api.router, prefix="/api/avatar")
+
+
+@app.get("/health", tags=["Health"])
+async def health_check(request: Request):
+    """Health check endpoint สำหรับ monitoring และ deployment"""
+    mongo_status = "unknown"
+    qdrant_status = "unknown"
+    
+    try:
+        # Check MongoDB connection
+        if hasattr(request.app.state, 'mongo_manager') and request.app.state.mongo_manager:
+            request.app.state.mongo_manager.client.admin.command('ping')
+            mongo_status = "healthy"
+    except Exception:
+        mongo_status = "unhealthy"
+    
+    try:
+        # Check Qdrant connection
+        if hasattr(request.app.state, 'qdrant_manager') and request.app.state.qdrant_manager:
+            await request.app.state.qdrant_manager.client.get_collections()
+            qdrant_status = "healthy"
+    except Exception:
+        qdrant_status = "unhealthy"
+    
+    overall_status = "healthy" if mongo_status == "healthy" and qdrant_status == "healthy" else "degraded"
+    
+    return {
+        "status": overall_status,
+        "version": "1.0.0",
+        "services": {
+            "mongodb": mongo_status,
+            "qdrant": qdrant_status
+        }
+    }
 
 
 @app.get("/api/navigation_list", tags=["V-Maps"])

@@ -79,6 +79,32 @@
             <section id="view-chat" class="view-section active">
                 <header class="mobile-header"><span>AI Guide น่าน</span></header>
                 <div id="message-area" class="messages-container"></div>
+
+                <!-- Floating Action Panel (Collapsible) -->
+                <div class="fab-panel" id="fab-panel">
+                    <button class="fab-toggle" id="fab-toggle" title="เครื่องมือ">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <div class="fab-actions" id="fab-actions">
+                        <button id="music-button" class="fab-btn" title="🎵 เปิดเพลง">
+                            <i class="fa-solid fa-music"></i>
+                            <span>เพลง</span>
+                        </button>
+                        <button id="faq-button-bar" class="fab-btn" title="❓ คำถามที่พบบ่อย">
+                            <i class="fa-solid fa-circle-question"></i>
+                            <span>FAQ</span>
+                        </button>
+                        <button id="calc-button" class="fab-btn" title="🔢 เครื่องคิดเลข">
+                            <i class="fa-solid fa-calculator"></i>
+                            <span>คำนวณ</span>
+                        </button>
+                        <button id="nav-button" class="fab-btn" title="🗺️ นำทาง">
+                            <i class="fa-solid fa-route"></i>
+                            <span>นำทาง</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="input-area-wrapper">
                     <div class="input-container">
                         <button id="mic-button" class="btn-icon"><i class="fa-solid fa-microphone"></i></button>
@@ -94,6 +120,7 @@
     </div>
 
     <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/music_player.js"></script>
     <script src="assets/scripts/chat.js"></script>
 
     <script>
