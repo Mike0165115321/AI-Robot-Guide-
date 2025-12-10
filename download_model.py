@@ -1,71 +1,82 @@
 import os
 import shutil
 from sentence_transformers import SentenceTransformer
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-# =================================================================
-# 1. กำหนดค่าต่างๆ
-# =================================================================
-# โมเดลทั้งหมดที่คุณต้องการดาวน์โหลด (ในรูปแบบ [ชื่อใน Hugging Face Hub, ชื่อโฟลเดอร์สำหรับบันทึก])
+# ================================================================
+# 1. Config
+# ================================================================
 MODELS_TO_DOWNLOAD = [
-    # embedding model (E5-large)
-    {"hub_name": "intfloat/multilingual-e5-large", "folder_name": "intfloat-multilingual-e5-large"},
-    # BAAI model 1 (BGE-M3)
-    {"hub_name": "BAAI/bge-m3", "folder_name": "BAAI-bge-m3"},
-    # BAAI reranker model (BGE-reranker-base)
-    {"hub_name": "BAAI/bge-reranker-base", "folder_name": "BAAI-bge-reranker-base"},
+    {"hub_name": "Xtra-Computing/XtraGPT-7B", "folder_name": "Xtra-Computing-XtraGPT-7B", "type": "llm"},
 ]
 
-# **ตำแหน่งหลักในการจัดเก็บโมเดล (ใช้ Linux Path)**
-BASE_DIR_LINUX = "/home/mikedev/MyModels/Model RAG" 
+BASE_DIR_LINUX = "/home/mikedev/MyModels/Model-RAG"
 
-# =================================================================
-# 2. ฟังก์ชันดาวน์โหลดและบันทึก
-# =================================================================
-def download_and_save_model(hub_name: str, folder_name: str):
-    """
-    ดาวน์โหลดโมเดลและบันทึกไปยังโฟลเดอร์ที่กำหนด
-    """
-    # กำหนด Path ปลายทาง
+
+# ================================================================
+# 2. Download functions
+# ================================================================
+def download_embedding_model(hub_name, save_path):
+    print(f"⬇️ Downloading embedding model: {hub_name}")
+    model = SentenceTransformer(hub_name)
+    model.save(save_path)
+    print("✅ Saved embedding model")
+
+
+def download_llm_model(hub_name, save_path):
+    print(f"⬇️ Downloading LLM model: {hub_name}")
+
+    tokenizer = AutoTokenizer.from_pretrained(hub_name, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(
+        hub_name,
+        trust_remote_code=True
+    )
+
+    tokenizer.save_pretrained(save_path)
+    model.save_pretrained(save_path)
+
+    print("✅ Saved LLM model")
+
+
+def download_and_save_model(info):
+    hub_name = info["hub_name"]
+    folder_name = info["folder_name"]
+    model_type = info["type"]
+
     save_path = os.path.join(BASE_DIR_LINUX, folder_name)
-    
-    print(f"\n--- 🚀 Processing Model: {hub_name} ---")
 
-    # 1. ตรวจสอบและลบของเก่า (ตามที่คุณต้องการ)
+    print(f"\n--- 🚀 Processing: {hub_name} ---")
+
     if os.path.exists(save_path):
-        print(f"🗑️ Deleting existing folder: {save_path}")
-        try:
-            shutil.rmtree(save_path)
-            print("    Successfully deleted old version.")
-        except Exception as e:
-            print(f"    ❌ Error deleting old version: {e}. Skipping download.")
-            return
+        print(f"🗑️ Removing old folder: {save_path}")
+        shutil.rmtree(save_path)
+
+    os.makedirs(save_path, exist_ok=True)
 
     try:
-        # 2. โหลดโมเดลจาก Hugging Face Hub (ต้องใช้อินเทอร์เน็ต)
-        print(f"⬇️ Downloading model from Hub...")
-        model = SentenceTransformer(hub_name)
-        
-        # 3. บันทึกโมเดลลงใน Path ใหม่
-        print(f"💾 Saving model to: {save_path}")
-        model.save(save_path)
-        
-        print(f"✅ Download and save successful for {folder_name}")
+        if model_type == "embed":
+            download_embedding_model(hub_name, save_path)
+        elif model_type == "llm":
+            download_llm_model(hub_name, save_path)
+
+        print(f"🎉 Completed: {hub_name}")
 
     except Exception as e:
-        print(f"❌ Critical Error occurred while processing {hub_name}: {e}")
+        print(f"❌ Error while processing {hub_name}: {e}")
 
-# =================================================================
-# 3. รันกระบวนการหลัก
-# =================================================================
+
+# ================================================================
+# 3. Main
+# ================================================================
 if __name__ == "__main__":
-    # ตรวจสอบและสร้างโฟลเดอร์หลัก (ถ้ายังไม่มี)
     if not os.path.exists(BASE_DIR_LINUX):
         os.makedirs(BASE_DIR_LINUX)
-        print(f"Created base directory: {BASE_DIR_LINUX}")
-    
-    # รันดาวน์โหลดสำหรับทุกโมเดล
-    for model_info in MODELS_TO_DOWNLOAD:
-        download_and_save_model(model_info["hub_name"], model_info["folder_name"])
-        
-    print("\n\n--- ✨ All model downloads completed. ---")
-    print(f"All models are now stored in the directory: {BASE_DIR_LINUX}")
+
+    for info in MODELS_TO_DOWNLOAD:
+        download_and_save_model(info)
+
+    print("\n✨ All downloads completed.")
+
+#   {"hub_name": "intfloat/multilingual-e5-large", "folder_name": "intfloat-multilingual-e5-large", "type": "embed"},
+#   {"hub_name": "BAAI/bge-m3", "folder_name": "BAAI-bge-m3", "type": "embed"},
+#   {"hub_name": "BAAI/bge-reranker-base", "folder_name": "BAAI-bge-reranker-base", "type": "embed"}, 

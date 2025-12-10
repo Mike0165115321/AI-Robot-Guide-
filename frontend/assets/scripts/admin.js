@@ -39,25 +39,36 @@ async function fetchAndDisplayLocations() {
         }
 
         locations.forEach(location => {
-            const hasImageLink = location.metadata && location.metadata.image_prefix;
-            const imageIndicator = hasImageLink
-                ? `<span style="color: #4ade80;">✔️ Yes (${location.metadata.image_prefix})</span>`
-                : '<span style="color: #f87171;">❌ No</span>';
+            // Check for incomplete data
+            const isIncomplete = !location.summary || !location.keywords || location.keywords.length === 0;
+            const warningBadge = isIncomplete
+                ? '<span title="ข้อมูลไม่ครบ" style="color:#fbbf24;margin-left:4px;">⚠️</span>'
+                : '';
 
             // [Refactored Phase 3] Use shared utils
             const { primaryUrl, imgOnError } = getLocationImages(location, API_BASE_URL);
 
             const imagePreviewHtml = `<img src="${primaryUrl}" alt="Preview for ${location.slug}" style="width: 100px; height: 75px; object-fit: cover; border-radius: 4px; background-color: #f0f0f0;" onerror="${imgOnError}">`;
-            // --- [END V5.5] ---
+
+            // Truncate summary and format keywords
+            const shortSummary = location.summary
+                ? (location.summary.length > 60 ? location.summary.substring(0, 60) + '...' : location.summary)
+                : '<span style="color:#888;">-</span>';
+
+            const keywordsList = (location.keywords && Array.isArray(location.keywords) && location.keywords.length > 0)
+                ? location.keywords.slice(0, 3).join(', ') + (location.keywords.length > 3 ? '...' : '')
+                : '<span style="color:#888;">-</span>';
 
             const row = document.createElement('tr');
+            if (isIncomplete) row.style.background = 'rgba(251,191,36,0.1)';
+
             row.innerHTML = `
                 <td>${imagePreviewHtml}</td>
-                <td>${location.slug || 'N/A'}</td>
-                <td>${location.title || 'N/A'}</td>
+                <td>${location.title || 'N/A'}${warningBadge}</td>
                 <td>${location.category || 'N/A'}</td>
                 <td>${location.topic || 'N/A'}</td>
-                <td>${imageIndicator}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${location.summary || ''}">${shortSummary}</td>
+                <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;" title="${(location.keywords || []).join(', ')}">${keywordsList}</td>
                 <td>
                     <button class="btn btn-edit" data-slug="${location.slug}">แก้ไข</button>
                     <button class="btn btn-delete" data-slug="${location.slug}">ลบ</button>

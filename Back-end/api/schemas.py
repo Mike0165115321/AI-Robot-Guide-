@@ -10,8 +10,8 @@ class SourceItem(BaseModel): type: str; reference: str
 class AdminLocationMetadata(BaseModel): image_prefix: Optional[str] = None
 
 class LocationBase(BaseModel):
-    slug: str = Field(..., min_length=3, pattern=r"^[a-z0-9_-]+$", description="Human-readable key")
-    category: str; topic: str; title: str
+    slug: str = Field(..., min_length=1, description="Human-readable key")  # Removed strict pattern to allow Thai chars
+    category: Optional[str] = None; topic: Optional[str] = None; title: str = "ไม่มีชื่อ"
     summary: Optional[str] = None
     image_url: Optional[str] = Field(None, description="Fallback image")
     details: List[Detail] = Field(default_factory=list)
@@ -28,7 +28,13 @@ class LocationInDB(LocationBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, arbitrary_types_allowed=True)
 
 class LocationAdminSummary(BaseModel):
-    mongo_id: PyObjectId = Field(..., alias="_id"); slug: str; title: str; category: str; topic: str
+    mongo_id: PyObjectId = Field(..., alias="_id")
+    slug: str
+    title: str = "ไม่มีชื่อ"
+    category: Optional[str] = None
+    topic: Optional[str] = None
+    summary: Optional[str] = None
+    keywords: List[str] = Field(default_factory=list)
     metadata: Optional[AdminLocationMetadata] = None
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, arbitrary_types_allowed=True)
 

@@ -18,6 +18,10 @@
                 <p style="color: var(--text-muted);">จัดการข้อมูลสถานที่และคลังความรู้ AI</p>
             </div>
             <div style="display: flex; gap: 10px;">
+                <a href="import.html" class="btn btn-submit"
+                    style="text-decoration: none; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; display: flex; align-items: center; gap: 5px;">
+                    📥 Bulk Import
+                </a>
                 <a href="dashboard.html" class="btn btn-submit"
                     style="text-decoration: none; background-color: #667eea; border: none; display: flex; align-items: center; gap: 5px;">
                     📊 สถิติ (Dashboard)
@@ -31,63 +35,19 @@
         </header>
 
         <div class="form-container">
-            <h2><i class="fa-solid fa-robot"></i> นำเข้าข้อมูลอัจฉริยะ (AI Ingestion)</h2>
-            <p>
-                อัปโหลดไฟล์ PDF หรือ .txt แล้ว AI จะวิเคราะห์และ
-                <strong>"กรอกฟอร์มด้านล่าง" (เพิ่มข้อมูลใหม่)</strong> ให้โดยอัตโนมัติ
+            <h2><i class="fa-solid fa-database"></i> นำเข้าข้อมูล</h2>
+            <p style="margin-bottom: 1.5rem;">
+                นำเข้าข้อมูลจาก Excel/CSV หรือกรอกข้อมูลทีละรายการ
             </p>
 
-            <div class="form-group">
-                <label for="file-input">เลือกไฟล์เอกสาร (PDF, TXT):</label>
-                <input type="file" id="file-input" name="file" accept=".pdf,.txt">
-            </div>
-
-            <button type="button" id="analyze-btn" class="btn btn-cta">
-                🚀 วิเคราะห์เอกสาร
-            </button>
-
-            <span id="loading-spinner" style="display: none;">
-                <div class="spinner"></div>
-                <span class="spinner-text">กำลังประมวลผล...</span>
-            </span>
+            <a href="import.html" class="btn btn-cta"
+                style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 1rem 2rem; font-size: 1.1rem;">
+                📥 เพิ่มข้อมูลใหม่
+            </a>
         </div>
 
-        <hr style="border: none; border-top: 2px solid #e5e7eb; margin: 30px 0;">
+        <hr style="border: none; border-top: 2px solid rgba(255,255,255,0.1); margin: 30px 0;">
 
-        <h3>เพิ่มข้อมูลใหม่ (Manual Entry)</h3>
-        <form id="add-location-form">
-            Slug (Key): <br>
-            <input type="text" id="form-slug" name="slug" required pattern="^[a-z0-9_-]{3,}$"
-                title="Slug (3+ chars, a-z, 0-9, _, -)"><br>
-
-            Title: <br>
-            <input type="text" id="form-title" name="title" required><br>
-            Summary: <br>
-            <textarea id="form-summary" name="summary" rows="5"></textarea><br>
-            Category: <br>
-            <input type="text" id="form-category" name="category" required><br>
-            Topic: <br>
-            <input type="text" id="form-topic" name="topic" required><br>
-
-            Keywords (คั่นด้วย comma ,): <br>
-            <input type="text" id="form-keywords" name="keywords" placeholder="e.g., วัด,กระซิบรัก,ตำนาน"><br>
-
-            Details (JSON Array): <br>
-            <textarea id="form-details" name="details" rows="8"
-                placeholder='[{"heading": "ภาพรวม", "content": "..."}]'></textarea><br>
-            <hr style="margin: 20px 0;">
-            <h4>Image Management (Add)</h4>
-            Image Prefix (ต้องตรงกับ Slug): <br>
-            <input type="text" id="form-image-prefix" name="image_prefix" placeholder="e.g., wat_phumin_"><br>
-
-            Upload Image File: <br>
-            <input type="file" id="form-image-file" name="image_file" accept="image/*"><br><br>
-
-            <button type="submit" class="btn btn-submit"
-                style="background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Add
-                Location</button>
-        </form>
-        <hr>
 
         <div id="edit-modal" class="modal" style="display: none;">
             <div class="modal-content">
@@ -146,13 +106,13 @@
             <table id="locations-table">
                 <thead>
                     <tr>
-                        <th>Preview</th>
-                        <th>Slug</th>
+                        <th style="width:100px">Preview</th>
                         <th>Title</th>
                         <th>Category</th>
                         <th>Topic</th>
-                        <th>Image?</th>
-                        <th>Actions</th>
+                        <th>Summary</th>
+                        <th>Keywords</th>
+                        <th style="width:100px">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
