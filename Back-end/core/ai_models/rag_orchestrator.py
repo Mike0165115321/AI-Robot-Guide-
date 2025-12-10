@@ -100,6 +100,7 @@ class RAGOrchestrator:
         return {"source_info": source_info, "image_gallery": static_image_gallery}
 
     async def _handle_welcome_flow(self, session_id: Optional[str] = None, **kwargs) -> dict:
+        # ตั้งค่า session ให้รอรับข้อมูล analytics (ถ้ามี session_id)
         if session_id:
             try:
                 self.session_manager.collection.update_one(
@@ -109,10 +110,11 @@ class RAGOrchestrator:
                 )
             except Exception as e:
                 logging.error(f"Error updating welcome state: {e}")
-            
+        
+        # ข้อความทักทายแบบเป็นกันเอง
         return {
-            "answer": "สวัสดีค่ะ ยินดีต้อนรับสู่จังหวัดน่านค่ะ! น้องน่านเป็นไกด์ AI ที่ช่วยแนะนำที่เที่ยว ที่กิน หรือวัฒนธรรมได้เลยนะคะ\n\nบอกหน่อยได้ไหมคะว่า **มาจากที่ไหน?** หรือ **สนใจเที่ยวแนวไหนเป็นพิเศษคะ?**",
-            "action": "AWAITING_ANALYTICS_DATA", 
+            "answer": "สวัสดีค่ะ เราเป็นไกด์ที่น่านค่ะ คุ้นเคยกับเส้นทางแถวนี้พอสมควรเลย เลยอยากรู้ว่าเธอมาจากที่ไหน จะได้แนะนำให้เหมาะกับสไตล์ของคนพื้นที่นั้นนิดนึงค่ะ ไม่ต้องบอกแบบละเอียดก็ได้นะคะ แค่จังหวัดหรือประเทศก็พอค่ะ 😊",
+            "action": "AWAITING_ANALYTICS_DATA",
             "action_payload": None, "image_url": None, "image_gallery": [], "sources": [],
         }
 
@@ -286,8 +288,7 @@ class RAGOrchestrator:
                 docs = self.nav_service.sort_locations_by_distance(docs, user_lat, user_lon)
             
             for doc in docs:
-                prefix = doc.get("metadata", {}).get("image_prefix")
-                imgs = self.image_service.find_all_images_by_prefix(prefix)
+                imgs = self.image_service.get_location_images(doc)
                 doc["image_urls"] = [imgs[0]] if imgs else []
             
             return docs
@@ -371,5 +372,9 @@ class RAGOrchestrator:
                 ai_response=response.get("answer", ""), 
                 topic=primary_topic
             )
+            
+            # 🚀 [Analytics] Log Interest Event if topic is found
+            if primary_topic:
+                await self.analytics_handler.log_interest_event(session_id, primary_topic, query)
             
         return response

@@ -1,0 +1,124 @@
+/* /frontend/assets/styles/travel_mode.css */
+
+/* Reuse variables from main.css */
+:root {
+    --bg-dark: #020617;
+    --card-bg: rgba(30, 41, 59, 0.7);
+    --primary: #3b82f6;
+    --accent: #2dd4bf;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: #334155;
+    --glass: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Kanit', sans-serif;
+}
+
+/* --- Search Bar Removed (Now handled by Tailwind classes in HTML) --- */
+
+/* --- Card Styles --- */
+.travel-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    display: flex;
+    /* Ensure flex for mobile */
+    flex-direction: column;
+}
+
+@media (min-width: 640px) {
+    .travel-card {
+        flex-direction: row;
+        align-items: stretch;
+        /* Stretch children clearly */
+    }
+}
+
+.travel-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.travel-card.current-step {
+    border-color: var(--primary);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.travel-card img {
+    width: 100%;
+    height: 200px;
+    /* Taller images by default */
+    object-fit: cover;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+@media (min-width: 640px) {
+    .travel-card img {
+        width: 240px;
+        /* Fixed width for desktop list */
+        height: auto;
+        min-height: 160px;
+        border-radius: 12px 0 0 12px;
+    }
+}
+
+/* --- Content Typography --- */
+.travel-card h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.travel-card p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* --- Toast Notification --- */
+#mock-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--surface-color);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    z-index: 9999;
+    font-family: 'Kanit', sans-serif;
+    border-left: 4px solid var(--accent);
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}

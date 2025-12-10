@@ -13,7 +13,8 @@ from ..schemas import (LocationAdminSummaryWithImage, LocationBase, LocationInDB
 from core.database.mongodb_manager import MongoDBManager
 from core.database.qdrant_manager import QdrantManager
 from core.document_processor import DocumentProcessor
-from ..dependencies import get_mongo_manager, get_qdrant_manager
+from ..dependencies import get_mongo_manager, get_qdrant_manager, get_analytics_service
+from core.services.analytics_service import AnalyticsService
 
 router = APIRouter(tags=["Admin"])
 
@@ -79,14 +80,13 @@ async def upload_location_image(
 @router.get("/analytics/dashboard", tags=["Admin :: Analytics"])
 async def get_analytics_dashboard(
     days: int = Query(30, description="จำนวนวันย้อนหลังที่ต้องการดูข้อมูล"),
-    db: MongoDBManager = Depends(get_mongo_manager)
+    analytics: AnalyticsService = Depends(get_analytics_service)
 ):
     """
     ดึงข้อมูลสรุปสำหรับ Dashboard (กราฟและตัวเลขรวม)
     """
     try:
-        # เรียกใช้ฟังก์ชันที่เราเพิ่งสร้างในขั้นตอนที่ 1
-        stats = await asyncio.to_thread(db.get_analytics_summary, days)
+        stats = await analytics.get_dashboard_summary(days)
         return stats
     except Exception as e:
         logging.error(f"❌ Error fetching analytics dashboard: {e}", exc_info=True)

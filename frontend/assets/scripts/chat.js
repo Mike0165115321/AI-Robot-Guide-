@@ -84,8 +84,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button-icon');
     const micButton = document.getElementById('mic-button');
+    const musicButton = document.getElementById('music-button');
     const newChatBtn = document.getElementById('new-chat-btn');
     const faqButton = document.getElementById('faq-button');
+
+    // FAB Panel Toggle
+    const fabToggle = document.getElementById('fab-toggle');
+    const fabActions = document.getElementById('fab-actions');
+
+    if (fabToggle && fabActions) {
+        fabToggle.addEventListener('click', () => {
+            fabToggle.classList.toggle('active');
+            fabActions.classList.toggle('open');
+        });
+
+        // ปิด FAB เมื่อคลิกที่ปุ่ม action
+        fabActions.querySelectorAll('.fab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                fabToggle.classList.remove('active');
+                fabActions.classList.remove('open');
+            });
+        });
+    }
 
     let messageCounter = 0;
 
@@ -93,6 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let audioContext = null;
     let browserMicHandler = null;
     let websocket;
+    let reconnectAttempts = 0;
+    const maxReconnectDelay = 30000; // ไม่เกิน 30 วินาที
 
     // Connect WebSocket for chat (only once)
     function connectChatWebSocket() {
@@ -105,11 +127,17 @@ document.addEventListener('DOMContentLoaded', () => {
             websocket.close();
         }
 
-        websocket = new WebSocket(`ws://${API_HOST}:${API_PORT}/api/chat/ws`);
+        // ใช้ WS_BASE_URL ถ้ามี, ไม่งั้นใช้ API_HOST/PORT
+        const wsUrl = typeof WS_BASE_URL !== 'undefined'
+            ? `${WS_BASE_URL}/api/chat/ws`
+            : `ws://${API_HOST}:${API_PORT}/api/chat/ws`;
+
+        websocket = new WebSocket(wsUrl);
         websocket.binaryType = 'arraybuffer';
 
         websocket.onopen = () => {
             console.log("Chat WS Connected.");
+            reconnectAttempts = 0; // Reset เมื่อเชื่อมต่อสำเร็จ
             sendSystemMessage("สวัสดีค่ะ น้องน่าน AI ยินดีให้บริการค่ะ มีอะไรให้น้องน่านช่วยแนะนำการท่องเที่ยว หรือข้อมูลวัฒนธรรมประเพณีของน่านไหมคะ? ว่ามาได้เลยเจ้า!");
         };
 
@@ -125,7 +153,11 @@ document.addEventListener('DOMContentLoaded', () => {
         websocket.onclose = (event) => {
             console.log("Chat WS Closed:", event);
             if (!event.wasClean) {
-                setTimeout(connectChatWebSocket, 3000);
+                // Exponential backoff: 1s, 2s, 4s, 8s... สูงสุด 30s
+                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+                reconnectAttempts++;
+                console.log(`Reconnecting in ${delay / 1000}s... (attempt ${reconnectAttempts})`);
+                setTimeout(connectChatWebSocket, delay);
             }
         };
 
@@ -155,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Message Display Logic ---
-    function showMapEmbed(embedUrl, title) {
+    function showMapEmbed(embedUrl, title, externalLink = null) {
         const lastMessage = messageArea.lastElementChild;
         if (!lastMessage) return;
 
@@ -164,12 +196,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const mapContainer = document.createElement('div');
         mapContainer.className = 'map-embed-container mt-4 rounded-lg overflow-hidden border border-glass-border';
+
+        // Build navigation link button if available
+        const navButtonHtml = externalLink ? `
+            <a href="${externalLink}" target="_blank" rel="noopener" 
+               class="nav-btn" style="
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 12px 24px;
+                background: linear-gradient(135deg, #3b82f6, #2563eb);
+                border-radius: 8px;
+                color: white;
+                text-decoration: none;
+                font-weight: bold;
+                font-size: 0.95rem;
+                box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+                margin-top: 15px;
+            ">
+                <i class="fa-solid fa-route"></i> เริ่มนำทาง
+            </a>
+        ` : '';
+
         mapContainer.innerHTML = `
             <div class="bg-black/50 p-2 flex justify-between items-center">
                 <span class="text-xs text-accent font-bold"><i class="fa-solid fa-map-location-dot mr-2"></i>${title}</span>
-                <a href="${embedUrl}" target="_blank" class="text-xs text-primary hover:text-white transition"><i class="fa-solid fa-external-link-alt"></i> เปิดเต็มจอ</a>
+                <a href="${embedUrl}" target="_blank" class="text-xs text-primary hover:text-white transition"><i class="fa-solid fa-expand"></i> ขยาย</a>
             </div>
             <iframe src="${embedUrl}" width="100%" height="250" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            <div style="padding: 10px; text-align: center;">
+                ${navButtonHtml}
+            </div>
         `;
 
         bubble.appendChild(mapContainer);
@@ -197,13 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
             contentHtml += `<div class="single-image-container"><img src="${imageUrl}" alt="รูปภาพประกอบ" class="responsive-image"></div>`;
         }
 
-        if (sources && sources.length > 0) {
-            contentHtml += `<div class="sources-container"><h4>แหล่งข้อมูล:</h4><ul>`;
-            sources.forEach(source => {
-                contentHtml += `<li><a href="${source.url}" target="_blank">${source.title || source.url}</a></li>`;
-            });
-            contentHtml += `</ul></div>`;
-        }
+
 
         bubble.innerHTML = contentHtml;
 
@@ -246,7 +297,59 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             wrapper.appendChild(iconContainer);
-            wrapper.appendChild(bubble);
+
+            // Container for Bubble + Actions
+            const bubbleContainer = document.createElement('div');
+            bubbleContainer.style.display = 'flex';
+            bubbleContainer.style.flexDirection = 'column';
+            bubbleContainer.style.gap = '5px';
+            bubbleContainer.style.maxWidth = '80%';
+
+            bubbleContainer.appendChild(bubble);
+
+            // Only show Copy/Print buttons for informational messages (not interactive ones)
+            const interactiveActions = ['SHOW_MAP_EMBED', 'SHOW_SONG_CHOICES', 'PROMPT_FOR_SONG_INPUT'];
+            if (!interactiveActions.includes(action)) {
+                // Print Button
+                const actionsBar = document.createElement('div');
+                actionsBar.style.display = 'flex';
+                actionsBar.style.justifyContent = 'flex-end';
+                actionsBar.style.paddingRight = '10px';
+
+                const printBtn = document.createElement('button');
+                printBtn.className = 'btn-icon';
+                printBtn.style.width = '30px';
+                printBtn.style.height = '30px';
+                printBtn.style.fontSize = '0.9rem';
+                printBtn.title = 'พิมพ์หน้านี้';
+                printBtn.innerHTML = '<i class="fa-solid fa-print"></i>';
+                printBtn.onclick = () => printMessage(text, imageUrl, imageGallery);
+
+                // Copy Button
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'btn-icon';
+                copyBtn.style.width = '30px';
+                copyBtn.style.height = '30px';
+                copyBtn.style.fontSize = '0.9rem';
+                copyBtn.title = 'คัดลอกข้อความ';
+                copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(text).then(() => {
+                        copyBtn.innerHTML = '<i class="fa-solid fa-check" style="color: var(--success-color);"></i>';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy: ', err);
+                    });
+                };
+
+                actionsBar.appendChild(copyBtn);
+                actionsBar.appendChild(printBtn);
+                bubbleContainer.appendChild(actionsBar);
+            }
+
+            wrapper.appendChild(bubbleContainer);
             messageRow.appendChild(wrapper);
         } else {
             messageRow.appendChild(bubble);
@@ -260,8 +363,231 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (action === 'SHOW_MAP_EMBED' && actionPayload && actionPayload.embed_url) {
-            showMapEmbed(actionPayload.embed_url, actionPayload.destination_name || "แผนที่นำทาง");
+            showMapEmbed(actionPayload.embed_url, actionPayload.destination_name || "แผนที่นำทาง", actionPayload.external_link);
+        } else if (action === 'SHOW_SONG_CHOICES' && actionPayload) {
+            showSongChoices(actionPayload);
+        } else if (action === 'PROMPT_FOR_SONG_INPUT' && actionPayload) {
+            showSongInput(actionPayload.placeholder || "พิมพ์ชื่อเพลง...");
         }
+    }
+
+    function showSongInput(placeholder) {
+        const lastMessage = messageArea.lastElementChild;
+        if (!lastMessage) return;
+
+        const bubble = lastMessage.querySelector('.bubble');
+        if (!bubble) return;
+
+        const inputContainer = document.createElement('div');
+        inputContainer.className = 'song-input-container mt-3 flex gap-2';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'flex-1 bg-black/30 border border-glass-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent transition';
+        input.placeholder = placeholder;
+
+        const searchBtn = document.createElement('button');
+        searchBtn.className = 'bg-accent/20 hover:bg-accent/40 text-accent border border-accent/50 rounded-lg px-3 transition';
+        searchBtn.innerHTML = '<i class="fa-solid fa-search"></i>';
+
+        const submitSong = () => {
+            const songName = input.value.trim();
+            if (songName) {
+                sendMessage(songName); // Send as a normal message
+                inputContainer.remove(); // Remove input after sending
+            }
+        };
+
+        searchBtn.onclick = submitSong;
+        input.onkeypress = (e) => {
+            if (e.key === 'Enter') submitSong();
+        };
+
+        inputContainer.appendChild(input);
+        inputContainer.appendChild(searchBtn);
+        bubble.appendChild(inputContainer);
+
+        // Auto-focus the input
+        setTimeout(() => input.focus(), 100);
+        messageArea.scrollTop = messageArea.scrollHeight;
+    }
+
+    function showSongChoices(songs) {
+        const lastMessage = messageArea.lastElementChild;
+        if (!lastMessage) return;
+
+        const bubble = lastMessage.querySelector('.bubble');
+        if (!bubble) return;
+
+        const songContainer = document.createElement('div');
+        songContainer.className = 'song-choices-container mt-4 grid grid-cols-1 gap-2';
+
+        songs.forEach(song => {
+            const songCard = document.createElement('div');
+            songCard.className = 'flex items-center gap-3 p-3 bg-black/40 rounded-lg hover:bg-black/60 transition cursor-pointer border border-glass-border';
+            songCard.innerHTML = `
+                <div class="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent">
+                    <i class="fa-solid fa-music"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-white truncate">${song.title}</div>
+                    <div class="text-xs text-gray-400 truncate">${song.channel}</div>
+                </div>
+                <button class="text-primary hover:text-white transition">
+                    <i class="fa-solid fa-play"></i>
+                </button>
+            `;
+            songCard.onclick = () => {
+                // ใช้ MusicPlayer class ใหม่ (ถ้ามี)
+                if (typeof musicPlayer !== 'undefined' && musicPlayer.createPlayer) {
+                    // Normalize song object
+                    const normalizedSong = {
+                        video_id: song.video_id || song.id,
+                        title: song.title,
+                        channel: song.channel,
+                        url: song.url || `https://www.youtube.com/watch?v=${song.video_id || song.id}`
+                    };
+                    musicPlayer.createPlayer(normalizedSong, songContainer);
+                } else {
+                    // Fallback: เปิด YouTube ใน tab ใหม่
+                    const videoId = song.video_id || song.id;
+                    window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+                }
+            };
+            songContainer.appendChild(songCard);
+        });
+
+        bubble.appendChild(songContainer);
+        messageArea.scrollTop = messageArea.scrollHeight;
+    }
+
+    // --- Print Functionality ---
+    function printMessage(content, imageUrl, imageGallery) {
+        const printWindow = window.open('', '_blank');
+
+        let imagesHtml = '';
+        if (imageUrl) {
+            imagesHtml += `<img src="${imageUrl}" class="main-image" alt="Main Image">`;
+        }
+        if (imageGallery && imageGallery.length > 0) {
+            imagesHtml += '<div class="gallery">';
+            imageGallery.forEach(img => {
+                imagesHtml += `<img src="${img.url || img}" alt="Gallery Image">`;
+            });
+            imagesHtml += '</div>';
+        }
+
+        const htmlContent = marked.parse(content);
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="th">
+            <head>
+                <meta charset="UTF-8">
+                <title>พิมพ์เอกสาร - AI Guide Nan</title>
+                <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+                <style>
+                    body {
+                        font-family: 'Sarabun', sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 210mm; /* A4 width */
+                        margin: 0 auto;
+                        padding: 20px;
+                        background: white;
+                    }
+                    @page {
+                        size: A4;
+                        margin: 20mm;
+                    }
+                    header {
+                        border-bottom: 2px solid #3b82f6;
+                        padding-bottom: 10px;
+                        margin-bottom: 20px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    .brand {
+                        font-size: 1.5rem;
+                        font-weight: bold;
+                        color: #1e40af;
+                    }
+                    .date {
+                        font-size: 0.9rem;
+                        color: #666;
+                    }
+                    .content {
+                        font-size: 14px;
+                    }
+                    h1, h2, h3 { color: #1e3a8a; margin-top: 15px; }
+                    ul { margin-left: 20px; }
+                    .main-image {
+                        width: auto;
+                        max-width: 100%;
+                        max-height: 200px; /* Reduced height for print */
+                        object-fit: cover;
+                        border-radius: 8px;
+                        margin: 10px auto;
+                        display: block;
+                    }
+                    .content img {
+                        max-width: 80%; /* Don't let inline images take full width */
+                        max-height: 200px; /* Limit height */
+                        width: auto;
+                        display: block;
+                        margin: 10px auto; /* Center */
+                        border-radius: 4px;
+                    }
+                    .gallery {
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        gap: 10px;
+                        margin-top: 15px;
+                    }
+                    .gallery img {
+                        width: 100%;
+                        height: 100px;
+                        object-fit: cover;
+                        border-radius: 4px;
+                    }
+                    .footer {
+                        margin-top: 30px;
+                        padding-top: 10px;
+                        border-top: 1px solid #ddd;
+                        text-align: center;
+                        font-size: 0.8rem;
+                        color: #888;
+                    }
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <header>
+                    <div class="brand"><i class="fa-solid fa-robot"></i> AI Guide Nan</div>
+                    <div class="date">พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')}</div>
+                </header>
+                
+                <div class="content">
+                    ${htmlContent}
+                    ${imagesHtml}
+                </div>
+
+                <div class="footer">
+                    เอกสารนี้สร้างโดยระบบ AI Robot Guide จังหวัดน่าน | ข้อมูลเพื่อการท่องเที่ยวเท่านั้น
+                </div>
+
+                <script>
+                    window.onload = () => { setTimeout(() => window.print(), 500); };
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
     }
 
     function sendSystemMessage(text) {
@@ -370,6 +696,222 @@ document.addEventListener('DOMContentLoaded', () => {
         ];
         displayMessage(faqText, 'system', null, [], 'normal', [], null, null, questions);
     });
+
+    // Handle Music button click - แสดงตัวเลือกแนวเพลง + ช่องกรอกชื่อเพลง
+    if (musicButton) {
+        musicButton.addEventListener('click', () => {
+            // สร้างข้อความพร้อมปุ่มเลือกและช่องกรอก
+            displayMusicPrompt();
+        });
+    }
+
+    // 🎵 Function แสดง Music Prompt พร้อมช่องกรอก
+    function displayMusicPrompt() {
+        const messageId = `msg-${Date.now()}`;
+        const msgElement = document.createElement('div');
+        msgElement.className = 'message system fade-in';
+        msgElement.id = messageId;
+
+        msgElement.innerHTML = `
+            <div class="bubble system-bubble">
+                <div class="prose" style="font-size: 0.95rem;">
+                    <h3 style="margin-top: 0;">🎵 ฟังเพลงกันเถอะ!</h3>
+                    <p>เลือกแนวเพลงที่ชอบ หรือพิมพ์ชื่อเพลง/ศิลปินได้เลยค่ะ:</p>
+                </div>
+                <div class="music-genres" style="display: flex; flex-wrap: wrap; gap: 8px; margin: 15px 0;">
+                    <button class="genre-btn" data-query="เปิดเพลงเศร้าให้หน่อย">😢 เพลงเศร้า</button>
+                    <button class="genre-btn" data-query="เปิดเพลงสนุกๆ ให้หน่อย">🎉 เพลงสนุก</button>
+                    <button class="genre-btn" data-query="เปิดเพลงรักหวานๆ">💕 เพลงรัก</button>
+                    <button class="genre-btn" data-query="เปิดเพลงลูกทุ่งให้ฟัง">🌾 ลูกทุ่ง</button>
+                    <button class="genre-btn" data-query="เปิดเพลงม่วนๆ ภาษาเหนือ">🏔️ เพลงเหนือ</button>
+                </div>
+                <div class="music-search-container" style="display: flex; gap: 8px; margin-top: 10px;">
+                    <input type="text" class="music-search-input" placeholder="หรือพิมพ์ชื่อเพลง/ศิลปิน..." style="
+                        flex: 1;
+                        padding: 10px 15px;
+                        border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 8px;
+                        background: rgba(0,0,0,0.3);
+                        color: white;
+                        font-size: 0.9rem;
+                    ">
+                    <button class="music-search-btn" style="
+                        padding: 10px 20px;
+                        background: linear-gradient(135deg, #10b981, #059669);
+                        border: none;
+                        border-radius: 8px;
+                        color: white;
+                        cursor: pointer;
+                        font-weight: bold;
+                    ">🔍 ค้นหา</button>
+                </div>
+            </div>
+        `;
+
+        // Add styles for genre buttons
+        const style = document.createElement('style');
+        style.textContent = `
+            .genre-btn {
+                padding: 8px 16px;
+                background: rgba(16, 185, 129, 0.2);
+                border: 1px solid rgba(16, 185, 129, 0.4);
+                border-radius: 20px;
+                color: #10b981;
+                cursor: pointer;
+                font-size: 0.85rem;
+                transition: all 0.2s;
+            }
+            .genre-btn:hover {
+                background: rgba(16, 185, 129, 0.4);
+                transform: scale(1.05);
+            }
+        `;
+        if (!document.querySelector('#music-prompt-styles')) {
+            style.id = 'music-prompt-styles';
+            document.head.appendChild(style);
+        }
+
+        messageArea.appendChild(msgElement);
+        messageArea.scrollTop = messageArea.scrollHeight;
+
+        // Add event listeners
+        msgElement.querySelectorAll('.genre-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const query = btn.dataset.query;
+                displayMessage(query, 'user');
+                websocket.send(JSON.stringify({ query: query }));
+            });
+        });
+
+        const searchInput = msgElement.querySelector('.music-search-input');
+        const searchBtn = msgElement.querySelector('.music-search-btn');
+
+        searchBtn.addEventListener('click', () => {
+            if (searchInput.value.trim()) {
+                const query = `เปิดเพลง ${searchInput.value.trim()}`;
+                displayMessage(query, 'user');
+                websocket.send(JSON.stringify({ query: query }));
+            }
+        });
+
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && searchInput.value.trim()) {
+                const query = `เปิดเพลง ${searchInput.value.trim()}`;
+                displayMessage(query, 'user');
+                websocket.send(JSON.stringify({ query: query }));
+            }
+        });
+
+        searchInput.focus();
+    }
+
+    // Handle FAQ button click (ถ้ามีปุ่มใน input bar)
+    const faqButtonBar = document.getElementById('faq-button-bar');
+    if (faqButtonBar) {
+        faqButtonBar.addEventListener('click', () => {
+            const faqText = "### ❓ คำถามที่พบบ่อย\n\nลองเลือกคำถามด้านล่างได้เลยนะคะ:";
+            const questions = [
+                "แนะนำที่เที่ยวน่านหน่อย?",
+                "วัดสำคัญในน่านมีที่ไหนบ้าง?",
+                "ประเพณีของคนน่านมีอะไรบ้าง?",
+                "ร้านอาหารพื้นเมืองที่ห้ามพลาด?",
+                "โรงแรมที่พักในเมืองน่าน?"
+            ];
+            displayMessage(faqText, 'system', null, [], 'normal', [], null, null, questions);
+        });
+    }
+
+    // Handle Calculator button click
+    const calcButton = document.getElementById('calc-button');
+    if (calcButton) {
+        calcButton.addEventListener('click', () => {
+            displayMessage("เปิดเครื่องคิดเลข", 'user');
+            websocket.send(JSON.stringify({ query: "เปิดเครื่องคิดเลข" }));
+        });
+    }
+
+    // Handle Navigation button click
+    const navButton = document.getElementById('nav-button');
+    if (navButton) {
+        navButton.addEventListener('click', () => {
+            displayNavigationPrompt();
+        });
+    }
+
+    // 🗺️ Function แสดง Navigation Prompt
+    function displayNavigationPrompt() {
+        const msgElement = document.createElement('div');
+        msgElement.className = 'message system fade-in';
+        msgElement.id = `msg-${Date.now()}`;
+
+        msgElement.innerHTML = `
+            <div class="bubble system-bubble">
+                <div class="prose" style="font-size: 0.95rem;">
+                    <h3 style="margin-top: 0;">🗺️ จะไปไหนดีคะ?</h3>
+                    <p>เลือกสถานที่ยอดนิยม หรือพิมพ์ชื่อสถานที่ที่ต้องการไป:</p>
+                </div>
+                <div class="nav-locations" style="display: flex; flex-wrap: wrap; gap: 8px; margin: 15px 0;">
+                    <button class="nav-loc-btn" data-query="พาไปวัดภูมินทร์" style="padding: 8px 16px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 20px; color: #3b82f6; cursor: pointer;">🛕 วัดภูมินทร์</button>
+                    <button class="nav-loc-btn" data-query="นำทางไปดอยเสมอดาว" style="padding: 8px 16px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 20px; color: #3b82f6; cursor: pointer;">⛰️ ดอยเสมอดาว</button>
+                    <button class="nav-loc-btn" data-query="พาไปวัดช้างค้ำ" style="padding: 8px 16px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 20px; color: #3b82f6; cursor: pointer;">🐘 วัดช้างค้ำ</button>
+                    <button class="nav-loc-btn" data-query="นำทางไปถนนคนเดิน" style="padding: 8px 16px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 20px; color: #3b82f6; cursor: pointer;">🚶 ถนนคนเดิน</button>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                    <input type="text" id="nav-search-input" placeholder="หรือพิมพ์ชื่อสถานที่..." style="
+                        flex: 1;
+                        padding: 10px 15px;
+                        border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 8px;
+                        background: rgba(0,0,0,0.3);
+                        color: white;
+                        font-size: 0.9rem;
+                    ">
+                    <button id="nav-search-btn" style="
+                        padding: 10px 20px;
+                        background: linear-gradient(135deg, #3b82f6, #2563eb);
+                        border: none;
+                        border-radius: 8px;
+                        color: white;
+                        cursor: pointer;
+                        font-weight: bold;
+                    ">🗺️ นำทาง</button>
+                </div>
+            </div>
+        `;
+
+        messageArea.appendChild(msgElement);
+        messageArea.scrollTop = messageArea.scrollHeight;
+
+        // Event listeners for location buttons
+        msgElement.querySelectorAll('.nav-loc-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const query = btn.dataset.query;
+                displayMessage(query, 'user');
+                websocket.send(JSON.stringify({ query: query }));
+            });
+        });
+
+        const navInput = msgElement.querySelector('#nav-search-input');
+        const navSearchBtn = msgElement.querySelector('#nav-search-btn');
+
+        navSearchBtn.addEventListener('click', () => {
+            if (navInput.value.trim()) {
+                const query = `นำทางไป ${navInput.value.trim()}`;
+                displayMessage(query, 'user');
+                websocket.send(JSON.stringify({ query: query }));
+            }
+        });
+
+        navInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && navInput.value.trim()) {
+                const query = `นำทางไป ${navInput.value.trim()}`;
+                displayMessage(query, 'user');
+                websocket.send(JSON.stringify({ query: query }));
+            }
+        });
+
+        navInput.focus();
+    }
 
     // --- Navigation Logic (Task 3 Fix) ---
     // Tab switching logic removed as Travel Mode is now a standalone page.

@@ -78,11 +78,18 @@
         </div>
 
         <!-- Charts Grid -->
-        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));">
+        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));">
             <div class="card">
-                <h3><i class="fa-solid fa-earth-asia"></i> นักท่องเที่ยวมาจากที่ไหนบ้าง?</h3>
+                <h3><i class="fa-solid fa-earth-asia"></i> นักท่องเที่ยวมาจากประเทศไหน?</h3>
                 <div class="chart-container">
                     <canvas id="originChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><i class="fa-solid fa-map-location-dot"></i> มาจากจังหวัดไหนบ้าง? (คนไทย)</h3>
+                <div class="chart-container">
+                    <canvas id="provinceChart"></canvas>
                 </div>
             </div>
 
@@ -93,6 +100,8 @@
                 </div>
             </div>
         </div>
+
+    </div>
     </div>
 
     <!-- Top Locations Modal -->

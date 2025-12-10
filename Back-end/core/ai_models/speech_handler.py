@@ -10,11 +10,28 @@ from core.config import settings
 from core.ai_models.key_manager import groq_key_manager
 
 def sanitize_text_for_speech(text: str) -> str:
+    # ลบ markdown headers (#)
     text = re.sub(r'^\s*#+\s*', '', text, flags=re.MULTILINE)
+    # ลบ bold (**text**)
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    # ลบ italic (*text*)
     text = re.sub(r'\*(.*?)\*', r'\1', text)
-    text = text.replace('💡', '')
+    # ลบ underline markdown (__text__)
+    text = re.sub(r'__(.*?)__', r'\1', text)
+    
+    # [FIX] แปลง _ และ - ให้เป็นช่องว่าง (ป้องกัน TTS ข้าม)
+    text = text.replace('_', ' ')
+    text = text.replace('-', ' ')
+    
+    # ลบ emoji ทั่วไปที่อาจทำให้ TTS พัง
+    text = re.sub(r'[💡🎵🗺️📸😊❓🔢🛕⛰️🐘🚶✨🎉💕😢]', '', text)
+    
+    # ลบ bullets และสัญลักษณ์พิเศษ
+    text = text.replace('▹', '')
+    text = text.replace('•', '')
     text = text.replace('...', '. ')
+    
+    # ลบ whitespace ซ้ำ
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 

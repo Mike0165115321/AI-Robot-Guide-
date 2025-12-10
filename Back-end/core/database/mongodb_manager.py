@@ -196,11 +196,11 @@ class MongoDBManager:
     def get_analytics_summary(self, days: int = 30) -> dict:
         """
         ดึงสรุปข้อมูล Analytics ย้อนหลังตามจำนวนวัน (default 30 วัน)
-        คืนค่าเป็น dict ที่มี key: origin_stats, interest_stats, total_conversations
+        คืนค่าเป็น dict ที่มี key: origin_stats, province_stats, interest_stats, total_conversations
         """
         collection = self.get_collection("analytics_logs")
         if collection is None:
-            return {"origin_stats": [], "interest_stats": [], "total_conversations": 0}
+            return {"origin_stats": [], "province_stats": [], "interest_stats": [], "total_conversations": 0}
 
         try:
             # ต้อง import datetime ที่นี่เพื่อให้มั่นใจว่าใช้งานได้
@@ -212,7 +212,7 @@ class MongoDBManager:
             # Filter พื้นฐาน: เอาเฉพาะข้อมูลที่ใหม่กว่า cutoff_date
             match_stage = {"$match": {"timestamp": {"$gte": cutoff_date}}}
 
-            # 2. Pipeline สำหรับหา User Origin (นักท่องเที่ยวมาจากไหน)
+            # 2. Pipeline สำหรับหา User Origin (นักท่องเที่ยวมาจากไหน - ประเทศ)
             origin_pipeline = [
                 match_stage,
                 {"$match": {"user_origin": {"$ne": None}}},  # ไม่เอาค่า Null
@@ -221,7 +221,16 @@ class MongoDBManager:
                 {"$limit": 10} # เอาแค่ Top 10 อันดับแรก
             ]
             
-            # 3. Pipeline สำหรับหา Interest Topic (เขาสนใจเรื่องอะไร)
+            # 3. Pipeline สำหรับหา User Province (มาจากจังหวัดไหน - สำหรับคนไทย)
+            province_pipeline = [
+                match_stage,
+                {"$match": {"user_province": {"$ne": None}}},  # ไม่เอาค่า Null
+                {"$group": {"_id": "$user_province", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}},
+                {"$limit": 15}  # Top 15 จังหวัด
+            ]
+            
+            # 4. Pipeline สำหรับหา Interest Topic (เขาสนใจเรื่องอะไร)
             interest_pipeline = [
                 match_stage,
                 {"$match": {"interest_topic": {"$ne": None}}}, # ไม่เอาค่า Null
@@ -230,19 +239,24 @@ class MongoDBManager:
                 {"$limit": 10}
             ]
 
-            # 4. นับจำนวนบทสนทนาทั้งหมดในช่วงเวลา
-            total_count = collection.count_documents({"timestamp": {"$gte": cutoff_date}})
+            # 5. นับจำนวนบทสนทนาทั้งหมดในช่วงเวลา (นับจาก chat_sessions ที่ active)
+            session_collection = self.get_collection("chat_sessions")
+            total_count = 0
+            if session_collection is not None:
+                total_count = session_collection.count_documents({"last_active": {"$gte": cutoff_date}})
 
             # Execute Pipelines (สั่งประมวลผล)
             origins = list(collection.aggregate(origin_pipeline))
+            provinces = list(collection.aggregate(province_pipeline))
             interests = list(collection.aggregate(interest_pipeline))
 
             return {
                 "origin_stats": origins,
+                "province_stats": provinces,  # 🆕 เพิ่มสถิติจังหวัด
                 "interest_stats": interests,
                 "total_conversations": total_count
             }
 
         except Exception as e:
             print(f"❌ Error aggregating analytics: {e}")
-            return {"origin_stats": [], "interest_stats": [], "total_conversations": 0}
+            return {"origin_stats": [], "province_stats": [], "interest_stats": [], "total_conversations": 0}

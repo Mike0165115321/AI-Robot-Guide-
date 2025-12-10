@@ -10,15 +10,15 @@ class VoiceHandler {
         if (!audioContext) {
             throw new Error("VoiceHandler requires a valid AudioContext to be provided.");
         }
-        
-        this.callbacks = { onStatusUpdate: () => {}, onSpeechEnd: () => {}, ...callbacks };
+
+        this.callbacks = { onStatusUpdate: () => { }, onSpeechEnd: () => { }, ...callbacks };
 
         const defaults = {
             NOISE_FLOOR: 0.02,
             SPEECH_THRESHOLD: 0.05,
             AMPLIFICATION: 50,
-            SILENCE_DELAY_MS: 800,
-            SPEECH_CONFIRMATION_FRAMES: 4,
+            SILENCE_DELAY_MS: 1000,          // [FIX] เพิ่มจาก 800 เป็น 1000 - รอให้ user พูดจบแน่ๆ
+            SPEECH_CONFIRMATION_FRAMES: 6,    // [FIX] เพิ่มจาก 4 เป็น 6 - ลดความไวในการเริ่มรับเสียง
             MIN_BLOB_SIZE_BYTES: 8000,
             smoothingFactor: 0.4,
             MAX_RECORDING_MS: 10000 // 10 วินาที (ตามที่เราตั้งไว้)
@@ -51,7 +51,7 @@ class VoiceHandler {
         if (this.isListening) return;
 
         // 👈 [แก้ไข] ใช้ this.audioContext โดยตรง
-        const audioContext = this.audioContext; 
+        const audioContext = this.audioContext;
         if (audioContext.state === 'suspended') {
             await audioContext.resume();
         }
@@ -80,7 +80,7 @@ class VoiceHandler {
             if (!supportedMimeType) {
                 console.error("VAD: ไม่มี MimeType ที่รองรับ (webm/ogg) สำหรับการอัดเสียง");
                 this.callbacks.onStatusUpdate("เบราว์เซอร์ไม่รองรับการอัดเสียง");
-                return; 
+                return;
             }
 
             console.log("VAD: Using supported mimeType:", supportedMimeType);
@@ -118,9 +118,9 @@ class VoiceHandler {
             // [เพิ่ม] เริ่มจับเวลาอัดสูงสุด
             this.recordingTimeout = setTimeout(() => {
                 console.warn(`VAD: Max recording time reached (${this.MAX_RECORDING_MS / 1000}s). Forcing stop.`);
-                this.stop(false); 
-            }, this.MAX_RECORDING_MS); 
-            
+                this.stop(false);
+            }, this.MAX_RECORDING_MS);
+
         } catch (err) {
             console.error("VAD: Microphone access error:", err);
             this.callbacks.onStatusUpdate("ไม่สามารถเข้าถึงไมโครโฟน");
@@ -132,7 +132,7 @@ class VoiceHandler {
 
         this.wasInterrupted = interrupted;
         this.isListening = false;
-        
+
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
             this.mediaRecorder.stop();
         }
@@ -161,10 +161,10 @@ class VoiceHandler {
         let rawVolume = Math.sqrt(sumSquares / this.dataArray.length);
 
         if (rawVolume < this.NOISE_FLOOR) rawVolume = 0;
-        
+
         const amplifiedVolume = rawVolume * this.AMPLIFICATION;
         this.smoothedVolume = this.smoothedVolume * this.smoothingFactor + amplifiedVolume * (1 - this.smoothingFactor);
-        
+
         if (this.smoothedVolume > this.SPEECH_THRESHOLD) {
             this.speechFrameCount++;
             if (this.speechFrameCount >= this.SPEECH_CONFIRMATION_FRAMES) {

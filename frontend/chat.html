@@ -6,14 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Guide - Nan Province</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&family=Sarabun:wght@300;400;600&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <link rel="stylesheet" href="assets/styles/main.css">
     <link rel="stylesheet" href="assets/styles/chat.css">
-    <link rel="stylesheet" href="assets/styles/travel_mode.css">
+
 
     <style>
         /* Specific overrides for chat layout if needed */
@@ -49,7 +51,6 @@
                 <button id="btn-tab-chat" class="menu-item active" onclick="switchInternalTab('chat', this)">
                     <i class="fa-solid fa-message"></i> แชทแนะนำเที่ยว
                 </button>
-                <!-- Travel Mode Link Removed -->
 
                 <hr style="border-color: rgba(255,255,255,0.1); margin: 10px 0;">
 
@@ -78,6 +79,32 @@
             <section id="view-chat" class="view-section active">
                 <header class="mobile-header"><span>AI Guide น่าน</span></header>
                 <div id="message-area" class="messages-container"></div>
+
+                <!-- Floating Action Panel (Collapsible) -->
+                <div class="fab-panel" id="fab-panel">
+                    <button class="fab-toggle" id="fab-toggle" title="เครื่องมือ">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <div class="fab-actions" id="fab-actions">
+                        <button id="music-button" class="fab-btn" title="🎵 เปิดเพลง">
+                            <i class="fa-solid fa-music"></i>
+                            <span>เพลง</span>
+                        </button>
+                        <button id="faq-button-bar" class="fab-btn" title="❓ คำถามที่พบบ่อย">
+                            <i class="fa-solid fa-circle-question"></i>
+                            <span>FAQ</span>
+                        </button>
+                        <button id="calc-button" class="fab-btn" title="🔢 เครื่องคิดเลข">
+                            <i class="fa-solid fa-calculator"></i>
+                            <span>คำนวณ</span>
+                        </button>
+                        <button id="nav-button" class="fab-btn" title="🗺️ นำทาง">
+                            <i class="fa-solid fa-route"></i>
+                            <span>นำทาง</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="input-area-wrapper">
                     <div class="input-container">
                         <button id="mic-button" class="btn-icon"><i class="fa-solid fa-microphone"></i></button>
@@ -93,8 +120,7 @@
     </div>
 
     <script src="assets/scripts/config.js"></script>
-    <script src="assets/scripts/voice-handler.js"></script>
-    <script src="assets/scripts/chat.js"></script>
+    <script src="assets/scripts/music_player.js"></script>
     <script src="assets/scripts/chat.js"></script>
 
     <script>

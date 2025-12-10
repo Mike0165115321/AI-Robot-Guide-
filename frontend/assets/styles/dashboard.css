@@ -73,7 +73,7 @@ header {
     font-size: 2rem;
     font-weight: 800;
     background: var(--accent-gradient);
-    -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     letter-spacing: -0.02em;
     text-transform: uppercase;
@@ -431,4 +431,57 @@ h3 i {
     .stat-number {
         font-size: 2.5rem;
     }
+}
+
+/* Table Styles */
+.table-container {
+    overflow-x: auto;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--card-border);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+.data-table th,
+.data-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.data-table th {
+    background: rgba(130, 170, 255, 0.1);
+    color: var(--accent-cyan);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+}
+
+.data-table tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.data-table tr:last-child td {
+    border-bottom: none;
+}
+
+.data-table td {
+    color: var(--text-main);
+    vertical-align: top;
+}
+
+.tag-topic {
+    display: inline-block;
+    padding: 4px 10px;
+    background: rgba(199, 146, 234, 0.15);
+    color: var(--accent-magenta);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
 }

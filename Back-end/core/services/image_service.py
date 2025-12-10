@@ -61,6 +61,28 @@ class ImageService:
         except Exception:
             return []
 
+    def get_location_images(self, doc: Dict[str, any]) -> List[str]:
+        """
+        Determines the best image URLs for a location document.
+        Mirrors logic in frontend utils.js (Prefix -> Slug)
+        """
+        # 1. Try Image Prefix
+        prefix = doc.get("metadata", {}).get("image_prefix")
+        imgs = self.find_all_images_by_prefix(prefix)
+        if imgs:
+            return imgs
+            
+        # 2. Fallback: Try using slug as prefix
+        # Convention: slug + "-" (e.g. "my-slug-")
+        slug = doc.get("slug")
+        if slug:
+            slug_prefix = slug + "-"
+            imgs = self.find_all_images_by_prefix(slug_prefix)
+            if imgs:
+                return imgs
+                
+        return []
+
     def find_random_image(self) -> str | None:
         if not self.all_image_files: return None
         return random.choice(self.all_image_files)

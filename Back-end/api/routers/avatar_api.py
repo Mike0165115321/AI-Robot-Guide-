@@ -1,7 +1,7 @@
 # /api/routers/avatar_api.py (FINAL FIX - Corrected Payload Keys)
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from starlette.websockets import WebSocketState
+from starlette.websockets import WebSocketState, WebSocketDisconnect as StarletteWebSocketDisconnect
 import json
 import random
 import logging
@@ -113,10 +113,16 @@ async def _handle_audio_input(websocket: WebSocket, audio_bytes: bytes, orchestr
             response_audio_bytes = await audio_task
             if is_websocket_active(websocket):
                 await websocket.send_bytes(response_audio_bytes)
+    except (WebSocketDisconnect, StarletteWebSocketDisconnect):
+        # Client disconnected during response - this is normal, don't log as error
+        logging.info("📴 [WebSocket] Client disconnected during audio response (normal behavior)")
     except Exception as e:
         logging.error(f"❌ [WebSocket] Error in audio handling: {e}", exc_info=True)
         if is_websocket_active(websocket):
-            await websocket.send_text(json.dumps({"emotion": "confused", "answer": "ขออภัยค่ะ มีข้อผิดพลาดภายใน โปรดลองอีกครั้ง"}))
+            try:
+                await websocket.send_text(json.dumps({"emotion": "confused", "answer": "ขออภัยค่ะ มีข้อผิดพลาดภายใน โปรดลองอีกครั้ง"}))
+            except:
+                pass  # Client already disconnected
 
 async def _handle_text_input(websocket: WebSocket, query_text: str, orchestrator: RAGOrchestrator):
     if not is_websocket_active(websocket): return
@@ -135,10 +141,16 @@ async def _handle_text_input(websocket: WebSocket, query_text: str, orchestrator
             response_audio_bytes = await audio_task
             if is_websocket_active(websocket):
                 await websocket.send_bytes(response_audio_bytes)
+    except (WebSocketDisconnect, StarletteWebSocketDisconnect):
+        # Client disconnected during response - this is normal, don't log as error
+        logging.info("📴 [WebSocket] Client disconnected during text response (normal behavior)")
     except Exception as e:
         logging.error(f"❌ [WebSocket] Error in text handling: {e}", exc_info=True)
         if is_websocket_active(websocket):
-            await websocket.send_text(json.dumps({"emotion": "confused", "answer": "ขออภัยค่ะ มีข้อผิดพลาดภายใน โปรดลองอีกครั้ง"}))
+            try:
+                await websocket.send_text(json.dumps({"emotion": "confused", "answer": "ขออภัยค่ะ มีข้อผิดพลาดภายใน โปรดลองอีกครั้ง"}))
+            except:
+                pass  # Client already disconnected
 
 @router.websocket("/ws")
 async def handle_avatar_chat(websocket: WebSocket):

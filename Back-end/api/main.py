@@ -39,6 +39,9 @@ async def lifespan(app: FastAPI):
         query_interpreter=app.state.query_interpreter
     )
     
+    from core.services.analytics_service import AnalyticsService
+    app.state.analytics_service = AnalyticsService(app.state.mongo_manager)
+    
     try:
         await app.state.qdrant_manager.initialize()
     except Exception as e:
@@ -76,7 +79,14 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 logging.info(f"✅ Serving static files from directory: {STATIC_DIR}")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-origins = ["*"] 
+# CORS Configuration - กำหนด origins ที่อนุญาตอย่างชัดเจนเพื่อความปลอดภัย
+origins = [
+    "http://localhost:9090",
+    "http://127.0.0.1:9090",
+    f"http://{settings.API_HOST}:{settings.API_PORT}",
+    # เพิ่ม production domain ที่นี่ เช่น:
+    # "https://your-production-domain.com",
+] 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -90,6 +100,40 @@ app.include_router(chat_api.router, prefix="/api/chat")
 app.include_router(avatar_api.router, prefix="/api/avatar")
 
 
+@app.get("/health", tags=["Health"])
+async def health_check(request: Request):
+    """Health check endpoint สำหรับ monitoring และ deployment"""
+    mongo_status = "unknown"
+    qdrant_status = "unknown"
+    
+    try:
+        # Check MongoDB connection
+        if hasattr(request.app.state, 'mongo_manager') and request.app.state.mongo_manager:
+            request.app.state.mongo_manager.client.admin.command('ping')
+            mongo_status = "healthy"
+    except Exception:
+        mongo_status = "unhealthy"
+    
+    try:
+        # Check Qdrant connection
+        if hasattr(request.app.state, 'qdrant_manager') and request.app.state.qdrant_manager:
+            await request.app.state.qdrant_manager.client.get_collections()
+            qdrant_status = "healthy"
+    except Exception:
+        qdrant_status = "unhealthy"
+    
+    overall_status = "healthy" if mongo_status == "healthy" and qdrant_status == "healthy" else "degraded"
+    
+    return {
+        "status": overall_status,
+        "version": "1.0.0",
+        "services": {
+            "mongodb": mongo_status,
+            "qdrant": qdrant_status
+        }
+    }
+
+
 @app.get("/api/navigation_list", tags=["V-Maps"])
 async def get_navigation_list(
     lat: Optional[float] = None, 
@@ -98,7 +142,8 @@ async def get_navigation_list(
 ):
     try:
         location_list = await orchestrator.get_navigation_list(user_lat=lat, user_lon=lon)
-        return location_list
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content=location_list, media_type="application/json; charset=utf-8")
     except Exception as e:
         logging.error(f"❌ [API-NavList] Error getting navigation list: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Could not retrieve navigation list.")
@@ -116,11 +161,18 @@ async def get_stream_url(video_url: str):
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
-        logging.error(f"❌ [API-Stream] An unexpected error occurred: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์ขณะประมวลผลสตรีมเสียง")
+        print(f"Error checking status: {e}")
+        return {"status": "error", "message": str(e)}
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-FRONTEND_DIR = PROJECT_ROOT / "frontend"
+
+
+
+
+
+
+
+
+FRONTEND_DIR = settings.FRONTEND_DIR
 
 logging.info(f"✅ Serving frontend from directory: {FRONTEND_DIR}")
 if not FRONTEND_DIR.is_dir():
@@ -128,6 +180,8 @@ if not FRONTEND_DIR.is_dir():
 
 app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="assets")
 templates = Jinja2Templates(directory=str(FRONTEND_DIR))
+
+
 
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_frontend(request: Request, full_path: str):
@@ -154,3 +208,5 @@ if __name__ == "__main__":
         port=settings.API_PORT, 
         reload=True
     )
+
+# Trigger reload (Fix applied)
