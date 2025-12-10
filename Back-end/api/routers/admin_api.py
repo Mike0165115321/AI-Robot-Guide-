@@ -92,6 +92,84 @@ async def get_analytics_dashboard(
         logging.error(f"❌ Error fetching analytics dashboard: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch analytics data.")
 
+
+@router.get("/schema/fields", tags=["Admin :: Schema"])
+async def get_available_fields(
+    db: MongoDBManager = Depends(get_mongo_manager),
+    sample_size: int = Query(50, description="Number of documents to sample for field detection")
+):
+    """
+    ดึงรายชื่อ fields ทั้งหมดที่มีในฐานข้อมูล - ใช้สำหรับ Field Visibility Settings
+    
+    Returns:
+        List of field names with metadata (type hints, sample values)
+    """
+    def get_fields_sync() -> Dict[str, Any]:
+        try:
+            collection = db.get_collection("nan_locations")
+            if collection is None:
+                return {"fields": [], "error": "Collection not found"}
+            
+            # Sample documents to detect all unique field names
+            all_fields = set()
+            field_samples = {}
+            
+            docs = list(collection.find({}).limit(sample_size))
+            
+            def extract_fields(obj, prefix=""):
+                """Recursively extract field names from nested objects"""
+                if isinstance(obj, dict):
+                    for key, value in obj.items():
+                        full_key = f"{prefix}.{key}" if prefix else key
+                        # Skip internal MongoDB fields
+                        if key.startswith("_") and key != "_id":
+                            continue
+                        all_fields.add(full_key)
+                        # Store sample value for type hint
+                        if full_key not in field_samples and value is not None:
+                            if isinstance(value, (str, int, float, bool)):
+                                field_samples[full_key] = str(value)[:50]
+                            elif isinstance(value, list):
+                                field_samples[full_key] = f"[Array: {len(value)} items]"
+                            elif isinstance(value, dict):
+                                field_samples[full_key] = "{Object}"
+                                extract_fields(value, full_key)
+            
+            for doc in docs:
+                extract_fields(doc)
+            
+            # Build field info with metadata
+            field_info = []
+            for field in sorted(all_fields):
+                # Determine field type hint
+                sample = field_samples.get(field, "")
+                is_required = field in ["_id", "slug", "title"]
+                is_recommended = field in ["category", "topic", "summary", "keywords"]
+                
+                field_info.append({
+                    "name": field,
+                    "sample": sample,
+                    "required": is_required,
+                    "recommended": is_recommended,
+                    "nested": "." in field
+                })
+            
+            return {
+                "fields": field_info,
+                "total_documents": collection.count_documents({}),
+                "sampled_documents": len(docs)
+            }
+        except Exception as e:
+            logging.error(f"❌ Error getting schema fields: {e}", exc_info=True)
+            return {"fields": [], "error": str(e)}
+    
+    try:
+        result = await asyncio.to_thread(get_fields_sync)
+        return result
+    except Exception as e:
+        logging.error(f"❌ Error in get_available_fields: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch schema fields.")
+
 @router.post(
     "/locations/",
     response_model=LocationInDB,

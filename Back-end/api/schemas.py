@@ -7,7 +7,11 @@ PyObjectId = Annotated[str, BeforeValidator(str)]
 class Detail(BaseModel): heading: str; content: str
 class RelatedInfoItem(BaseModel): name: str; value: str
 class SourceItem(BaseModel): type: str; reference: str
-class AdminLocationMetadata(BaseModel): image_prefix: Optional[str] = None
+class AdminLocationMetadata(BaseModel): 
+    image_prefix: Optional[str] = None
+    synced_from: Optional[str] = None  # 'google_sheets' or None
+    sheet_id: Optional[str] = None
+    sync_time: Optional[str] = None
 
 class LocationBase(BaseModel):
     slug: str = Field(..., min_length=1, description="Human-readable key")  # Removed strict pattern to allow Thai chars
