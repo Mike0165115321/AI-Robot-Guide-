@@ -18,6 +18,10 @@
                 <p style="color: var(--text-muted);">จัดการข้อมูลสถานที่และคลังความรู้ AI</p>
             </div>
             <div style="display: flex; gap: 10px;">
+                <a href="import.html" class="btn btn-submit"
+                    style="text-decoration: none; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; display: flex; align-items: center; gap: 5px;">
+                    📥 Bulk Import
+                </a>
                 <a href="dashboard.html" class="btn btn-submit"
                     style="text-decoration: none; background-color: #667eea; border: none; display: flex; align-items: center; gap: 5px;">
                     📊 สถิติ (Dashboard)
@@ -31,63 +35,135 @@
         </header>
 
         <div class="form-container">
-            <h2><i class="fa-solid fa-robot"></i> นำเข้าข้อมูลอัจฉริยะ (AI Ingestion)</h2>
-            <p>
-                อัปโหลดไฟล์ PDF หรือ .txt แล้ว AI จะวิเคราะห์และ
-                <strong>"กรอกฟอร์มด้านล่าง" (เพิ่มข้อมูลใหม่)</strong> ให้โดยอัตโนมัติ
+            <h2><i class="fa-solid fa-database"></i> นำเข้าข้อมูล</h2>
+            <p style="margin-bottom: 1.5rem;">
+                นำเข้าข้อมูลจาก Excel/CSV หรือกรอกข้อมูลทีละรายการ
             </p>
 
-            <div class="form-group">
-                <label for="file-input">เลือกไฟล์เอกสาร (PDF, TXT):</label>
-                <input type="file" id="file-input" name="file" accept=".pdf,.txt">
-            </div>
-
-            <button type="button" id="analyze-btn" class="btn btn-cta">
-                🚀 วิเคราะห์เอกสาร
-            </button>
-
-            <span id="loading-spinner" style="display: none;">
-                <div class="spinner"></div>
-                <span class="spinner-text">กำลังประมวลผล...</span>
-            </span>
+            <a href="import.html" class="btn btn-cta"
+                style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 1rem 2rem; font-size: 1.1rem;">
+                📥 เพิ่มข้อมูลใหม่
+            </a>
         </div>
 
-        <hr style="border: none; border-top: 2px solid #e5e7eb; margin: 30px 0;">
+        <!-- Google Sheets Sync Section -->
+        <div class="form-container"
+            style="margin-top: 2rem; background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(16,185,129,0.05)); border: 1px solid rgba(34,197,94,0.3);">
+            <h2 style="color: #22c55e;"><i class="fa-solid fa-table"></i> 🔗 Google Sheets Sync</h2>
+            <p style="margin-bottom: 1rem; color: var(--text-light);">
+                Sync ข้อมูลจาก Google Sheets เข้าสู่ฐานข้อมูลน้องน่านอัตโนมัติ
+            </p>
 
-        <h3>เพิ่มข้อมูลใหม่ (Manual Entry)</h3>
-        <form id="add-location-form">
-            Slug (Key): <br>
-            <input type="text" id="form-slug" name="slug" required pattern="^[a-z0-9_-]{3,}$"
-                title="Slug (3+ chars, a-z, 0-9, _, -)"><br>
+            <!-- Connection Status -->
+            <div id="sheets-status"
+                style="padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 1rem;">
+                <div id="sheets-connection-status"
+                    style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem;">
+                    <span id="sheets-status-dot"
+                        style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444;"></span>
+                    <span id="sheets-status-text">ยังไม่ได้เชื่อมต่อ</span>
+                </div>
+                <div id="sheets-info" style="font-size: 0.85rem; color: #888; display: none;">
+                    <div>📊 Sheet: <span id="sheets-title">-</span></div>
+                    <div>🕐 Sync ล่าสุด: <span id="sheets-last-sync">-</span></div>
+                    <div>⚙️ โหมด: <span id="sheets-mode">-</span></div>
+                </div>
+            </div>
 
-            Title: <br>
-            <input type="text" id="form-title" name="title" required><br>
-            Summary: <br>
-            <textarea id="form-summary" name="summary" rows="5"></textarea><br>
-            Category: <br>
-            <input type="text" id="form-category" name="category" required><br>
-            Topic: <br>
-            <input type="text" id="form-topic" name="topic" required><br>
+            <!-- Connect Section -->
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <input type="text" id="sheets-url-input" placeholder="วาง Google Sheets URL ที่นี่..."
+                    style="flex: 1; min-width: 300px; padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: white;">
+                <button id="sheets-connect-btn" class="btn btn-cta" onclick="connectGoogleSheet()"
+                    style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #22c55e, #16a34a);">
+                    🔌 เชื่อมต่อ
+                </button>
+            </div>
 
-            Keywords (คั่นด้วย comma ,): <br>
-            <input type="text" id="form-keywords" name="keywords" placeholder="e.g., วัด,กระซิบรัก,ตำนาน"><br>
+            <!-- Sync Mode Selection -->
+            <div id="sheets-mode-selection" style="margin-top: 1.5rem; display: none;">
+                <h3 style="color: var(--text-light); margin-bottom: 1rem;">⚙️ เลือกโหมด Sync</h3>
 
-            Details (JSON Array): <br>
-            <textarea id="form-details" name="details" rows="8"
-                placeholder='[{"heading": "ภาพรวม", "content": "..."}]'></textarea><br>
-            <hr style="margin: 20px 0;">
-            <h4>Image Management (Add)</h4>
-            Image Prefix (ต้องตรงกับ Slug): <br>
-            <input type="text" id="form-image-prefix" name="image_prefix" placeholder="e.g., wat_phumin_"><br>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    <!-- Polling Mode Card -->
+                    <div id="mode-polling-card" onclick="selectSyncMode('polling')"
+                        style="padding: 1.25rem; background: rgba(102,126,234,0.1); border: 2px solid rgba(102,126,234,0.3); border-radius: 12px; cursor: pointer; transition: all 0.3s;">
+                        <div
+                            style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                            <span style="font-size: 1.5rem;">🔄</span>
+                            <strong style="color: #667eea;">Auto Polling</strong>
+                            <span
+                                style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem;">แนะนำ</span>
+                            <span
+                                style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem;">ทำง่าย</span>
+                        </div>
+                        <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 0.75rem;">
+                            ระบบจะตรวจสอบ Google Sheet <strong>ทุก 5 นาที</strong> และ sync อัตโนมัติ
+                        </p>
+                        <div style="font-size: 0.8rem; color: #888;">
+                            ✅ ง่าย ไม่ต้อง setup เพิ่ม<br>
+                            ✅ ทำงานได้แม้เป็น localhost<br>
+                            ⏱️ อาจมี delay สูงสุด 5 นาที
+                        </div>
+                    </div>
 
-            Upload Image File: <br>
-            <input type="file" id="form-image-file" name="image_file" accept="image/*"><br><br>
+                    <!-- Webhook Mode Card -->
+                    <div id="mode-webhook-card" onclick="selectSyncMode('webhook')"
+                        style="padding: 1.25rem; background: rgba(251,191,36,0.1); border: 2px solid rgba(251,191,36,0.3); border-radius: 12px; cursor: pointer; transition: all 0.3s;">
+                        <div
+                            style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                            <span style="font-size: 1.5rem;">⚡</span>
+                            <strong style="color: #fbbf24;">Webhook (Real-time)</strong>
+                            <span
+                                style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem;">ซับซ้อน
+                                ไม่เหมาะกับผู้ใช้ทั่วไป</span>
+                        </div>
+                        <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 0.75rem;">
+                            แก้ไขใน Google Sheet → อัพเดทใน DB <strong>ทันที</strong>
+                        </p>
+                        <div style="font-size: 0.8rem; color: #888;">
+                            ⚡ Real-time ไม่มี delay<br>
+                            ⚠️ ต้อง deploy หรือใช้ ngrok<br>
+                            ⚠️ ต้อง setup Google Apps Script
+                        </div>
+                    </div>
+                </div>
 
-            <button type="submit" class="btn btn-submit"
-                style="background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Add
-                Location</button>
-        </form>
-        <hr>
+                <!-- Mode Instructions -->
+                <div id="mode-instructions"
+                    style="display: none; margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="margin-top: 1rem; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button id="sheets-sync-btn" class="btn" onclick="syncGoogleSheet()" disabled
+                    style="padding: 0.75rem 1.5rem; background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5);">
+                    🔄 Sync ตอนนี้
+                </button>
+                <button id="sheets-start-polling-btn" class="btn" onclick="startAutoPolling()" disabled style="display: none;
+                    padding: 0.75rem 1.5rem; background: rgba(34,197,94,0.3); border: 1px solid rgba(34,197,94,0.5);">
+                    ▶️ เริ่ม Auto Sync
+                </button>
+                <button id="sheets-stop-polling-btn" class="btn" onclick="stopAutoPolling()" disabled
+                    style="display: none;
+                    padding: 0.75rem 1.5rem; background: rgba(251,191,36,0.3); border: 1px solid rgba(251,191,36,0.5);">
+                    ⏹️ หยุด Auto Sync
+                </button>
+                <button id="sheets-disconnect-btn" class="btn" onclick="disconnectGoogleSheet()" disabled
+                    style="padding: 0.75rem 1.5rem; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); color: #ef4444;">
+                    ❌ ยกเลิกเชื่อมต่อ
+                </button>
+            </div>
+
+            <!-- Sync Result -->
+            <div id="sheets-sync-result"
+                style="margin-top: 1rem; display: none; padding: 1rem; background: rgba(34,197,94,0.1); border-radius: 8px; border: 1px solid rgba(34,197,94,0.3);">
+            </div>
+        </div>
+
+        <hr style="border: none; border-top: 2px solid rgba(255,255,255,0.1); margin: 30px 0;">
+
 
         <div id="edit-modal" class="modal" style="display: none;">
             <div class="modal-content">
@@ -141,21 +217,20 @@
             </div>
         </div>
 
-        <h2>รายการข้อมูลทั้งหมด</h2>
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 1rem;">
+            <h2 style="margin: 0;">รายการข้อมูลทั้งหมด</h2>
+            <button onclick="openFieldSettings()" title="ตั้งค่าการแสดง Fields"
+                style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); border-radius: 8px; padding: 8px 12px; cursor: pointer; color: white; display: flex; align-items: center; gap: 5px;">
+                ⚙️ ตั้งค่า Fields
+            </button>
+        </div>
+
         <div class="table-container">
             <table id="locations-table">
-                <thead>
-                    <tr>
-                        <th>Preview</th>
-                        <th>Slug</th>
-                        <th>Title</th>
-                        <th>Category</th>
-                        <th>Topic</th>
-                        <th>Image?</th>
-                        <th>Actions</th>
-                    </tr>
+                <thead id="locations-table-head">
+                    <!-- Dynamic headers will be rendered by JS -->
                 </thead>
-                <tbody>
+                <tbody id="locations-table-body">
                     <!-- Data will be populated here -->
                 </tbody>
             </table>
@@ -166,9 +241,37 @@
             <!-- Buttons will be rendered here by JS -->
         </div>
 
-        <script src="assets/scripts/config.js"></script>
-        <script src="assets/scripts/utils.js"></script>
-        <script src="assets/scripts/admin.js"></script>
+        <!-- Field Settings Modal -->
+        <div id="field-settings-modal" class="modal" style="display: none;">
+            <div class="modal-content" style="max-width: 600px;">
+                <span class="close-button" onclick="closeFieldSettings()">&times;</span>
+                <h2>⚙️ ตั้งค่าการแสดง Fields</h2>
+                <p style="color: var(--text-muted); margin-bottom: 1rem;">
+                    เลือก fields ที่ต้องการแสดงในตาราง (ติ๊กเพื่อแสดง)
+                </p>
+
+                <div id="field-checkboxes"
+                    style="max-height: 400px; overflow-y: auto; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                    <!-- Checkboxes will be rendered by JS -->
+                    <p style="color: #888;">กำลังโหลด fields...</p>
+                </div>
+
+                <div style="margin-top: 1.5rem; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="resetFieldSettings()" class="btn"
+                        style="background: rgba(251,191,36,0.3); border: 1px solid rgba(251,191,36,0.5);">
+                        🔄 Reset เป็นค่าเริ่มต้น
+                    </button>
+                    <button onclick="applyFieldSettings()" class="btn btn-cta">
+                        ✅ บันทึก
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/utils.js"></script>
+    <script src="assets/scripts/admin.js"></script>
 </body>
 
 </html>

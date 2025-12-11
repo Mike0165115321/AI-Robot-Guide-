@@ -147,6 +147,115 @@ img.preview-thumb {
     border-radius: 4px;
 }
 
+/* --- Custom Tooltip for Summary --- */
+.summary-cell {
+    position: relative;
+    cursor: help;
+    max-width: 180px;
+}
+
+.summary-cell:hover .summary-tooltip {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.summary-tooltip {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    width: 280px;
+    padding: 12px;
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98));
+    border: 1px solid rgba(45, 212, 191, 0.3);
+    border-radius: 10px;
+    color: var(--text-main);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    z-index: 50;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(45, 212, 191, 0.1);
+    transform: translateY(10px);
+    transition: all 0.2s ease;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.summary-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 20px;
+    border: 8px solid transparent;
+    border-top-color: rgba(30, 41, 59, 0.98);
+}
+
+/* --- Keyword Tags --- */
+.keyword-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-width: 180px;
+}
+
+.keyword-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.keyword-tag:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Keyword tag colors */
+.keyword-tag.color-1 {
+    background: rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.5);
+}
+
+.keyword-tag.color-2 {
+    background: rgba(34, 197, 94, 0.3);
+    color: #86efac;
+    border: 1px solid rgba(34, 197, 94, 0.5);
+}
+
+.keyword-tag.color-3 {
+    background: rgba(251, 191, 36, 0.3);
+    color: #fde047;
+    border: 1px solid rgba(251, 191, 36, 0.5);
+}
+
+.keyword-tag.color-4 {
+    background: rgba(236, 72, 153, 0.3);
+    color: #f9a8d4;
+    border: 1px solid rgba(236, 72, 153, 0.5);
+}
+
+.keyword-tag.color-5 {
+    background: rgba(14, 165, 233, 0.3);
+    color: #7dd3fc;
+    border: 1px solid rgba(14, 165, 233, 0.5);
+}
+
+.keyword-tag.color-6 {
+    background: rgba(168, 85, 247, 0.3);
+    color: #d8b4fe;
+    border: 1px solid rgba(168, 85, 247, 0.5);
+}
+
+.keyword-more {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    cursor: help;
+}
+
 /* --- Modal --- */
 .modal {
     display: none;
