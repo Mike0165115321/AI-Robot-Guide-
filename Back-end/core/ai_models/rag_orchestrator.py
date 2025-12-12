@@ -127,6 +127,7 @@ class RAGOrchestrator:
             "FAQ": "INFORMATIONAL",
             "GENERAL": "INFORMATIONAL",
             "WELCOME": "WELCOME_FLOW",
+            "CALCULATOR": "SYSTEM_COMMAND",
         }
         return intent_map.get(frontend_intent.upper(), "INFORMATIONAL")
 
@@ -278,10 +279,19 @@ class RAGOrchestrator:
             )
         else:
             # Use Groq/Llama for fast responses
-            raw_answer = await get_groq_response(
-                messages=messages,
-                model_name=settings.GROQ_LLAMA_MODEL
-            )
+            try:
+                raw_answer = await get_groq_response(
+                    messages=messages,
+                    model_name=settings.GROQ_LLAMA_MODEL
+                )
+            except Exception as e:
+                logging.error(f"⚠️ [Groq] Text Gen failed: {e}. Falling back to Gemini...")
+                # Automatic Fallback to Gemini
+                raw_answer = await get_gemini_response(
+                    user_query=prompt_dict["user"],
+                    system_prompt=prompt_dict["system"],
+                    max_tokens=8192
+                )
         
         final_answer_with_images = await self.image_service.inject_images_into_text(raw_answer)
         
@@ -334,7 +344,7 @@ class RAGOrchestrator:
     async def handle_get_directions(self, entity_slug: str, user_lat: float = None, user_lon: float = None) -> dict:
         return await self.nav_service.handle_get_directions(entity_slug, user_lat, user_lon)
     
-    async def answer_query(self, query: str, mode: str = "text", session_id: Optional[str] = None, ai_mode: str = "fast", frontend_intent: str = None, **kwargs) -> dict:
+    async def answer_query(self, query: str, mode: str = "text", session_id: Optional[str] = None, ai_mode: str = "fast", frontend_intent: str = None, slug: Optional[str] = None, entity_query: Optional[str] = None, **kwargs) -> dict:
         """
         ai_mode: 'fast' = Llama/Groq, 'detailed' = Gemini
         frontend_intent: 'GENERAL' | 'MUSIC' | 'NAVIGATION' | 'FAQ' (จาก Frontend)
@@ -355,6 +365,17 @@ class RAGOrchestrator:
             intent = self._map_frontend_intent(frontend_intent)
             corrected_query = query
             entity = None  # จะหาจาก query หรือ Qdrant search
+            
+            if frontend_intent == "CALCULATOR":
+                entity = "calculator"
+            
+            # 🚀 [Direct Bypass] ถ้ามี intent NAVIGATE_TO + slug/entity_query ให้ทำงานเลย!
+            if intent == "NAVIGATE_TO":
+                 target_entity = slug or entity_query or query
+                 if target_entity:
+                     logging.info(f"🏎️ [Quick Nav] Bypassing Logic for Navigation to: '{target_entity}'")
+                     return await self.handle_get_directions(entity_slug=target_entity)
+
             logging.info(f"🚀 [Intent] Using FRONTEND intent: {intent}")
         else:
             # fallback: ถ้าไม่มี frontend_intent ใช้ INFORMATIONAL เลย (ไม่ต้องเรียก LLM)

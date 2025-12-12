@@ -91,7 +91,7 @@ async def process_orchestrator_result(result: Dict[str, Any]) -> Dict[str, Any]:
 # --- The rest of the file is correct and does not need changes ---
 # ... (_handle_audio_input, _handle_text_input, handle_avatar_chat) ...
 
-async def _handle_audio_input(websocket: WebSocket, audio_bytes: bytes, orchestrator: RAGOrchestrator):
+async def _handle_audio_input(websocket: WebSocket, audio_bytes: bytes, orchestrator: RAGOrchestrator, ai_mode: str = 'fast'):
     if not is_websocket_active(websocket): return
     try:
         await websocket.send_text(json.dumps({"emotion": "thinking"}))
@@ -100,8 +100,8 @@ async def _handle_audio_input(websocket: WebSocket, audio_bytes: bytes, orchestr
             if is_websocket_active(websocket):
                 await websocket.send_text(json.dumps({"emotion": "confused", "answer": "ไม่ได้ยินที่คุณพูดเลยค่ะ ลองพูดอีกครั้งนะคะ", "isEmpty": True}))
             return
-        logging.info(f"👂 [Avatar WebSocket] Heard (Raw): '{transcribed_text}'")
-        result = await orchestrator.answer_query(transcribed_text, mode='voice')
+        logging.info(f"👂 [Avatar WebSocket] Heard (Raw): '{transcribed_text}' | Mode: {ai_mode}")
+        result = await orchestrator.answer_query(transcribed_text, mode='voice', ai_mode=ai_mode)
         payload = await process_orchestrator_result(result)
         
         # [FIX] Skip TTS for MUSIC actions - no need to speak when playing music
@@ -134,12 +134,12 @@ async def _handle_audio_input(websocket: WebSocket, audio_bytes: bytes, orchestr
             except:
                 pass  # Client already disconnected
 
-async def _handle_text_input(websocket: WebSocket, query_text: str, orchestrator: RAGOrchestrator):
+async def _handle_text_input(websocket: WebSocket, query_text: str, orchestrator: RAGOrchestrator, ai_mode: str = 'fast'):
     if not is_websocket_active(websocket): return
     try:
         await websocket.send_text(json.dumps({"emotion": "thinking"}))
-        logging.info(f"⌨️ [Avatar WebSocket] Heard (Text): '{query_text}'")
-        result = await orchestrator.answer_query(query_text, mode='voice')
+        logging.info(f"⌨️ [Avatar WebSocket] Heard (Text): '{query_text}' | Mode: {ai_mode}")
+        result = await orchestrator.answer_query(query_text, mode='voice', ai_mode=ai_mode)
         payload = await process_orchestrator_result(result)
         
         # [FIX] Skip TTS for MUSIC actions - no need to speak when playing music
@@ -181,6 +181,10 @@ async def handle_avatar_chat(websocket: WebSocket):
     except AttributeError:
         await websocket.close(code=1011, reason="Server configuration error.")
         return
+        
+    # 🆕 State tracking per connection
+    current_ai_mode = 'fast' 
+    
     try:
         while True:
             message = await websocket.receive()
@@ -188,14 +192,23 @@ async def handle_avatar_chat(websocket: WebSocket):
                 if text_data := message.get("text"):
                     try:
                         data = json.loads(text_data)
+                        
+                        # 🔄 Update state if provided
+                        if "ai_mode" in data:
+                            current_ai_mode = data["ai_mode"]
+                        
                         if query := data.get("query"):
-                            await _handle_text_input(websocket, query, orchestrator)
+                            await _handle_text_input(websocket, query, orchestrator, current_ai_mode)
                         elif data.get("action") == "idle_prompt":
                             await _handle_idle_prompt(websocket)
+                        elif data.get("action") == "SET_MODE":
+                            logging.info(f"🔄 [Avatar WS] Mode updated to: {current_ai_mode}")
+                            
                     except Exception as e:
                          logging.error(f"Error processing text message: {e}", exc_info=True)
                 elif bytes_data := message.get("bytes"):
-                    await _handle_audio_input(websocket, bytes_data, orchestrator)
+                    # 🎤 Ensure audio uses the current mode
+                    await _handle_audio_input(websocket, bytes_data, orchestrator, ai_mode=current_ai_mode) 
             elif message["type"] == "websocket.disconnect":
                 break 
     except Exception as e:

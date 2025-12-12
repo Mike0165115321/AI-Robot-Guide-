@@ -228,6 +228,55 @@ async def get_audio_stream(request: MusicStreamRequest):
         logging.error(f"❌ [Music Stream] Error: {e}")
         return {"error": str(e), "stream_url": None}
 
+# 🆕 Navigation Endpoint - สำหรับ in-place display
+class NavigationRequest(BaseModel):
+    slug: Optional[str] = None
+    query: Optional[str] = None
+    user_lat: Optional[float] = None
+    user_lon: Optional[float] = None
+
+@router.post("/navigation")
+async def get_navigation(
+    request: NavigationRequest,
+    orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator)
+):
+    """
+    🗺️ Direct Navigation via HTTP for in-place updates.
+    Passing a 'slug' works best. If not, 'query' acts as a fallback slug/title search.
+    """
+    try:
+        target = request.slug or request.query
+        if not target:
+             return {"success": False, "error": "Missing slug or query"}
+
+        logging.info(f"🏎️ [HTTP Nav] Requesting directions for: '{target}'")
+        
+        # Directly call orchestrator logic (which calls NavigationService)
+        # Note: handle_get_directions expects 'entity_slug' but it handles title fallback too
+        result = await orchestrator.handle_get_directions(
+            entity_slug=target,
+            user_lat=request.user_lat, 
+            user_lon=request.user_lon
+        )
+        
+        # Determine success based on result content
+        # NavigationService output format: { "answer": ..., "action": "SHOW_MAP_EMBED", "action_payload": ... }
+        if result and result.get("action") == "SHOW_MAP_EMBED":
+             return {
+                 "success": True, 
+                 "result": result 
+             }
+        else:
+             return {
+                 "success": False, 
+                 "error": result.get("answer", "ไม่พบข้อมูลสถานที่ดังกล่าว"),
+                 "raw_result": result
+             }
+
+    except Exception as e:
+        logging.error(f"❌ [HTTP Nav] Error: {e}")
+        return {"success": False, "error": str(e)}
+
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator)):
@@ -243,13 +292,20 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                     ai_mode = query_data.get("ai_mode", "fast")  # fast | detailed
                     # 🆕 รับ intent จาก Frontend - ไม่ต้องใช้ LLM วิเคราะห์
                     intent = query_data.get("intent", "GENERAL")  # GENERAL | MUSIC | NAVIGATION | FAQ
-                    logging.info(f"💬 [WS] Received text: {query_text} | AI Mode: {ai_mode} | Intent: {intent}")
+                    
+                    # 🆕 รับ slug (ถ้ามี) สำหรับ Navigation / System Commands
+                    slug = query_data.get("slug")
+                    entity_query = query_data.get("entity_query") # manual query text if slug is missing
+                    
+                    logging.info(f"💬 [WS] text: {query_text} | Mode: {ai_mode} | Intent: {intent} | Slug: {slug}")
                     
                     result = await orchestrator.answer_query(
                         query_text, 
                         mode='text', 
                         ai_mode=ai_mode,
-                        frontend_intent=intent  # 🆕 ส่ง intent จาก Frontend
+                        frontend_intent=intent,
+                        slug=slug,
+                        entity_query=entity_query
                     )
                     await websocket.send_json(result)
                 except Exception as e:
