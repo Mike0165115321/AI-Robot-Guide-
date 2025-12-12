@@ -185,9 +185,16 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                     query_data = json.loads(data["text"])
                     query_text = query_data.get("query", "")
                     ai_mode = query_data.get("ai_mode", "fast")  # fast | detailed
-                    logging.info(f"💬 [WS] Received text: {query_text} | AI Mode: {ai_mode}")
+                    # 🆕 รับ intent จาก Frontend - ไม่ต้องใช้ LLM วิเคราะห์
+                    intent = query_data.get("intent", "GENERAL")  # GENERAL | MUSIC | NAVIGATION | FAQ
+                    logging.info(f"💬 [WS] Received text: {query_text} | AI Mode: {ai_mode} | Intent: {intent}")
                     
-                    result = await orchestrator.answer_query(query_text, mode='text', ai_mode=ai_mode)
+                    result = await orchestrator.answer_query(
+                        query_text, 
+                        mode='text', 
+                        ai_mode=ai_mode,
+                        frontend_intent=intent  # 🆕 ส่ง intent จาก Frontend
+                    )
                     await websocket.send_json(result)
                 except Exception as e:
                     logging.error(f"❌ [WS] Error processing text: {e}")

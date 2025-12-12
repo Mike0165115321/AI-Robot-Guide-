@@ -824,14 +824,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- User Input & Mic Control ---
-    function sendMessage(text = null) {
+    // 🆕 ใช้ NanApp.INTENTS จาก main.js
+    function sendMessage(text = null, intent = null) {
         if (!text) text = userInput.value.trim();
+
+        // ใช้ INTENTS จาก main.js
+        const INTENTS = window.NanApp ? window.NanApp.INTENTS : { GENERAL: 'GENERAL' };
+        if (!intent) intent = INTENTS.GENERAL;
 
         if (text && websocket && websocket.readyState === WebSocket.OPEN) {
             displayMessage(text, 'user');
-            // ส่ง ai_mode ไปด้วย
-            const aiMode = window.AIModeManager ? window.AIModeManager.getMode() : 'fast';
-            websocket.send(JSON.stringify({ query: text, ai_mode: aiMode }));
+            // ใช้ AIModeManager จาก main.js
+            const aiMode = window.NanApp ? window.NanApp.getAIModeManager().getMode() : 'fast';
+            websocket.send(JSON.stringify({
+                query: text,
+                ai_mode: aiMode,
+                intent: intent
+            }));
             userInput.value = '';
 
             // Stop mic if listening
@@ -1005,12 +1014,14 @@ document.addEventListener('DOMContentLoaded', () => {
         messageArea.appendChild(msgElement);
         messageArea.scrollTop = messageArea.scrollHeight;
 
-        // Add event listeners
+        // Add event listeners - ใช้ NanApp.INTENTS
+        const INTENTS = window.NanApp ? window.NanApp.INTENTS : { MUSIC: 'MUSIC' };
         msgElement.querySelectorAll('.genre-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const query = btn.dataset.query;
                 displayMessage(query, 'user');
-                websocket.send(JSON.stringify({ query: query }));
+                const aiMode = window.NanApp ? window.NanApp.getAIModeManager().getMode() : 'fast';
+                websocket.send(JSON.stringify({ query: query, ai_mode: aiMode, intent: INTENTS.MUSIC }));
             });
         });
 
@@ -1021,7 +1032,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (searchInput.value.trim()) {
                 const query = `เปิดเพลง ${searchInput.value.trim()}`;
                 displayMessage(query, 'user');
-                websocket.send(JSON.stringify({ query: query }));
+                const aiMode = window.NanApp ? window.NanApp.getAIModeManager().getMode() : 'fast';
+                websocket.send(JSON.stringify({ query: query, ai_mode: aiMode, intent: INTENTS.MUSIC }));
             }
         });
 

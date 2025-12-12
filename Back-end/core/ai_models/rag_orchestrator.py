@@ -116,6 +116,20 @@ class RAGOrchestrator:
             "action_payload": None, "image_url": None, "image_gallery": [], "sources": [],
         }
 
+    def _map_frontend_intent(self, frontend_intent: str) -> str:
+        """
+        🆕 แปลง frontend intent เป็น internal intent
+        ไม่ต้องใช้ LLM วิเคราะห์ - ประหยัด tokens!
+        """
+        intent_map = {
+            "MUSIC": "PLAY_MUSIC",
+            "NAVIGATION": "NAVIGATE_TO",
+            "FAQ": "INFORMATIONAL",
+            "GENERAL": "INFORMATIONAL",
+            "WELCOME": "WELCOME_FLOW",
+        }
+        return intent_map.get(frontend_intent.upper(), "INFORMATIONAL")
+
     async def _handle_small_talk(self, corrected_query: str, **kwargs) -> dict:
         final_answer = await get_small_talk_response(user_query=corrected_query)
         return {"answer": final_answer, "action": None, "sources": [], "image_url": None, "image_gallery": []}
@@ -310,9 +324,10 @@ class RAGOrchestrator:
     async def handle_get_directions(self, entity_slug: str, user_lat: float = None, user_lon: float = None) -> dict:
         return await self.nav_service.handle_get_directions(entity_slug, user_lat, user_lon)
     
-    async def answer_query(self, query: str, mode: str = "text", session_id: Optional[str] = None, ai_mode: str = "fast", **kwargs) -> dict:
+    async def answer_query(self, query: str, mode: str = "text", session_id: Optional[str] = None, ai_mode: str = "fast", frontend_intent: str = None, **kwargs) -> dict:
         """
         ai_mode: 'fast' = Llama/Groq, 'detailed' = Gemini
+        frontend_intent: 'GENERAL' | 'MUSIC' | 'NAVIGATION' | 'FAQ' (จาก Frontend)
         """
         session_data = await self.session_manager.get_session(session_id)
         current_turn = session_data.get("turn_count", 0) + 1
@@ -322,17 +337,21 @@ class RAGOrchestrator:
             self.session_manager.collection.update_one({"session_id": session_id}, {"$unset": {"awaiting": ""}})
             return await self.analytics_handler.handle_analytics_response(query, session_id, mode)
 
-        logging.info(f"🔄 [Session] ID: {session_id} | Turn: {current_turn} | AI Mode: {ai_mode}")
+        logging.info(f"🔄 [Session] ID: {session_id} | Turn: {current_turn} | AI Mode: {ai_mode} | Frontend Intent: {frontend_intent}")
 
-        try:
-            interpretation = await self.query_interpreter.interpret_and_route(query)
-        except Exception as e:
-            logging.error(f"❌ Router Error: {e}")
-            return {"answer": "ขออภัยค่ะ ระบบขัดข้องชั่วคราว", "action": None, "sources": [], "image_url": None}
-        
-        intent = interpretation.get("intent", "INFORMATIONAL")
-        corrected_query = interpretation.get("corrected_query", query)
-        entity = interpretation.get("entity")
+        # 🆕 ใช้ frontend_intent โดยตรง - ไม่ต้องเรียก LLM วิเคราะห์เจตนา
+        if frontend_intent and frontend_intent != "GENERAL":
+            # Frontend บอก intent มาแล้ว ใช้เลย!
+            intent = self._map_frontend_intent(frontend_intent)
+            corrected_query = query
+            entity = None  # จะหาจาก query หรือ Qdrant search
+            logging.info(f"🚀 [Intent] Using FRONTEND intent: {intent}")
+        else:
+            # fallback: ถ้าไม่มี frontend_intent ใช้ INFORMATIONAL เลย (ไม่ต้องเรียก LLM)
+            intent = "INFORMATIONAL"
+            corrected_query = query
+            entity = None
+            logging.info(f"📝 [Intent] No frontend intent, defaulting to: {intent}")
         
         logging.info(f"🚦 Intent: {intent} | Query: {query} | Entity: {entity}")
 
