@@ -12,36 +12,100 @@ from core.config import settings
 from core.ai_models.key_manager import groq_key_manager
 
 def sanitize_text_for_speech(text: str) -> str:
-    # ลบ markdown headers (#)
+    """
+    ทำความสะอาดข้อความก่อนส่งให้ TTS
+    ลบ: URL, emoji, markdown, อักขระพิเศษ
+    """
+    import unicodedata
+    
+    # 1. ลบ URL / Links
+    text = re.sub(r'https?://\S+', '', text)
+    text = re.sub(r'www\.\S+', '', text)
+    
+    # 2. ลบ markdown headers (#)
     text = re.sub(r'^\s*#+\s*', '', text, flags=re.MULTILINE)
-    # ลบ bold (**text**)
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-    # ลบ italic (*text*)
-    text = re.sub(r'\*(.*?)\*', r'\1', text)
-    # ลบ underline markdown (__text__)
-    text = re.sub(r'__(.*?)__', r'\1', text)
     
-    # [FIX] แปลง _ และ - ให้เป็นช่องว่าง (ป้องกัน TTS ข้าม)
-    text = text.replace('_', ' ')
-    text = text.replace('-', ' ')
+    # 3. ลบ bold/italic markdown
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # **bold**
+    text = re.sub(r'\*(.*?)\*', r'\1', text)      # *italic*
+    text = re.sub(r'__(.*?)__', r'\1', text)      # __underline__
+    text = re.sub(r'_(.*?)_', r'\1', text)        # _italic_
     
-    # ลบ emoji ทั่วไปที่อาจทำให้ TTS พัง
-    text = re.sub(r'[💡🎵🗺️📸😊❓🔢🛕⛰️🐘🚶✨🎉💕😢]', '', text)
+    # 4. ลบ markdown links [text](url)
+    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
     
-    # ลบ bullets และสัญลักษณ์พิเศษ
+    # 5. ลบ code blocks และ inline code
+    text = re.sub(r'```[\s\S]*?```', '', text)    # code blocks
+    text = re.sub(r'`([^`]+)`', r'\1', text)      # inline code
+    
+    # 6. ลบ {{IMAGE: xxx}} tags
+    text = re.sub(r'\{\{IMAGE:[^}]+\}\}', '', text)
+    
+    # 7. ลบ emoji ทั้งหมด (Unicode emoji ranges)
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F300-\U0001F9FF"  # Miscellaneous Symbols and Pictographs, Emoticons, etc.
+        "\U00002702-\U000027B0"  # Dingbats
+        "\U0001F600-\U0001F64F"  # Emoticons
+        "\U0001F680-\U0001F6FF"  # Transport and Map Symbols
+        "\U0001F1E0-\U0001F1FF"  # Flags
+        "\U00002500-\U00002BEF"  # Various symbols
+        "\U0001FA00-\U0001FAFF"  # Chess, Extended-A symbols
+        "\U00002600-\U000026FF"  # Miscellaneous symbols
+        "]+", 
+        flags=re.UNICODE
+    )
+    text = emoji_pattern.sub('', text)
+    
+    # 8. ลบ bullets และสัญลักษณ์พิเศษ
     text = text.replace('▹', '')
     text = text.replace('•', '')
+    text = text.replace('→', '')
+    text = text.replace('←', '')
+    text = text.replace('↓', '')
+    text = text.replace('↑', '')
     text = text.replace('...', '. ')
+    text = text.replace('…', '. ')
     
-    # ลบ whitespace ซ้ำ
+    # 9. แปลง _ และ - ให้เป็นช่องว่าง (ป้องกัน TTS ข้าม)
+    text = text.replace('_', ' ')
+    text = re.sub(r'(?<=[a-zA-Zก-ฮ])-(?=[a-zA-Zก-ฮ])', ' ', text)  # แปลง - ระหว่างคำ
+    
+    # 10. ลบอักขระพิเศษที่ TTS อ่านไม่ได้
+    text = re.sub(r'[#\*\[\]\(\)\{\}\|\\/<>@&$%^~`]', '', text)
+    
+    # 11. ลบ whitespace ซ้ำและ trim
     text = re.sub(r'\s+', ' ', text).strip()
+    
+    # 12. ลบบรรทัดว่าง
+    text = re.sub(r'\n\s*\n', '\n', text)
+    
     return text
 
+
 local_whisper_model = None
+
+# 🌐 Voice mapping for 7 languages (Edge TTS voices)
+VOICE_MAP = {
+    "th": ["th-TH-PremwadeeNeural", "th-TH-NiwatNeural"],
+    "en": ["en-US-JennyNeural", "en-US-GuyNeural"],
+    "zh": ["zh-CN-XiaoxiaoNeural", "zh-CN-YunxiNeural"],
+    "ja": ["ja-JP-NanamiNeural", "ja-JP-KeitaNeural"],
+    "hi": ["hi-IN-SwaraNeural", "hi-IN-MadhurNeural"],
+    "ru": ["ru-RU-SvetlanaNeural", "ru-RU-DmitryNeural"],
+    "ms": ["ms-MY-YasminNeural", "ms-MY-OsmanNeural"],
+}
 
 class SpeechHandler:
     def __init__(self):
         logging.info("🎤 [Speech] Initializing SpeechHandler (Primary: Groq, Fallback: Local)")
+        # Import language detector for TTS voice selection
+        try:
+            from core.services.language_detector import language_detector
+            self.lang_detector = language_detector
+        except ImportError:
+            self.lang_detector = None
+            logging.warning("⚠️ [Speech] Language detector not available")
         
     def _get_groq_client(self):
         api_key = groq_key_manager.get_key()
@@ -119,9 +183,17 @@ class SpeechHandler:
         
         print(f"🗣️  [TTS] Synthesizing speech for: '{clean_text[:50]}...'")
         
-        # ========== Try Edge TTS (Primary - Microsoft) ==========
-        voices_to_try = [settings.TTS_VOICE, "th-TH-NiwatNeural"]
+        # 🌐 Detect language and select appropriate voices
+        detected_lang = "th"  # default
+        if self.lang_detector:
+            detected_lang = self.lang_detector.detect(text)
+            logging.info(f"🌐 [TTS] Detected language: {detected_lang}")
         
+        # Get voices for detected language
+        voices_to_try = VOICE_MAP.get(detected_lang, VOICE_MAP["th"])
+        logging.info(f"🔊 [TTS] Using voices: {voices_to_try}")
+        
+        # ========== Try Edge TTS (Primary - Microsoft) ==========
         for voice in voices_to_try:
             try:
                 logging.info(f"🚀 [TTS] Trying Edge TTS voice: {voice}")

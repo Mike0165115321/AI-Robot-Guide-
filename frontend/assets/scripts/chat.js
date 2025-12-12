@@ -357,6 +357,12 @@ document.addEventListener('DOMContentLoaded', () => {
         websocket.onmessage = async (event) => {
             if (typeof event.data === 'string') {
                 const data = JSON.parse(event.data);
+
+                // 🎭 ซ่อน Thinking Indicator เมื่อได้รับ response
+                if (window.ThinkingIndicator) {
+                    window.ThinkingIndicator.hide();
+                }
+
                 displayMessage(data.answer || "ขออภัยค่ะ ไม่เข้าใจคำถาม", 'ai', data.image_url, data.image_gallery, data.emotion, data.sources, data.action, data.action_payload);
 
                 // 🔔 Trigger toast notification after AI responds
@@ -903,6 +909,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             websocket.send(JSON.stringify(payload));
             userInput.value = '';
+
+            // 🎭 แสดง Thinking Indicator ขณะรอ AI ตอบ
+            if (window.ThinkingIndicator) {
+                window.ThinkingIndicator.show(messageArea);
+            }
+
             if (browserMicHandler && browserMicHandler.isListening) {
                 browserMicHandler.stop();
             }

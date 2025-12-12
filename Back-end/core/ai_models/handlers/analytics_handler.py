@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional, Callable, Awaitable
 
 from core.database.mongodb_manager import MongoDBManager
 from core.ai_models.query_interpreter import QueryInterpreter
+from core.services.language_detector import language_detector  # 🌐 Auto-detect language
 
 class AnalyticsHandler:
     def __init__(self, 
@@ -21,6 +22,7 @@ class AnalyticsHandler:
         self.query_interpreter = query_interpreter
         self.orchestrator_callback = orchestrator_callback
         self.analytics_log_collection = self.mongo_manager.get_collection("analytics_logs")
+        self.lang_detector = language_detector  # 🌐 Language detector instance
         logging.info("✅ Analytics Handler initialized.")
 
     async def _log_analytics_event_async(self, log_data: dict):
@@ -101,16 +103,37 @@ EXAMPLES:
         """
         logging.info(f"📊 [AnalyticsHandler] Processing response '{user_answer}' for Session '{session_id}'")
         
+        # 🌐 Auto-detect language from user message
+        detected_lang = self.lang_detector.detect(user_answer)
+        lang_info = self.lang_detector.get_language_info(detected_lang)
+        logging.info(f"🌐 [Analytics] Detected language: {detected_lang} ({lang_info['name']})")
+        
         extracted_data = await self._extract_analytics_data_with_llm(user_answer)
+        
+        # 🌐 Auto-infer origin from language if not explicitly stated
+        user_origin = extracted_data.get("user_origin")
+        if not user_origin and detected_lang != "th":
+            # Map language to likely origin
+            lang_to_origin = {
+                "en": "English-speaking",
+                "zh": "China",
+                "ja": "Japan",
+                "hi": "India",
+                "ru": "Russia",
+                "ms": "Malaysia",
+            }
+            user_origin = lang_to_origin.get(detected_lang)
+            logging.info(f"🌐 [Analytics] Inferred origin from language: {user_origin}")
         
         log_data = {
             "session_id": session_id,
             "timestamp": datetime.now(timezone.utc),
             "raw_query": user_answer,
-            "user_origin": extracted_data.get("user_origin"),
+            "user_origin": user_origin or extracted_data.get("user_origin"),
             "user_province": extracted_data.get("user_province"),  # เก็บจังหวัด (สำหรับคนไทย)
             "interest_topic": extracted_data.get("interest_topic"),
-            "detected_language": "th"
+            "detected_language": detected_lang,  # 🌐 Real detected language
+            "language_name": lang_info["name"],   # e.g., "English", "Japanese"
         }
         
         is_implicit_query = False
@@ -161,17 +184,36 @@ EXAMPLES:
     async def log_interest_event(self, session_id: str, topic: str, query: str):
         """
         บันทึกความสนใจของผู้ใช้ (Interest) จากการถามปกติ (ไม่ใช่ Welcome Flow)
+        พร้อม Auto-detect language และ infer origin
         """
         if not topic: return
+        
+        # 🌐 Auto-detect language and infer origin
+        detected_lang = self.lang_detector.detect(query)
+        lang_info = self.lang_detector.get_language_info(detected_lang)
+        
+        # Infer origin from language (if not Thai)
+        user_origin = None
+        if detected_lang != "th":
+            lang_to_origin = {
+                "en": "English-speaking",
+                "zh": "China", 
+                "ja": "Japan",
+                "hi": "India",
+                "ru": "Russia",
+                "ms": "Malaysia",
+            }
+            user_origin = lang_to_origin.get(detected_lang)
 
         log_data = {
             "session_id": session_id,
             "timestamp": datetime.now(timezone.utc),
             "raw_query": query,
-            "user_origin": None, # ไม่รู้ Origin จากการถามปกติ
+            "user_origin": user_origin,  # 🌐 Inferred from language
             "interest_topic": topic,
-            "detected_language": "th",
-            "event_type": "query_interest" # ระบุว่าเป็น event จากการถาม
+            "detected_language": detected_lang,  # 🌐 Real detected language
+            "language_name": lang_info["name"],
+            "event_type": "query_interest"  # ระบุว่าเป็น event จากการถาม
         }
         
         # บันทึกลง DB แบบ Fire-and-forget

@@ -513,6 +513,150 @@ textarea {
     object-fit: cover;
 }
 
+/* ========================================
+   Enhanced AI Bubble Styling (Like Avatar)
+   - Beautiful headings with border
+   - Custom bullet points
+   - Highlighted keywords
+   ======================================== */
+
+.bubble.ai h1,
+.bubble.ai h2,
+.bubble.ai h3,
+.bubble.ai h4 {
+    color: #10b981;
+    /* Teal/Emerald - Primary accent */
+    margin: 20px 0 12px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    border-bottom: 2px solid rgba(16, 185, 129, 0.4);
+    padding-bottom: 8px;
+    letter-spacing: 0.3px;
+}
+
+.bubble.ai h1 {
+    font-size: 1.4rem;
+    color: #3b82f6;
+    /* Blue for H1 */
+    border-bottom-color: rgba(59, 130, 246, 0.4);
+}
+
+.bubble.ai h2 {
+    font-size: 1.3rem;
+}
+
+.bubble.ai p {
+    margin-bottom: 16px;
+    line-height: 1.8;
+    letter-spacing: 0.2px;
+    color: #e2e8f0;
+}
+
+.bubble.ai strong,
+.bubble.ai b {
+    color: #60a5fa;
+    /* Light Blue - Standout */
+    font-weight: 600;
+}
+
+.bubble.ai em,
+.bubble.ai i:not(.fa-solid):not(.fa-regular):not(.fas):not(.far) {
+    color: #a78bfa;
+    /* Purple for emphasis */
+}
+
+.bubble.ai a {
+    color: #2dd4bf;
+    /* Cyan link */
+    text-decoration: none;
+    border-bottom: 1px dotted #2dd4bf;
+    transition: all 0.2s;
+}
+
+.bubble.ai a:hover {
+    color: #10b981;
+    border-bottom-style: solid;
+}
+
+.bubble.ai ul,
+.bubble.ai ol {
+    list-style: none;
+    padding-left: 8px;
+    margin: 16px 0;
+}
+
+.bubble.ai li {
+    margin-bottom: 8px;
+    padding-left: 22px;
+    position: relative;
+    line-height: 1.6;
+    color: #cbd5e1;
+}
+
+.bubble.ai ul li::before {
+    content: '▹';
+    position: absolute;
+    left: 0;
+    color: #60a5fa;
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.bubble.ai ol {
+    counter-reset: item;
+}
+
+.bubble.ai ol li {
+    counter-increment: item;
+}
+
+.bubble.ai ol li::before {
+    content: counter(item) '.';
+    position: absolute;
+    left: 0;
+    color: #10b981;
+    font-weight: 600;
+}
+
+.bubble.ai code {
+    background: rgba(30, 41, 59, 0.8);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Consolas', monospace;
+    font-size: 0.9em;
+    color: #fbbf24;
+    /* Yellow for code */
+}
+
+.bubble.ai pre {
+    background: rgba(15, 23, 42, 0.9);
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 16px 0;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.bubble.ai pre code {
+    background: none;
+    padding: 0;
+}
+
+.bubble.ai blockquote {
+    border-left: 3px solid #10b981;
+    padding-left: 16px;
+    margin: 16px 0;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+.bubble.ai hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.5), transparent);
+    margin: 20px 0;
+}
+
 /* --- Images --- */
 .image-gallery-grid {
     display: grid;

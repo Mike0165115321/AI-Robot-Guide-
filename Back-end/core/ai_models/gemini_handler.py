@@ -1,18 +1,16 @@
 # Back-end/core/ai_models/gemini_handler.py
 """
 Gemini AI Handler - สำหรับ Detailed Mode
-แยกออกมาจาก llm_handler.py เพื่อให้จัดการง่าย
+พร้อม Key Rotation และ Retry Logic
 """
 
 import logging
 import asyncio
 import google.generativeai as genai
 from core.config import settings
+from core.ai_models.key_manager import gemini_key_manager
 
-# Configure Gemini
-if settings.GEMINI_API_KEYS:
-    genai.configure(api_key=settings.GEMINI_API_KEYS[0])
-
+MAX_RETRIES = 4  # ลองใหม่เท่ากับจำนวน keys
 
 async def get_gemini_response(
     user_query: str,
@@ -23,26 +21,53 @@ async def get_gemini_response(
     """
     ใช้ Gemini สำหรับ detailed mode
     - คำตอบยาวและละเอียด
-    - ไม่จำกัด tokens มาก
+    - Key Rotation เมื่อเจอ Rate Limit
+    - Multi-language support
     """
-    try:
-        model = genai.GenerativeModel(model_name)
-        
-        full_prompt = f"{system_prompt}\n\nคำถามผู้ใช้: {user_query}"
-        
-        # Run in thread pool since google-generativeai is synchronous
-        response = await asyncio.to_thread(
-            model.generate_content,
-            full_prompt,
-            generation_config=genai.types.GenerationConfig(
-                max_output_tokens=max_tokens,
-                temperature=0.7
+    last_error = None
+    
+    for attempt in range(MAX_RETRIES):
+        try:
+            # 🔑 หมุน key ทุกครั้งที่เรียก
+            api_key = gemini_key_manager.get_key()
+            if not api_key:
+                raise RuntimeError("No Gemini API keys available")
+            
+            masked = api_key[:8] + "..." + api_key[-4:]
+            logging.info(f"🔑 [Gemini Handler] Using key: {masked}")
+            
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(model_name)
+            
+            full_prompt = f"{system_prompt}\n\nคำถามผู้ใช้: {user_query}"
+            
+            # Run in thread pool since google-generativeai is synchronous
+            response = await asyncio.to_thread(
+                model.generate_content,
+                full_prompt,
+                generation_config=genai.types.GenerationConfig(
+                    max_output_tokens=max_tokens,
+                    temperature=0.7
+                )
             )
-        )
-        
-        logging.info(f"✅ [Gemini] Response generated successfully")
-        return response.text
-        
-    except Exception as e:
-        logging.error(f"❌ [Gemini] Error: {e}")
-        return f"ขออภัยค่ะ ระบบ Gemini ขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้งค่ะ"
+            
+            logging.info(f"✅ [Gemini Handler] Response generated successfully")
+            return response.text
+            
+        except Exception as e:
+            last_error = e
+            error_str = str(e).lower()
+            
+            # ตรวจจับ rate limit/quota error
+            rate_limit_keywords = ["rate", "429", "quota", "exceeded", "limit", "exhausted", "resource"]
+            is_rate_limit = any(keyword in error_str for keyword in rate_limit_keywords)
+            
+            if is_rate_limit:
+                logging.warning(f"⚠️ [Gemini Handler] Rate limit hit, rotating key... (attempt {attempt + 1}/{MAX_RETRIES})")
+                continue
+            else:
+                logging.error(f"❌ [Gemini Handler] Error: {e}")
+                break
+    
+    logging.error(f"❌ [Gemini Handler] All retries failed: {last_error}")
+    return f"ขออภัยค่ะ ระบบ Gemini ขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้งค่ะ"
