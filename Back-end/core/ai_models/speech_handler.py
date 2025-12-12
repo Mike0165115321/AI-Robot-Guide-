@@ -6,6 +6,8 @@ import asyncio
 import tempfile
 from groq import Groq
 import edge_tts
+from gtts import gTTS  # Fallback TTS
+from pydub import AudioSegment  # สำหรับ speed up เสียง
 from core.config import settings
 from core.ai_models.key_manager import groq_key_manager
 
@@ -111,7 +113,9 @@ class SpeechHandler:
         clean_text = sanitize_text_for_speech(text)
         print(f"🗣️  [TTS] Synthesizing speech for: '{clean_text[:30]}...'")
         
+        # ลองใช้ edge_tts ก่อน
         try:
+            logging.info("🚀 [TTS] Trying edge-tts...")
             communicate = edge_tts.Communicate(clean_text, settings.TTS_VOICE, rate="-10%")
             
             mp3_buffer = io.BytesIO()
@@ -120,10 +124,39 @@ class SpeechHandler:
                     mp3_buffer.write(chunk["data"])
             
             mp3_buffer.seek(0)
-            return mp3_buffer.read()
+            audio_data = mp3_buffer.read()
+            
+            # ตรวจสอบว่ามีข้อมูลเสียงจริง
+            if len(audio_data) > 0:
+                logging.info(f"✅ [TTS] edge-tts success ({len(audio_data)} bytes)")
+                return audio_data
+            else:
+                raise Exception("edge-tts returned empty audio")
 
         except Exception as e:
-            logging.error(f"❌ [TTS] Error during edge-tts synthesis: {e}", exc_info=True)
-            raise RuntimeError("Failed to synthesize speech.")
+            logging.warning(f"⚠️ [TTS] edge-tts failed ({e}). Switching to gTTS fallback...")
+            
+            # Fallback: ใช้ gTTS + speed up 1.25x
+            try:
+                tts = gTTS(text=clean_text, lang='th', slow=False)
+                mp3_buffer = io.BytesIO()
+                tts.write_to_fp(mp3_buffer)
+                mp3_buffer.seek(0)
+                
+                # Speed up เสียง 1.25x ด้วย pydub
+                audio = AudioSegment.from_mp3(mp3_buffer)
+                faster_audio = audio.speedup(playback_speed=1.25)
+                
+                output_buffer = io.BytesIO()
+                faster_audio.export(output_buffer, format='mp3')
+                output_buffer.seek(0)
+                audio_data = output_buffer.read()
+                
+                logging.info(f"✅ [TTS] gTTS fallback success (1.25x speed, {len(audio_data)} bytes)")
+                return audio_data
+                
+            except Exception as gtts_error:
+                logging.error(f"❌ [TTS] All TTS methods failed: {gtts_error}", exc_info=True)
+                raise RuntimeError("Failed to synthesize speech with both edge-tts and gTTS.")
 
 speech_handler_instance = SpeechHandler()

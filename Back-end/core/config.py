@@ -9,7 +9,8 @@ load_dotenv()
 class Settings:
     MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
     MONGO_DATABASE_NAME = "nanaiguide"
-    DEVICE: str = "cuda"  # หรือ "cpu"
+    import torch
+    DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
     
     EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "intfloat/multilingual-e5-large")
     RERANKER_MODEL_NAME = os.getenv("RERANKER_MODEL_NAME", "BAAI/bge-reranker-base")
