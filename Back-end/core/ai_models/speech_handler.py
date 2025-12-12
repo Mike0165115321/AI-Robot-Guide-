@@ -6,6 +6,8 @@ import asyncio
 import tempfile
 from groq import Groq
 import edge_tts
+from gtts import gTTS  # Fallback TTS
+from pydub import AudioSegment  # สำหรับ speed up เสียง
 from core.config import settings
 from core.ai_models.key_manager import groq_key_manager
 
@@ -122,6 +124,7 @@ class SpeechHandler:
         
         for voice in voices_to_try:
             try:
+                logging.info(f"🚀 [TTS] Trying Edge TTS voice: {voice}")
                 communicate = edge_tts.Communicate(clean_text, voice, rate="-10%")
                 
                 mp3_buffer = io.BytesIO()
@@ -151,14 +154,25 @@ class SpeechHandler:
             tts.write_to_fp(mp3_buffer)
             mp3_buffer.seek(0)
             
-            logging.info("✅ [TTS] Success with gTTS fallback")
-            return mp3_buffer.read()
+            # --- Friend's Feature: Speed up 1.25x using pydub ---
+            try:
+                logging.info("⚡ [TTS] Applying 1.25x speedup to gTTS output...")
+                audio = AudioSegment.from_mp3(mp3_buffer)
+                faster_audio = audio.speedup(playback_speed=1.25)
+                
+                output_buffer = io.BytesIO()
+                faster_audio.export(output_buffer, format='mp3')
+                output_buffer.seek(0)
+                
+                logging.info("✅ [TTS] Success with gTTS fallback (Speed 1.25x)")
+                return output_buffer.read()
+            except Exception as pydub_error:
+                logging.warning(f"⚠️ [TTS] pydub speedup failed, returning normal speed gTTS: {pydub_error}")
+                mp3_buffer.seek(0)
+                return mp3_buffer.read()
             
         except Exception as gtts_error:
-            logging.error(f"❌ [TTS] gTTS fallback also failed: {gtts_error}")
-        
-        # All TTS methods failed
-        logging.error("❌ [TTS] All TTS methods failed (Edge TTS + gTTS)")
-        raise RuntimeError("Failed to synthesize speech.")
+            logging.error(f"❌ [TTS] All TTS methods failed: {gtts_error}", exc_info=True)
+            raise RuntimeError("Failed to synthesize speech with both edge-tts and gTTS.")
 
 speech_handler_instance = SpeechHandler()

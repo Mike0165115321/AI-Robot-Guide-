@@ -70,3 +70,5 @@ Thumbs.db
 .venv-robot
 .venv-guide
 .env-robot
+
+credentials/
