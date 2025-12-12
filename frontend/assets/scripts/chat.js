@@ -234,69 +234,60 @@ class ToastManager {
 window.ToastManager = new ToastManager();
 
 // ========================================
-// AI Mode Manager
-// - Toggle between Fast (Llama) and Detailed (Gemini) modes
+// AI Mode Manager - UI Extension
+// ใช้ NanApp.getAIModeManager() จาก main.js เป็นหลัก
 // ========================================
-class AIModeManager {
-    constructor() {
-        this.mode = localStorage.getItem('nan_ai_mode') || 'fast'; // fast | detailed
-        this.button = null;
-        this.indicator = null;
+function initAIModeUI() {
+    const modeManager = window.NanApp ? window.NanApp.getAIModeManager() : null;
+    if (!modeManager) {
+        console.warn('⚠️ NanApp.AIModeManager not found');
+        return;
     }
 
-    init() {
-        this.button = document.getElementById('ai-mode-btn');
-        this.indicator = document.getElementById('mode-indicator');
+    const button = document.getElementById('ai-mode-btn');
+    const indicator = document.getElementById('mode-indicator');
 
-        if (this.button) {
-            this.updateUI();
-            this.button.addEventListener('click', () => this.toggleMode());
-        }
-    }
+    if (!button) return;
 
-    toggleMode() {
-        this.mode = this.mode === 'fast' ? 'detailed' : 'fast';
-        localStorage.setItem('nan_ai_mode', this.mode);
-        this.updateUI();
-        this.showIndicator();
-        console.log(`🔄 AI Mode switched to: ${this.mode}`);
-    }
+    // Initial UI update
+    updateAIModeUI(modeManager.getMode());
 
-    updateUI() {
-        if (!this.button || !this.indicator) return;
+    // Click handler
+    button.addEventListener('click', () => {
+        const newMode = modeManager.toggle();
+        updateAIModeUI(newMode);
+        showModeIndicator(newMode);
+    });
 
+    function updateAIModeUI(mode) {
         // Update button
-        this.button.classList.remove('fast-mode', 'detailed-mode');
-        this.button.classList.add(`${this.mode}-mode`);
+        button.classList.remove('fast-mode', 'detailed-mode');
+        button.classList.add(`${mode}-mode`);
 
         // Update icon
-        const icon = this.button.querySelector('i');
+        const icon = button.querySelector('i');
         if (icon) {
-            icon.className = this.mode === 'fast'
+            icon.className = mode === 'fast'
                 ? 'fa-solid fa-bolt'
                 : 'fa-solid fa-brain';
         }
 
         // Update indicator
-        this.indicator.classList.remove('fast', 'detailed');
-        this.indicator.classList.add(this.mode);
-        this.indicator.textContent = this.mode === 'fast'
-            ? '⚡ คิดเร็ว (Llama)'
-            : '🧠 คิดละเอียด (Gemini)';
+        if (indicator) {
+            indicator.classList.remove('fast', 'detailed');
+            indicator.classList.add(mode);
+            indicator.textContent = mode === 'fast'
+                ? '⚡ คิดเร็ว (Llama)'
+                : '🧠 คิดละเอียด (Gemini)';
+        }
     }
 
-    showIndicator() {
-        if (!this.indicator) return;
-        this.indicator.classList.add('show');
-        setTimeout(() => this.indicator.classList.remove('show'), 2000);
-    }
-
-    getMode() {
-        return this.mode;
+    function showModeIndicator(mode) {
+        if (!indicator) return;
+        indicator.classList.add('show');
+        setTimeout(() => indicator.classList.remove('show'), 2000);
     }
 }
-
-window.AIModeManager = new AIModeManager();
 
 document.addEventListener('DOMContentLoaded', () => {
     const messageArea = document.getElementById('message-area');
@@ -326,10 +317,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Init AI Mode Manager
-    if (window.AIModeManager) {
-        window.AIModeManager.init();
-    }
+    // Init AI Mode Manager - ใช้ function จากส่วนบน
+    initAIModeUI();
 
     let messageCounter = 0;
 
@@ -595,9 +584,8 @@ document.addEventListener('DOMContentLoaded', () => {
             showMapEmbed(actionPayload.embed_url, actionPayload.destination_name || "แผนที่นำทาง", actionPayload.external_link);
         } else if (action === 'SHOW_SONG_CHOICES' && actionPayload) {
             showSongChoices(actionPayload);
-        } else if (action === 'PROMPT_FOR_SONG_INPUT' && actionPayload) {
-            showSongInput(actionPayload.placeholder || "พิมพ์ชื่อเพลง...");
         }
+        // ลบ PROMPT_FOR_SONG_INPUT handler ออก - ใช้ displayMusicPrompt() จาก UI อย่างเดียว
     }
 
     function showSongInput(placeholder) {
@@ -641,53 +629,124 @@ document.addEventListener('DOMContentLoaded', () => {
         messageArea.scrollTop = messageArea.scrollHeight;
     }
 
-    function showSongChoices(songs) {
-        const lastMessage = messageArea.lastElementChild;
-        if (!lastMessage) return;
+    // 🆕 Helper to display music results and player
+    function displayMusicResults(container, queryName, songs) {
+        // Remove old results
+        const oldResults = container.querySelector('.music-results-container');
+        if (oldResults) oldResults.remove();
 
-        const bubble = lastMessage.querySelector('.bubble');
-        if (!bubble) return;
-
-        const songContainer = document.createElement('div');
-        songContainer.className = 'song-choices-container mt-4 grid grid-cols-1 gap-2';
-
-        songs.forEach(song => {
-            const songCard = document.createElement('div');
-            songCard.className = 'flex items-center gap-3 p-3 bg-black/40 rounded-lg hover:bg-black/60 transition cursor-pointer border border-glass-border';
-            songCard.innerHTML = `
-                <div class="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent">
-                    <i class="fa-solid fa-music"></i>
+        const resultsHTML = `
+            <div class="music-results-container mt-4">
+                <p class="text-white/80 text-sm mb-2">🎵 ผลการค้นหา "<strong>${queryName}</strong>":</p>
+                <div class="song-choices grid gap-2">
+                    ${songs.map(song => `
+                        <div class="song-card bg-black/30 border border-glass-border rounded-lg p-3 cursor-pointer hover:bg-black/50 transition flex items-center gap-3" 
+                                data-url="${song.url}" data-title="${song.title}">
+                            <img src="${song.thumbnail}" alt="" class="w-16 h-12 rounded object-cover">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-white text-sm font-medium truncate">${song.title}</p>
+                                <p class="text-white/50 text-xs">${song.channel || ''}</p>
+                            </div>
+                            <i class="fa-solid fa-play text-accent"></i>
+                        </div>
+                    `).join('')}
                 </div>
-                <div class="flex-1 min-w-0">
-                    <div class="text-sm font-medium text-white truncate">${song.title}</div>
-                    <div class="text-xs text-gray-400 truncate">${song.channel}</div>
-                </div>
-                <button class="text-primary hover:text-white transition">
-                    <i class="fa-solid fa-play"></i>
-                </button>
-            `;
-            songCard.onclick = () => {
-                // ใช้ MusicPlayer class ใหม่ (ถ้ามี)
-                if (typeof musicPlayer !== 'undefined' && musicPlayer.createPlayer) {
-                    // Normalize song object
-                    const normalizedSong = {
-                        video_id: song.video_id || song.id,
-                        title: song.title,
-                        channel: song.channel,
-                        url: song.url || `https://www.youtube.com/watch?v=${song.video_id || song.id}`
-                    };
-                    musicPlayer.createPlayer(normalizedSong, songContainer);
-                } else {
-                    // Fallback: เปิด YouTube ใน tab ใหม่
-                    const videoId = song.video_id || song.id;
-                    window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', resultsHTML);
+
+        // Add click handlers
+        container.querySelectorAll('.song-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const url = card.dataset.url;
+                const title = card.dataset.title;
+                const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.split('/').pop();
+
+                // Remove old player
+                const oldPlayer = container.querySelector('.youtube-player-container');
+                if (oldPlayer) oldPlayer.remove();
+
+                // Highlight card
+                container.querySelectorAll('.song-card').forEach(c => c.classList.remove('ring-2', 'ring-accent'));
+                card.classList.add('ring-2', 'ring-accent');
+
+                // Create player
+                const playerHTML = `
+                    <div class="youtube-player-container mt-4 rounded-lg overflow-hidden">
+                        <div class="relative w-full" style="padding-bottom: 56.25%;">
+                            <iframe 
+                                class="absolute inset-0 w-full h-full"
+                                src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" 
+                                frameborder="0" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                allowfullscreen>
+                            </iframe>
+                        </div>
+                        <div class="bg-black/50 p-2 flex items-center justify-between">
+                            <span class="text-white text-sm truncate flex-1">🎵 กำลังเล่น: ${title}</span>
+                            <button class="audio-only-btn bg-accent/20 hover:bg-accent/40 text-accent text-xs px-2 py-1 rounded border border-accent/50 transition whitespace-nowrap ml-2" 
+                                    data-url="${url}" data-title="${title}">
+                                <i class="fa-solid fa-headphones"></i> ฟังแค่เสียง
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', playerHTML);
+
+                // Audio button handler
+                const audioBtn = container.querySelector('.audio-only-btn');
+                if (audioBtn) {
+                    audioBtn.addEventListener('click', () => handleAudioStream(audioBtn, container));
                 }
-            };
-            songContainer.appendChild(songCard);
-        });
 
-        bubble.appendChild(songContainer);
-        messageArea.scrollTop = messageArea.scrollHeight;
+                // Scroll to player
+                const player = container.querySelector('.youtube-player-container');
+                if (player) player.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        });
+    }
+
+    async function handleAudioStream(btn, container) {
+        const videoUrl = btn.dataset.url;
+        const videoTitle = btn.dataset.title;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/chat/music/stream`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ video_url: videoUrl })
+            });
+            const data = await response.json();
+
+            if (data.stream_url) {
+                const playerContainer = container.querySelector('.youtube-player-container');
+                if (playerContainer) {
+                    playerContainer.innerHTML = `
+                        <div class="bg-black/60 rounded-lg p-4">
+                            <div class="flex items-center gap-3 mb-3">
+                                <i class="fa-solid fa-headphones text-accent text-2xl"></i>
+                                <div class="text-white text-sm truncate flex-1">🎵 ${videoTitle}</div>
+                            </div>
+                            <audio controls autoplay class="w-full" style="height: 40px;">
+                                <source src="${data.stream_url}" type="audio/mpeg">
+                            </audio>
+                        </div>
+                    `;
+                }
+            } else {
+                throw new Error(data.error || 'ไม่สามารถดึงเสียงได้');
+            }
+        } catch (e) {
+            console.error('Audio stream error:', e);
+            btn.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> ไม่สำเร็จ';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fa-solid fa-headphones"></i> ฟังแค่เสียง';
+                btn.disabled = false;
+            }, 2000);
+        }
     }
 
     // --- Print Functionality ---
@@ -937,11 +996,10 @@ document.addEventListener('DOMContentLoaded', () => {
         displayMessage(faqText, 'system', null, [], 'normal', [], null, null, questions);
     });
 
-    // Handle Music button click - แสดงตัวเลือกแนวเพลง + ช่องกรอกชื่อเพลง
+    // Handle Music button click - แสดง UI เลือกแนวเพลง
     if (musicButton) {
         musicButton.addEventListener('click', () => {
-            // สร้างข้อความพร้อมปุ่มเลือกและช่องกรอก
-            displayMusicPrompt();
+            displayMusicPrompt();  // แสดง UI พร้อมปุ่มเลือกแนวเพลง
         });
     }
 
@@ -1014,35 +1072,90 @@ document.addEventListener('DOMContentLoaded', () => {
         messageArea.appendChild(msgElement);
         messageArea.scrollTop = messageArea.scrollHeight;
 
-        // Add event listeners - ใช้ NanApp.INTENTS
-        const INTENTS = window.NanApp ? window.NanApp.INTENTS : { MUSIC: 'MUSIC' };
+        // 🆕 Add event listeners logic for Genre buttons & Search
+        // Use HTTP instead of WebSocket for everything here
+        const bubble = msgElement.querySelector('.bubble');
+
+        // 1. Genre buttons
         msgElement.querySelectorAll('.genre-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const query = btn.dataset.query;
-                displayMessage(query, 'user');
-                const aiMode = window.NanApp ? window.NanApp.getAIModeManager().getMode() : 'fast';
-                websocket.send(JSON.stringify({ query: query, ai_mode: aiMode, intent: INTENTS.MUSIC }));
+                const songName = query.replace(/เปิด|ให้หน่อย/g, '').trim();
+
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/chat/music-search`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ song_name: songName })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success && data.results && data.results.length > 0) {
+                        displayMusicResults(bubble, songName, data.results);
+                    } else {
+                        bubble.insertAdjacentHTML('beforeend', `
+                            <div class="music-results-container mt-4 text-red-400 text-sm">
+                                ❌ ${data.error || 'ไม่พบเพลง "' + songName + '"'}
+                            </div>
+                        `);
+                    }
+                } catch (e) {
+                    console.error('Genre search error:', e);
+                    btn.innerHTML = '<i class="fa-solid fa-times"></i> ผิดพลาด';
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = btn.dataset.originalHtml || btn.textContent;
+                }
             });
+            btn.dataset.originalHtml = btn.innerHTML;
         });
 
+        // 2. Search Input
         const searchInput = msgElement.querySelector('.music-search-input');
         const searchBtn = msgElement.querySelector('.music-search-btn');
 
-        searchBtn.addEventListener('click', () => {
-            if (searchInput.value.trim()) {
-                const query = `เปิดเพลง ${searchInput.value.trim()}`;
-                displayMessage(query, 'user');
-                const aiMode = window.NanApp ? window.NanApp.getAIModeManager().getMode() : 'fast';
-                websocket.send(JSON.stringify({ query: query, ai_mode: aiMode, intent: INTENTS.MUSIC }));
-            }
-        });
+        async function searchAndDisplay() {
+            if (!searchInput.value.trim()) return;
 
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && searchInput.value.trim()) {
-                const query = `เปิดเพลง ${searchInput.value.trim()}`;
-                displayMessage(query, 'user');
-                websocket.send(JSON.stringify({ query: query }));
+            const songName = searchInput.value.trim();
+            searchBtn.disabled = true;
+            searchBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/chat/music-search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ song_name: songName })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.results && data.results.length > 0) {
+                    displayMusicResults(bubble, songName, data.results);
+                } else {
+                    bubble.insertAdjacentHTML('beforeend', `
+                        <div class="music-results-container mt-4 text-red-400 text-sm">
+                            ❌ ${data.error || 'ไม่พบเพลง "' + songName + '"'}
+                        </div>
+                    `);
+                }
+                searchInput.value = '';
+
+            } catch (e) {
+                console.error('Music search error:', e);
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.innerHTML = '<i class="fa-solid fa-search"></i> ค้นหา';
             }
+        }
+
+        searchBtn.addEventListener('click', searchAndDisplay);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchAndDisplay();
         });
 
         searchInput.focus();
@@ -1096,8 +1209,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="nav-locations" style="display: flex; flex-wrap: wrap; gap: 8px; margin: 15px 0;">
                     <button class="nav-loc-btn" data-query="พาไปวัดภูมินทร์" style="padding: 8px 16px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 20px; color: #3b82f6; cursor: pointer;">🛕 วัดภูมินทร์</button>
                     <button class="nav-loc-btn" data-query="นำทางไปดอยเสมอดาว" style="padding: 8px 16px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 20px; color: #3b82f6; cursor: pointer;">⛰️ ดอยเสมอดาว</button>
-                    <button class="nav-loc-btn" data-query="พาไปวัดช้างค้ำ" style="padding: 8px 16px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 20px; color: #3b82f6; cursor: pointer;">🐘 วัดช้างค้ำ</button>
-                    <button class="nav-loc-btn" data-query="นำทางไปถนนคนเดิน" style="padding: 8px 16px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 20px; color: #3b82f6; cursor: pointer;">🚶 ถนนคนเดิน</button>
                 </div>
                 <div style="display: flex; gap: 8px; margin-top: 10px;">
                     <input type="text" id="nav-search-input" placeholder="หรือพิมพ์ชื่อสถานที่..." style="

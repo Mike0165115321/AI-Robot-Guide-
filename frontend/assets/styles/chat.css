@@ -231,12 +231,12 @@ body {
 
 .bubble {
     max-width: 75%;
-    padding: 16px 20px;
+    padding: 20px 24px;
+    /* Increased padding */
     border-radius: 20px;
     font-size: 1rem;
     font-family: 'Sarabun', sans-serif;
-    /* Switch to Sarabun for better readability */
-    line-height: 1.7;
+    line-height: 1.8;
     /* Increased line height */
     position: relative;
     word-wrap: break-word;
@@ -457,19 +457,24 @@ textarea {
 /* --- Content Styles --- */
 .markdown-content h3 {
     color: var(--accent);
-    margin: 20px 0 10px;
-    font-size: 1.2rem;
+    margin: 24px 0 12px;
+    /* Increased margins */
+    font-size: 1.25rem;
+    /* Slightly larger */
     border-bottom: 1px solid var(--glass-border);
-    padding-bottom: 5px;
+    padding-bottom: 8px;
+    letter-spacing: 0.5px;
 }
 
 .markdown-content p {
-    margin-bottom: 12px;
+    margin-bottom: 20px;
+    /* Significantly increased paragraph spacing */
+    letter-spacing: 0.2px;
+    /* Slight tracking */
 }
 
 .markdown-content strong {
     color: var(--accent);
-    /* Make bold text stand out like headers */
     font-weight: 600;
 }
 
@@ -481,16 +486,17 @@ textarea {
 
 .markdown-content ul {
     margin-left: 20px;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    /* Increased */
     color: #cbd5e1;
     list-style-type: disc;
-    /* Ensure bullets are visible */
 }
 
 .markdown-content li {
-    margin-bottom: 8px;
-    /* Add spacing between list items */
+    margin-bottom: 12px;
+    /* Increased list item spacing */
     padding-left: 5px;
+    line-height: 1.8;
 }
 
 /* Images inside Markdown Content (Injected by AI) */

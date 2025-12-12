@@ -173,6 +173,62 @@ async def receive_welcome_data(
         logging.error(f"❌ [Welcome] Error saving data: {e}")
         return {"status": "error", "message": str(e)}
 
+# 🆕 Music Search Endpoint - สำหรับ in-place search
+from core.ai_models.youtube_handler import youtube_handler_instance
+
+class MusicSearchRequest(BaseModel):
+    song_name: str
+
+@router.post("/music-search")
+async def search_music(request: MusicSearchRequest):
+    """
+    🎵 Search music on YouTube - returns results for in-place display
+    """
+    try:
+        song_name = request.song_name.strip()
+        if not song_name:
+            return {"success": False, "error": "กรุณาระบุชื่อเพลง", "results": []}
+        
+        logging.info(f"🎵 [Music Search] Query: '{song_name}'")
+        results = await youtube_handler_instance.search_music(query=song_name)
+        
+        if not results:
+            return {"success": False, "error": f"ไม่พบเพลง '{song_name}'", "results": []}
+        
+        return {"success": True, "query": song_name, "results": results}
+        
+    except Exception as e:
+        logging.error(f"❌ [Music Search] Error: {e}")
+        return {"success": False, "error": str(e), "results": []}
+
+class MusicStreamRequest(BaseModel):
+    video_url: str
+
+@router.post("/music/stream")
+async def get_audio_stream(request: MusicStreamRequest):
+    """
+    🎧 Get audio stream URL for a YouTube video
+    """
+    try:
+        video_url = request.video_url
+        if not video_url:
+            raise HTTPException(status_code=400, detail="Missing video_url")
+            
+        logging.info(f"🎧 [Music Stream] Getting stream for: {video_url}")
+        
+        # Reuse existing logic from youtube_handler
+        stream_url = await youtube_handler_instance.get_audio_stream_url(video_url)
+        
+        if not stream_url:
+            return {"error": "ไม่พบสตรีมเสียงสำหรับวิดีโอนี้", "stream_url": None}
+            
+        return {"stream_url": stream_url}
+        
+    except Exception as e:
+        logging.error(f"❌ [Music Stream] Error: {e}")
+        return {"error": str(e), "stream_url": None}
+
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator)):
     await websocket.accept()

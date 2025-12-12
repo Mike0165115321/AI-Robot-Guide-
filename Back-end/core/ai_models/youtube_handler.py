@@ -55,11 +55,21 @@ class YouTubeHandler:
             embeddable_videos = []
             for item in video_response.get("items", []):
                 if item.get("status", {}).get("embeddable"):
+                    # ดึง thumbnail URL - ใช้ high quality ถ้ามี
+                    thumbnails = item["snippet"].get("thumbnails", {})
+                    thumbnail_url = (
+                        thumbnails.get("high", {}).get("url") or
+                        thumbnails.get("medium", {}).get("url") or
+                        thumbnails.get("default", {}).get("url") or
+                        f"https://img.youtube.com/vi/{item['id']}/hqdefault.jpg"
+                    )
+                    
                     embeddable_videos.append({
                         "video_id": item["id"],
                         "title": item["snippet"]["title"],
                         "channel": item["snippet"]["channelTitle"],
-                        "url": f"https://www.youtube.com/watch?v={item['id']}"
+                        "url": f"https://www.youtube.com/watch?v={item['id']}",
+                        "thumbnail": thumbnail_url  # 🆕 เพิ่ม thumbnail
                     })
             
             print(f"✅ [YouTube] Found {len(embeddable_videos)} embeddable videos.")

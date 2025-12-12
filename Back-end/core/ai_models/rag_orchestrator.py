@@ -134,24 +134,34 @@ class RAGOrchestrator:
         final_answer = await get_small_talk_response(user_query=corrected_query)
         return {"answer": final_answer, "action": None, "sources": [], "image_url": None, "image_gallery": []}
 
-    async def _handle_play_music(self, entity: Optional[str], **kwargs) -> dict:
-        generic_triggers = ["เพลง", "เปิดเพลง", "ฟังเพลง", "music", "song", "play music", "ร้องเพลง"]
-        if not entity or entity.strip() in generic_triggers:
+    async def _handle_play_music(self, corrected_query: str = "", **kwargs) -> dict:
+        """
+        🎵 Play music handler - ใช้ corrected_query เป็น search term ตรงๆ
+        Frontend ส่ง song name มาใน query แล้ว
+        """
+        search_query = corrected_query.strip() if corrected_query else ""
+        
+        # ถ้า query ว่างหรือเป็นคำทั่วไป
+        generic_triggers = ["เพลง", "เปิดเพลง", "ฟังเพลง", "music", "song", "อยากฟังเพลง", ""]
+        if search_query in generic_triggers:
             return {
                 "answer": "ได้เลยค่ะ! อยากฟังเพลงอะไร หรือศิลปินคนไหน บอกน้องน่านได้เลยนะคะ 🎧",
                 "action": "PROMPT_FOR_SONG_INPUT",
                 "action_payload": {"placeholder": "เช่น น่านเนิบๆ, ปู่จ๋าน ลองไมค์..."},
                 "sources": [], "image_url": None, "image_gallery": []
             }
-        search_query = entity
+        
+        logging.info(f"🎵 [Music] Searching YouTube for: '{search_query}'")
         search_results = await youtube_handler_instance.search_music(query=search_query)
+        
         if not search_results:
             return {
                 "answer": f"ขออภัยค่ะ หาเพลง '{search_query}' ไม่เจอเลยค่ะ ลองชื่ออื่นดูมั้ยคะ?",
-                "action": "PROMPT_FOR_SONG_INPUT",
-                "action_payload": {"placeholder": "ลองค้นหาใหม่..."},
+                "action": None,
+                "action_payload": None,
                 "sources": [], "image_url": None, "image_gallery": []
             }
+        
         return {
             "answer": f"จัดให้ตามคำขอค่ะ! เพลงเกี่ยวกับ **'{search_query}'**",
             "action": "SHOW_SONG_CHOICES", 
@@ -388,11 +398,12 @@ class RAGOrchestrator:
         response = await handler(
             corrected_query=corrected_query,
             entity=entity,
-            is_complex=interpretation.get("is_complex", False),
-            sub_queries=interpretation.get("sub_queries", []),
+            is_complex=False,  # Default since we bypass Query Interpreter
+            sub_queries=[],    # Default since we bypass Query Interpreter
             mode=mode,
             session_id=session_id,
             turn_count=current_turn,
+            ai_mode=ai_mode,   # 🆕 Pass ai_mode to handlers
             **kwargs
         )
 
