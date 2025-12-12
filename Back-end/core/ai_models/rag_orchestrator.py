@@ -12,10 +12,9 @@ from typing import Any, Dict, List, Optional
 
 from sentence_transformers import CrossEncoder
 
-from core.ai_models.llm_handler import (
-    get_groq_rag_response_async,
-    get_llama_response_direct_async,
-)
+# 🆕 แยก Gemini และ Groq handlers ออกจากกัน
+from core.ai_models.gemini_handler import get_gemini_response
+from core.ai_models.groq_handler import get_groq_response, get_small_talk_response
 from core.ai_models.query_interpreter import QueryInterpreter
 from core.ai_models.youtube_handler import youtube_handler_instance
 from core.config import settings
@@ -23,7 +22,6 @@ from .handlers.analytics_handler import AnalyticsHandler
 from core.database.mongodb_manager import MongoDBManager
 from core.database.qdrant_manager import QdrantManager
 from core.tools.image_search_tool import image_search_tool_instance
-from core.ai_models.llm_handler import get_llm_response
 from core.tools.system_tool import system_tool_instance
 from utils.helper_functions import create_synthetic_document
 from .services.session_manager import SessionManager
@@ -113,13 +111,13 @@ class RAGOrchestrator:
         
         # ข้อความทักทายแบบเป็นกันเอง
         return {
-            "answer": "สวัสดีค่ะ เราเป็นไกด์ที่น่านค่ะ คุ้นเคยกับเส้นทางแถวนี้พอสมควรเลย เลยอยากรู้ว่าเธอมาจากที่ไหน จะได้แนะนำให้เหมาะกับสไตล์ของคนพื้นที่นั้นนิดนึงค่ะ ไม่ต้องบอกแบบละเอียดก็ได้นะคะ แค่จังหวัดหรือประเทศก็พอค่ะ 😊",
+            "answer": "สวัสดีค่ะ เราเป็น AI ไกด์จากน่านค่ะ ปรึกษาได้ทุกเรื่องเรามีข้อมูลสถานที่ท่องเที่ยวจังหวัดน่านแน่นๆเลย เลยอยากรู้ว่าเธอมาจากที่ไหน ไม่ต้องบอกแบบละเอียดก็ได้นะคะ แค่จังหวัดหรือประเทศก็พอค่ะ",
             "action": "AWAITING_ANALYTICS_DATA",
             "action_payload": None, "image_url": None, "image_gallery": [], "sources": [],
         }
 
     async def _handle_small_talk(self, corrected_query: str, **kwargs) -> dict:
-        final_answer = await get_llama_response_direct_async(user_query=corrected_query)
+        final_answer = await get_small_talk_response(user_query=corrected_query)
         return {"answer": final_answer, "action": None, "sources": [], "image_url": None, "image_gallery": []}
 
     async def _handle_play_music(self, entity: Optional[str], **kwargs) -> dict:
@@ -154,7 +152,7 @@ class RAGOrchestrator:
 
     async def _handle_informational(
         self, corrected_query: str, entity: Optional[str], sub_queries: List[str], mode: str, 
-        turn_count: int = 1, session_id: Optional[str] = None, **kwargs
+        turn_count: int = 1, session_id: Optional[str] = None, ai_mode: str = "fast", **kwargs
     ) -> dict:
         search_queries = [corrected_query] + sub_queries
         if entity:
@@ -235,7 +233,8 @@ class RAGOrchestrator:
         prompt_dict = self.prompt_engine.build_rag_prompt(
             user_query=corrected_query, 
             context=context_str, 
-            history=history
+            history=history,
+            ai_mode=ai_mode  # 🆕 ส่ง mode ไปเลือก prompt ที่เหมาะสม
         )
         
         messages = [
@@ -243,10 +242,22 @@ class RAGOrchestrator:
             {"role": "user", "content": prompt_dict["user"]}
         ]
 
-        raw_answer = await get_llm_response(
-            messages=messages,
-            model_name=settings.GROQ_LLAMA_MODEL 
-        )
+        # 🆕 Use ai_mode to select model: detailed = Gemini, fast = Groq/Llama
+        logging.info(f"🤖 [LLM] Using AI Mode: {ai_mode}")
+        
+        if ai_mode == "detailed":
+            # Use Gemini for detailed responses
+            raw_answer = await get_gemini_response(
+                user_query=prompt_dict["user"],
+                system_prompt=prompt_dict["system"],
+                max_tokens=8192
+            )
+        else:
+            # Use Groq/Llama for fast responses
+            raw_answer = await get_groq_response(
+                messages=messages,
+                model_name=settings.GROQ_LLAMA_MODEL
+            )
         
         final_answer_with_images = await self.image_service.inject_images_into_text(raw_answer)
         
@@ -299,8 +310,10 @@ class RAGOrchestrator:
     async def handle_get_directions(self, entity_slug: str, user_lat: float = None, user_lon: float = None) -> dict:
         return await self.nav_service.handle_get_directions(entity_slug, user_lat, user_lon)
     
-    async def answer_query(self, query: str, mode: str = "text", session_id: Optional[str] = None, **kwargs) -> dict:
-
+    async def answer_query(self, query: str, mode: str = "text", session_id: Optional[str] = None, ai_mode: str = "fast", **kwargs) -> dict:
+        """
+        ai_mode: 'fast' = Llama/Groq, 'detailed' = Gemini
+        """
         session_data = await self.session_manager.get_session(session_id)
         current_turn = session_data.get("turn_count", 0) + 1
         history = session_data.get("history", []) 
@@ -309,7 +322,7 @@ class RAGOrchestrator:
             self.session_manager.collection.update_one({"session_id": session_id}, {"$unset": {"awaiting": ""}})
             return await self.analytics_handler.handle_analytics_response(query, session_id, mode)
 
-        logging.info(f"🔄 [Session] ID: {session_id} | Turn: {current_turn}")
+        logging.info(f"🔄 [Session] ID: {session_id} | Turn: {current_turn} | AI Mode: {ai_mode}")
 
         try:
             interpretation = await self.query_interpreter.interpret_and_route(query)

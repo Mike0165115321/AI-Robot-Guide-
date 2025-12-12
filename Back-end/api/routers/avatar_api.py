@@ -103,12 +103,22 @@ async def _handle_audio_input(websocket: WebSocket, audio_bytes: bytes, orchestr
         logging.info(f"👂 [Avatar WebSocket] Heard (Raw): '{transcribed_text}'")
         result = await orchestrator.answer_query(transcribed_text, mode='voice')
         payload = await process_orchestrator_result(result)
+        
+        # [FIX] Skip TTS for MUSIC actions - no need to speak when playing music
+        action = payload.get("action", "")
+        is_music_action = action and "MUSIC" in action
+        
         text_to_speak = payload.get("answer")
         audio_task = None
-        if text_to_speak:
+        
+        if text_to_speak and not is_music_action:
             audio_task = asyncio.create_task(speech_handler_instance.synthesize_speech_to_bytes(text_to_speak))
+        elif is_music_action:
+            logging.info("🎵 [Avatar] Skipping TTS for music action")
+            
         sanitized_payload = sanitize_for_json(payload)
         await websocket.send_text(json.dumps(sanitized_payload))
+        
         if audio_task:
             response_audio_bytes = await audio_task
             if is_websocket_active(websocket):
@@ -131,12 +141,22 @@ async def _handle_text_input(websocket: WebSocket, query_text: str, orchestrator
         logging.info(f"⌨️ [Avatar WebSocket] Heard (Text): '{query_text}'")
         result = await orchestrator.answer_query(query_text, mode='voice')
         payload = await process_orchestrator_result(result)
+        
+        # [FIX] Skip TTS for MUSIC actions - no need to speak when playing music
+        action = payload.get("action", "")
+        is_music_action = action and "MUSIC" in action
+        
         text_to_speak = payload.get("answer")
         audio_task = None
-        if text_to_speak:
+        
+        if text_to_speak and not is_music_action:
              audio_task = asyncio.create_task(speech_handler_instance.synthesize_speech_to_bytes(text_to_speak))
+        elif is_music_action:
+            logging.info("🎵 [Avatar] Skipping TTS for music action")
+            
         sanitized_payload = sanitize_for_json(payload)
         await websocket.send_text(json.dumps(sanitized_payload))
+        
         if audio_task:
             response_audio_bytes = await audio_task
             if is_websocket_active(websocket):

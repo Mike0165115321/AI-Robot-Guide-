@@ -79,6 +79,225 @@ class BrowserMicHandler {
     }
 }
 
+// ========================================
+// Toast Notification Manager
+// - Non-blocking notifications
+// - Expands to form on click
+// - Reusable for events/promotions
+// ========================================
+class ToastManager {
+    constructor() {
+        this.container = null; // Lazy init after DOM ready
+        this.messageCount = 0;
+        this.triggerAfterMessages = 3; // แสดง toast หลังข้อความที่ N
+        this.hasShownWelcome = localStorage.getItem('nan_welcome_shown') === 'true';
+        this.provinceSubmitted = localStorage.getItem('nan_province_submitted') === 'true';
+    }
+
+    // ดึง container (lazy init)
+    getContainer() {
+        if (!this.container) {
+            this.container = document.getElementById('toast-container');
+        }
+        return this.container;
+    }
+
+    // เรียกเมื่อมีข้อความใหม่ (AI ตอบกลับ)
+    onNewMessage() {
+        this.messageCount++;
+        console.log(`🔔 ToastManager: Message #${this.messageCount}`);
+
+        // แสดง welcome toast ทุกๆ N ข้อความ (ไม่ต้องเช็ค localStorage)
+        if (this.messageCount % this.triggerAfterMessages === 0) {
+            // ตรวจสอบว่ามี toast อยู่แล้วหรือไม่ - ถ้ามีไม่ต้องแสดงซ้ำ
+            if (!document.getElementById('welcome-toast')) {
+                console.log('🎉 ToastManager: Showing welcome toast!');
+                this.showWelcomeToast();
+            }
+        }
+    }
+
+    showWelcomeToast() {
+        // ตรวจสอบว่ามี toast อยู่แล้วหรือไม่
+        if (document.getElementById('welcome-toast')) return;
+
+        const template = document.getElementById('welcome-toast-template');
+        if (!template) return;
+
+        const clone = template.content.cloneNode(true);
+        const container = this.getContainer();
+        if (!container) return;
+        container.appendChild(clone);
+
+        localStorage.setItem('nan_welcome_shown', 'true');
+
+        // Setup province select change handler
+        const select = document.getElementById('toast-province-select');
+        const customGroup = document.getElementById('toast-custom-input-group');
+
+        if (select) {
+            select.addEventListener('change', () => {
+                if (select.value === 'other_thai' || select.value === 'foreign') {
+                    customGroup.style.display = 'block';
+                } else {
+                    customGroup.style.display = 'none';
+                }
+            });
+        }
+    }
+
+    expandToast(element) {
+        if (!element.classList.contains('expanded')) {
+            element.classList.add('expanded');
+        }
+    }
+
+    closeToast(toastId) {
+        const toast = document.getElementById(toastId);
+        if (toast) {
+            toast.classList.add('closing');
+            setTimeout(() => toast.remove(), 300);
+        }
+    }
+
+    skipWelcome() {
+        localStorage.setItem('nan_province_submitted', 'true');
+        this.provinceSubmitted = true;
+        this.closeToast('welcome-toast');
+    }
+
+    async submitWelcome() {
+        const select = document.getElementById('toast-province-select');
+        const customInput = document.getElementById('toast-custom-input');
+
+        let province = select?.value || '';
+        let origin = 'Thailand';
+
+        // ถ้าเลือก "อื่นๆ" หรือ "ต่างประเทศ" ให้ใช้ค่าจาก input
+        if (province === 'other_thai' || province === 'foreign') {
+            province = customInput?.value?.trim() || '';
+            if (province === 'foreign' && customInput?.value) {
+                origin = customInput.value.trim();
+                province = null;
+            }
+        }
+
+        if (!province && !origin) {
+            this.skipWelcome();
+            return;
+        }
+
+        try {
+            // ส่งข้อมูลไป backend
+            await fetch(`${API_BASE_URL}/api/chat/welcome-data`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: sessionStorage.getItem('session_id') || 'anonymous',
+                    user_province: province,
+                    user_origin: origin
+                })
+            });
+
+            console.log('✅ Province data submitted:', province || origin);
+        } catch (error) {
+            console.error('Failed to submit province data:', error);
+        }
+
+        localStorage.setItem('nan_province_submitted', 'true');
+        this.provinceSubmitted = true;
+        this.closeToast('welcome-toast');
+    }
+
+    // สำหรับ event toast ในอนาคต
+    showEventToast(title, subtitle, icon = '🎉') {
+        const html = `
+            <div class="toast-notification" onclick="window.ToastManager.expandToast(this)">
+                <button class="toast-close" onclick="event.stopPropagation(); this.parentElement.remove()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="toast-header">
+                    <span class="toast-icon">${icon}</span>
+                    <div>
+                        <div class="toast-title">${title}</div>
+                        <div class="toast-subtitle clickable-hint">${subtitle}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        const container = this.getContainer();
+        if (container) container.insertAdjacentHTML('beforeend', html);
+    }
+}
+
+// สร้างและ expose ไว้ global สำหรับ HTML onclick handlers
+window.ToastManager = new ToastManager();
+
+// ========================================
+// AI Mode Manager
+// - Toggle between Fast (Llama) and Detailed (Gemini) modes
+// ========================================
+class AIModeManager {
+    constructor() {
+        this.mode = localStorage.getItem('nan_ai_mode') || 'fast'; // fast | detailed
+        this.button = null;
+        this.indicator = null;
+    }
+
+    init() {
+        this.button = document.getElementById('ai-mode-btn');
+        this.indicator = document.getElementById('mode-indicator');
+
+        if (this.button) {
+            this.updateUI();
+            this.button.addEventListener('click', () => this.toggleMode());
+        }
+    }
+
+    toggleMode() {
+        this.mode = this.mode === 'fast' ? 'detailed' : 'fast';
+        localStorage.setItem('nan_ai_mode', this.mode);
+        this.updateUI();
+        this.showIndicator();
+        console.log(`🔄 AI Mode switched to: ${this.mode}`);
+    }
+
+    updateUI() {
+        if (!this.button || !this.indicator) return;
+
+        // Update button
+        this.button.classList.remove('fast-mode', 'detailed-mode');
+        this.button.classList.add(`${this.mode}-mode`);
+
+        // Update icon
+        const icon = this.button.querySelector('i');
+        if (icon) {
+            icon.className = this.mode === 'fast'
+                ? 'fa-solid fa-bolt'
+                : 'fa-solid fa-brain';
+        }
+
+        // Update indicator
+        this.indicator.classList.remove('fast', 'detailed');
+        this.indicator.classList.add(this.mode);
+        this.indicator.textContent = this.mode === 'fast'
+            ? '⚡ คิดเร็ว (Llama)'
+            : '🧠 คิดละเอียด (Gemini)';
+    }
+
+    showIndicator() {
+        if (!this.indicator) return;
+        this.indicator.classList.add('show');
+        setTimeout(() => this.indicator.classList.remove('show'), 2000);
+    }
+
+    getMode() {
+        return this.mode;
+    }
+}
+
+window.AIModeManager = new AIModeManager();
+
 document.addEventListener('DOMContentLoaded', () => {
     const messageArea = document.getElementById('message-area');
     const userInput = document.getElementById('user-input');
@@ -105,6 +324,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 fabActions.classList.remove('open');
             });
         });
+    }
+
+    // Init AI Mode Manager
+    if (window.AIModeManager) {
+        window.AIModeManager.init();
     }
 
     let messageCounter = 0;
@@ -145,6 +369,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof event.data === 'string') {
                 const data = JSON.parse(event.data);
                 displayMessage(data.answer || "ขออภัยค่ะ ไม่เข้าใจคำถาม", 'ai', data.image_url, data.image_gallery, data.emotion, data.sources, data.action, data.action_payload);
+
+                // 🔔 Trigger toast notification after AI responds
+                if (window.ToastManager) {
+                    window.ToastManager.onNewMessage();
+                }
             } else if (event.data instanceof ArrayBuffer) {
                 await playAudio(event.data);
             }
@@ -600,7 +829,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (text && websocket && websocket.readyState === WebSocket.OPEN) {
             displayMessage(text, 'user');
-            websocket.send(JSON.stringify({ query: text }));
+            // ส่ง ai_mode ไปด้วย
+            const aiMode = window.AIModeManager ? window.AIModeManager.getMode() : 'fast';
+            websocket.send(JSON.stringify({ query: text, ai_mode: aiMode }));
             userInput.value = '';
 
             // Stop mic if listening

@@ -230,7 +230,7 @@ class MongoDBManager:
                 {"$limit": 15}  # Top 15 จังหวัด
             ]
             
-            # 4. Pipeline สำหรับหา Interest Topic (เขาสนใจเรื่องอะไร)
+            # 4. Pipeline สำหรับหา Interest Topic (เขาสนใจเรื่องอะไร - หมวดหมู่)
             interest_pipeline = [
                 match_stage,
                 {"$match": {"interest_topic": {"$ne": None}}}, # ไม่เอาค่า Null
@@ -238,25 +238,43 @@ class MongoDBManager:
                 {"$sort": {"count": -1}},
                 {"$limit": 10}
             ]
+            
+            # 5. Pipeline สำหรับหา Top Locations (สถานที่ยอดฮิต)
+            location_pipeline = [
+                match_stage,
+                {"$match": {"location_title": {"$ne": None}}},  # ไม่เอาค่า Null
+                {"$group": {"_id": "$location_title", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}},
+                {"$limit": 10}
+            ]
 
-            # 5. นับจำนวนบทสนทนาทั้งหมดในช่วงเวลา (นับจาก chat_sessions ที่ active)
-            session_collection = self.get_collection("chat_sessions")
-            total_count = 0
-            if session_collection is not None:
-                total_count = session_collection.count_documents({"last_active": {"$gte": cutoff_date}})
+            # 6. นับจำนวนข้อความทั้งหมดในช่วงเวลา (นับจาก analytics_logs)
+            total_count = collection.count_documents({"timestamp": {"$gte": cutoff_date}})
 
             # Execute Pipelines (สั่งประมวลผล)
             origins = list(collection.aggregate(origin_pipeline))
             provinces = list(collection.aggregate(province_pipeline))
             interests = list(collection.aggregate(interest_pipeline))
+            locations = list(collection.aggregate(location_pipeline))
+            
+            # Default sample data for province if empty (ยังไม่มีการเก็บข้อมูล)
+            if not provinces:
+                provinces = [
+                    {"_id": "กรุงเทพมหานคร", "count": 0},
+                    {"_id": "เชียงใหม่", "count": 0},
+                    {"_id": "น่าน", "count": 0},
+                    {"_id": "ลำปาง", "count": 0},
+                    {"_id": "แพร่", "count": 0},
+                ]
 
             return {
                 "origin_stats": origins,
-                "province_stats": provinces,  # 🆕 เพิ่มสถิติจังหวัด
+                "province_stats": provinces,
                 "interest_stats": interests,
+                "location_stats": locations,  # 🆕 สถานที่ยอดฮิต
                 "total_conversations": total_count
             }
 
         except Exception as e:
             print(f"❌ Error aggregating analytics: {e}")
-            return {"origin_stats": [], "province_stats": [], "interest_stats": [], "total_conversations": 0}
+            return {"origin_stats": [], "province_stats": [], "interest_stats": [], "location_stats": [], "total_conversations": 0}

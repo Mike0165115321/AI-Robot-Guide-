@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const originalIndex = navigationList.findIndex(x => x.slug === item.slug);
 
             const card = document.createElement('div');
-            card.className = 'travel-card p-4 sm:flex sm:space-x-4 bg-slate-800/50 rounded-xl border border-slate-700 hover:border-teal-500/50 transition cursor-pointer mb-4';
+            card.className = 'travel-card p-0 sm:flex sm:items-stretch overflow-hidden bg-slate-800/50 rounded-xl border border-slate-700 hover:border-teal-500/50 transition cursor-pointer mb-4';
             card.setAttribute('data-slug', item.slug);
             card.setAttribute('data-name', item.title);
             card.setAttribute('data-index', originalIndex);
@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // [Refactored Phase 4] Use shared utils
-            const { primaryUrl: imageUrl, imgOnError } = getLocationImages(item);
+            const { primaryUrl: imageUrl, imgOnError } = getLocationImages(item, API_BASE_URL);
 
             let distanceBadge = '';
             if (item.distance_km !== undefined && item.distance_km !== null) {
@@ -135,11 +135,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             card.innerHTML = `
-                <div class="sm:w-1/3 mb-3 sm:mb-0 flex-shrink-0">
+                <div class="w-full sm:w-48 h-40 flex-shrink-0 overflow-hidden">
                     <img src="${imageUrl}" onerror="${imgOnError}"
-                        alt="${item.title}" class="w-full h-48 sm:h-full object-cover rounded-lg sm:rounded-l-lg sm:rounded-r-none">
+                        alt="${item.title}" class="w-full h-full object-cover">
                 </div>
-                <div class="sm:w-2/3 space-y-2">
+                <div class="flex-1 p-4 space-y-2">
                     <div class="flex items-center flex-wrap gap-2">
                         <span class="inline-block px-3 py-1 text-xs rounded-full bg-teal-900/50 text-teal-200 border border-teal-700">
                             ${item.topic || 'ปลายทาง'}
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentItem = navigationList[currentStepIndex];
         if (!currentItem) return;
 
-        navButtonText.textContent = `เริ่มนำทางไปยัง ${currentItem.title}`;
+        navButtonText.textContent = `เริ่มนำทางไปยัง ${currentItem.title} `;
 
         const cards = document.querySelectorAll('.travel-card');
         cards.forEach(card => {

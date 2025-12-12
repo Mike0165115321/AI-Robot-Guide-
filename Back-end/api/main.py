@@ -83,6 +83,8 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 origins = [
     "http://localhost:9090",
     "http://127.0.0.1:9090",
+    "http://localhost:3000",  # Next.js dev server
+    "http://127.0.0.1:3000",  # Next.js dev server
     f"http://{settings.API_HOST}:{settings.API_PORT}",
     # เพิ่ม production domain ที่นี่ เช่น:
     # "https://your-production-domain.com",

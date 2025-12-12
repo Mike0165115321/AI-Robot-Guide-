@@ -118,13 +118,15 @@ async def handle_text_chat(
         
         # 📊 Async Log to Analytics
         user_query_str = query_data if isinstance(query_data, str) else str(query_data)
-        topic = result.get("category") or result.get("topic") 
+        topic = result.get("category") or result.get("topic")
+        location_title = result.get("title") or result.get("location_title")
         
         await analytics.log_interaction(
             session_id=session_id,
             user_query=user_query_str,
             response=result.get("answer", ""),
-            topic=topic
+            topic=topic,
+            location_title=location_title
         )
 
         return result
@@ -132,6 +134,45 @@ async def handle_text_chat(
     except Exception as e:
         logging.error(f"❌ [API-Text] An unexpected error occurred: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred.")
+
+# 🆕 Endpoint สำหรับรับข้อมูล province จาก Toast Notification
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime, timezone
+
+class WelcomeDataRequest(BaseModel):
+    session_id: str
+    user_province: Optional[str] = None
+    user_origin: Optional[str] = "Thailand"
+
+@router.post("/welcome-data")
+async def receive_welcome_data(
+    data: WelcomeDataRequest,
+    analytics: AnalyticsService = Depends(get_analytics_service)
+):
+    """
+    รับข้อมูลจังหวัด/ประเทศจาก Toast Notification และบันทึกลง analytics
+    """
+    try:
+        logging.info(f"📊 [Welcome] Received province data: {data.user_province} | {data.user_origin}")
+        
+        # Log to analytics
+        await analytics.log_interaction(
+            session_id=data.session_id,
+            user_query="[Welcome Form Submission]",
+            response="",
+            topic=None,
+            location_title=None,
+            user_origin=data.user_origin,
+            user_province=data.user_province
+        )
+        
+        return {"status": "success", "message": "ขอบคุณสำหรับข้อมูลค่ะ!"}
+        
+    except Exception as e:
+        logging.error(f"❌ [Welcome] Error saving data: {e}")
+        return {"status": "error", "message": str(e)}
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator)):
     await websocket.accept()
@@ -143,9 +184,10 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                 try:
                     query_data = json.loads(data["text"])
                     query_text = query_data.get("query", "")
-                    logging.info(f"💬 [WS] Received text: {query_text}")
+                    ai_mode = query_data.get("ai_mode", "fast")  # fast | detailed
+                    logging.info(f"💬 [WS] Received text: {query_text} | AI Mode: {ai_mode}")
                     
-                    result = await orchestrator.answer_query(query_text, mode='text')
+                    result = await orchestrator.answer_query(query_text, mode='text', ai_mode=ai_mode)
                     await websocket.send_json(result)
                 except Exception as e:
                     logging.error(f"❌ [WS] Error processing text: {e}")

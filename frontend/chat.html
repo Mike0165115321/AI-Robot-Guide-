@@ -107,17 +107,82 @@
 
                 <div class="input-area-wrapper">
                     <div class="input-container">
+                        <!-- AI Mode Selector -->
+                        <button id="ai-mode-btn" class="btn-icon mode-btn" title="เปลี่ยนโหมด AI">
+                            <i class="fa-solid fa-bolt"></i>
+                        </button>
                         <button id="mic-button" class="btn-icon"><i class="fa-solid fa-microphone"></i></button>
                         <textarea id="user-input" placeholder="ถามน้องน่านได้เลยเจ้า..." rows="1"></textarea>
                         <button id="send-button-icon" class="btn-send"><i class="fa-solid fa-paper-plane"></i></button>
                     </div>
+                    <!-- Mode indicator -->
+                    <div id="mode-indicator" class="mode-indicator">⚡ คิดเร็ว</div>
                 </div>
             </section>
 
             <!-- Travel Mode Container Removed -->
 
         </main>
+
+        <!-- Toast Notification Container -->
+        <div class="toast-container" id="toast-container">
+            <!-- Toasts will be dynamically added here -->
+        </div>
+
     </div>
+
+    <!-- Welcome Toast Template (Hidden) -->
+    <template id="welcome-toast-template">
+        <div class="toast-notification" id="welcome-toast" onclick="window.ToastManager.expandToast(this)">
+            <button class="toast-close"
+                onclick="event.stopPropagation(); window.ToastManager.closeToast('welcome-toast')">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="toast-header">
+                <span class="toast-icon">👋</span>
+                <div>
+                    <div class="toast-title">ยินดีต้อนรับค่ะ!</div>
+                    <div class="toast-subtitle clickable-hint">คลิกเพื่อบอกเราว่าคุณมาจากไหน</div>
+                </div>
+            </div>
+            <div class="toast-content">
+                <div class="toast-input-group">
+                    <label>เลือกจังหวัด</label>
+                    <select id="toast-province-select">
+                        <option value="">-- เลือกจังหวัด --</option>
+                        <option value="กรุงเทพมหานคร">กรุงเทพมหานคร</option>
+                        <option value="เชียงใหม่">เชียงใหม่</option>
+                        <option value="เชียงราย">เชียงราย</option>
+                        <option value="น่าน">น่าน (คนท้องถิ่น)</option>
+                        <option value="แพร่">แพร่</option>
+                        <option value="ลำปาง">ลำปาง</option>
+                        <option value="พะเยา">พะเยา</option>
+                        <option value="ลำพูน">ลำพูน</option>
+                        <option value="นครสวรรค์">นครสวรรค์</option>
+                        <option value="พิษณุโลก">พิษณุโลก</option>
+                        <option value="ขอนแก่น">ขอนแก่น</option>
+                        <option value="นครราชสีมา">นครราชสีมา</option>
+                        <option value="ชลบุรี">ชลบุรี</option>
+                        <option value="ภูเก็ต">ภูเก็ต</option>
+                        <option value="สุราษฎร์ธานี">สุราษฎร์ธานี</option>
+                        <option value="other_thai">จังหวัดอื่นๆ...</option>
+                        <option value="foreign">ต่างประเทศ</option>
+                    </select>
+                </div>
+                <div class="toast-input-group" id="toast-custom-input-group" style="display: none;">
+                    <label>พิมพ์จังหวัด/ประเทศ</label>
+                    <input type="text" id="toast-custom-input" placeholder="เช่น สงขลา, ญี่ปุ่น, สหรัฐอเมริกา">
+                </div>
+                <div class="toast-actions">
+                    <button class="toast-btn toast-btn-secondary"
+                        onclick="window.ToastManager.skipWelcome()">ข้ามไปก่อน</button>
+                    <button class="toast-btn toast-btn-primary" onclick="window.ToastManager.submitWelcome()">
+                        <i class="fa-solid fa-check"></i> ยืนยัน
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
 
     <script src="assets/scripts/config.js"></script>
     <script src="assets/scripts/music_player.js"></script>

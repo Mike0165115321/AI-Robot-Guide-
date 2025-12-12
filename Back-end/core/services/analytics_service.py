@@ -13,7 +13,9 @@ class AnalyticsService:
                               user_query: str, 
                               response: str, 
                               topic: str = None, 
+                              location_title: str = None,
                               user_origin: str = None, 
+                              user_province: str = None,
                               sentiment: str = None):
         """
         Logs a single interaction to the analytics_logs collection.
@@ -29,9 +31,11 @@ class AnalyticsService:
                 "timestamp": datetime.now(timezone.utc),
                 "user_query": user_query,
                 "ai_response": response,
-                "interest_topic": topic,      # e.g., "Culture", "Food"
-                "user_origin": user_origin,   # e.g., "China", "Bangkok" (if detected)
-                "sentiment": sentiment,       # e.g., "Positive", "Neutral"
+                "interest_topic": topic,          # e.g., "Culture", "Food" (category)
+                "location_title": location_title, # e.g., "วัดภูมินทร์" (specific place name)
+                "user_origin": user_origin,       # e.g., "China", "Japan" (for foreigners)
+                "user_province": user_province,   # e.g., "กรุงเทพฯ" (for Thai visitors)
+                "sentiment": sentiment,           # e.g., "Positive", "Neutral"
                 "meta": {
                     "query_length": len(user_query) if user_query else 0,
                     "response_length": len(response) if response else 0
@@ -40,7 +44,7 @@ class AnalyticsService:
             
             # Using insert_one directly (could be batched in high-load systems)
             self.collection.insert_one(log_entry)
-            logging.debug(f"📊 Analytics Logged: {topic} | {user_origin}")
+            logging.debug(f"📊 Analytics Logged: {topic} | {location_title} | {user_origin}")
 
         except Exception as e:
             logging.error(f"❌ Failed to log analytics: {e}")

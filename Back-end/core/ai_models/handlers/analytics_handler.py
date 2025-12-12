@@ -133,23 +133,30 @@ EXAMPLES:
             return await self.orchestrator_callback(query=final_query, mode=mode, session_id=session_id)
         
         else:
-            # ✅ แค่ขอบคุณ ไม่ต้องถามอะไรเพิ่ม - ป้องกันการถามถี่เกิน
+            # ผู้ใช้บอกแค่ที่มา → ใช้ LLM ตอบพร้อม boost keywords ตาม origin
             origin = log_data.get('user_origin')
             province = log_data.get('user_province')
             
-            if origin:
-                location_text = province if province else origin
-                msg = f"ขอบคุณค่ะ! ยินดีต้อนรับจาก{location_text}นะคะ 🎉 ถามอะไรก็ได้เลยค่ะ"
-            else:
-                msg = "ขอบคุณค่ะ! ถามอะไรก็ได้เลยนะคะ 😊"
+            # สร้าง context สำหรับ LLM
+            boost_keywords = self._get_boost_keywords(origin) if origin else ""
             
-            return {
-                "answer": msg,
-                "action": None,  # ไม่ต้อง await อะไรเพิ่ม
-                "sources": [],
-                "image_url": None,
-                "image_gallery": [],
-            }
+            if origin or province:
+                location_text = province if province else origin
+                # ส่งไปให้ LLM ตอบพร้อม context เสริม
+                welcome_query = f"ผมมาจาก{location_text}ครับ แนะนำสถานที่เที่ยวน่านหน่อย"
+                if boost_keywords:
+                    welcome_query = f"{welcome_query} (บริบทเสริม: {boost_keywords})"
+                logging.info(f"🚀 [Analytics] Welcome Query with Boost: '{welcome_query}'")
+                return await self.orchestrator_callback(query=welcome_query, mode=mode, session_id=session_id)
+            else:
+                # ถ้าไม่มีข้อมูล origin ให้ตอบสั้นๆ
+                return {
+                    "answer": "ยินดีต้อนรับสู่น่านค่ะ! 🎉 ถามอะไรก็ได้เลยนะคะ จะแนะนำวัด คาเฟ่ ร้านอาหาร หรือธรรมชาติดีคะ?",
+                    "action": None,
+                    "sources": [],
+                    "image_url": None,
+                    "image_gallery": [],
+                }
 
     async def log_interest_event(self, session_id: str, topic: str, query: str):
         """

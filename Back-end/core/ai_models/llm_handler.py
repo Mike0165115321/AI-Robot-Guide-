@@ -64,14 +64,67 @@ async def get_llama_response_direct_async(user_query: str) -> str:
         temperature=0.7 
     )
 
-async def get_groq_rag_response_async(user_query: str, context: str, insights: str = "", turn_count: int = 1) -> Dict[str, Any]:
+async def get_groq_rag_response_async(user_query: str, context: str, insights: str = "", turn_count: int = 1, ai_mode: str = "fast") -> Dict[str, Any]:
+    """
+    ai_mode: 'fast' = Groq/Llama, 'detailed' = Gemini
+    """
     system_msg = f"คุณคือน้องน่าน ไกด์นำเที่ยว\nข้อมูลอ้างอิง:\n{context}"
     if insights:
         system_msg += f"\n\nข้อมูลเพิ่มเติมจากสถิติ:\n{insights}"
 
-    response_text = await get_llm_response([
-        {"role": "system", "content": system_msg},
-        {"role": "user", "content": user_query}
-    ])
+    if ai_mode == "detailed":
+        # Use Gemini for detailed responses
+        response_text = await get_gemini_response_async(
+            user_query=user_query,
+            system_prompt=system_msg,
+            max_tokens=2048  # Allow longer responses
+        )
+    else:
+        # Use Groq/Llama for fast responses
+        response_text = await get_llm_response([
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": user_query}
+        ])
     
     return {"answer": response_text, "sources_used": []}
+
+# ========================================
+# Gemini Support for Detailed Mode
+# ========================================
+import google.generativeai as genai
+
+# Configure Gemini
+genai.configure(api_key=settings.GEMINI_API_KEYS[0] if settings.GEMINI_API_KEYS else None)
+
+async def get_gemini_response_async(
+    user_query: str,
+    system_prompt: str = "",
+    model_name: str = "gemini-2.5-flash",
+    max_tokens: int = 2048
+) -> str:
+    """
+    ใช้ Gemini สำหรับ detailed mode - คำตอบยาวและละเอียดกว่า
+    """
+    try:
+        import asyncio
+        
+        model = genai.GenerativeModel(model_name)
+        
+        full_prompt = f"{system_prompt}\n\nคำถามผู้ใช้: {user_query}\n\nกรุณาตอบอย่างละเอียดและครบถ้วน:"
+        
+        # Run in thread pool since google-generativeai is synchronous
+        response = await asyncio.to_thread(
+            model.generate_content,
+            full_prompt,
+            generation_config=genai.types.GenerationConfig(
+                max_output_tokens=max_tokens,
+                temperature=0.7
+            )
+        )
+        
+        return response.text
+        
+    except Exception as e:
+        logging.error(f"❌ [Gemini] Error: {e}")
+        # ❌ ไม่ fallback ไป Groq แล้ว เพราะอาจชน rate limit
+        return f"ขออภัยค่ะ ระบบ AI ขัดข้องชั่วคราว (Gemini Error: {str(e)[:100]})"

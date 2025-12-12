@@ -109,21 +109,56 @@ class SpeechHandler:
             raise ValueError("Input text for TTS cannot be empty.")
 
         clean_text = sanitize_text_for_speech(text)
-        print(f"🗣️  [TTS] Synthesizing speech for: '{clean_text[:30]}...'")
         
-        try:
-            communicate = edge_tts.Communicate(clean_text, settings.TTS_VOICE, rate="-10%")
-            
-            mp3_buffer = io.BytesIO()
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    mp3_buffer.write(chunk["data"])
-            
-            mp3_buffer.seek(0)
-            return mp3_buffer.read()
+        # Validate cleaned text isn't empty
+        if not clean_text.strip():
+            logging.warning("⚠️ [TTS] Text became empty after sanitization, using fallback text")
+            clean_text = "ขอโทษค่ะ ไม่สามารถอ่านข้อความได้"
+        
+        print(f"🗣️  [TTS] Synthesizing speech for: '{clean_text[:50]}...'")
+        
+        # ========== Try Edge TTS (Primary - Microsoft) ==========
+        voices_to_try = [settings.TTS_VOICE, "th-TH-NiwatNeural"]
+        
+        for voice in voices_to_try:
+            try:
+                communicate = edge_tts.Communicate(clean_text, voice, rate="-10%")
+                
+                mp3_buffer = io.BytesIO()
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        mp3_buffer.write(chunk["data"])
+                
+                if mp3_buffer.tell() == 0:
+                    logging.warning(f"⚠️ [TTS] No audio data received with voice {voice}")
+                    continue
+                    
+                mp3_buffer.seek(0)
+                logging.info(f"✅ [TTS] Success with Edge TTS voice: {voice}")
+                return mp3_buffer.read()
 
-        except Exception as e:
-            logging.error(f"❌ [TTS] Error during edge-tts synthesis: {e}", exc_info=True)
-            raise RuntimeError("Failed to synthesize speech.")
+            except Exception as e:
+                logging.warning(f"⚠️ [TTS] Edge TTS voice {voice} failed: {e}")
+                continue
+        
+        # ========== Fallback to gTTS (Google TTS) ==========
+        logging.warning("⚠️ [TTS] Edge TTS failed, trying gTTS fallback...")
+        try:
+            from gtts import gTTS
+            
+            tts = gTTS(text=clean_text, lang='th', slow=False)
+            mp3_buffer = io.BytesIO()
+            tts.write_to_fp(mp3_buffer)
+            mp3_buffer.seek(0)
+            
+            logging.info("✅ [TTS] Success with gTTS fallback")
+            return mp3_buffer.read()
+            
+        except Exception as gtts_error:
+            logging.error(f"❌ [TTS] gTTS fallback also failed: {gtts_error}")
+        
+        # All TTS methods failed
+        logging.error("❌ [TTS] All TTS methods failed (Edge TTS + gTTS)")
+        raise RuntimeError("Failed to synthesize speech.")
 
 speech_handler_instance = SpeechHandler()

@@ -32,17 +32,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             // For real-time updates, direct setting is often smoother/less distracting than re-animating from 0
             totalEl.textContent = data.total_conversations.toLocaleString();
 
-            // Update Top Location
+            // Update Top Location (ใช้ location_stats แทน interest_stats)
             const topLocationEl = document.getElementById('top-location');
             const topLocationCountEl = document.getElementById('top-location-count');
 
-            if (data.interest_stats && data.interest_stats.length > 0) {
-                const topInterest = data.interest_stats[0];
-                topLocationEl.textContent = topInterest._id || "ไม่มีข้อมูล";
-                topLocationCountEl.innerHTML = `<i class="fa-solid fa-fire"></i> ถูกถามถึง ${topInterest.count} ครั้ง`;
+            if (data.location_stats && data.location_stats.length > 0) {
+                const topLocation = data.location_stats[0];
+                topLocationEl.textContent = topLocation._id || "ไม่มีข้อมูล";
+                topLocationCountEl.innerHTML = `<i class="fa-solid fa-fire"></i> ถูกถามถึง ${topLocation.count} ครั้ง`;
             } else {
-                topLocationEl.textContent = "ไม่มีข้อมูล";
-                topLocationCountEl.innerHTML = `<i class="fa-solid fa-minus"></i> ยังไม่มีการพูดถึง`;
+                topLocationEl.textContent = "ยังไม่มีข้อมูล";
+                topLocationCountEl.innerHTML = `<i class="fa-solid fa-info-circle"></i> ลองถามน้องน่านเกี่ยวกับสถานที่ต่างๆ`;
             }
 
             // Origin Chart (Doughnut)
@@ -183,8 +183,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             listContainer.innerHTML = ''; // Clear list
 
-            if (data.interest_stats && data.interest_stats.length > 0) {
-                data.interest_stats.forEach((item, index) => {
+            // ใช้ location_stats สำหรับ Top Locations Modal
+            if (data.location_stats && data.location_stats.length > 0) {
+                data.location_stats.forEach((item, index) => {
                     const li = document.createElement('li');
                     li.className = 'ranking-item';
                     li.innerHTML = `
@@ -195,7 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     listContainer.appendChild(li);
                 });
             } else {
-                listContainer.innerHTML = '<li class="ranking-item" style="justify-content:center; color:var(--text-muted);">ไม่มีข้อมูล</li>';
+                listContainer.innerHTML = '<li class="ranking-item" style="justify-content:center; color:var(--text-muted);">ยังไม่มีข้อมูลสถานที่ ลองถามน้องน่านเกี่ยวกับสถานที่ต่างๆ</li>';
             }
 
             modal.style.display = 'flex';

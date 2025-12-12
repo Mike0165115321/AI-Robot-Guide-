@@ -65,22 +65,39 @@ class ImageService:
         """
         Determines the best image URLs for a location document.
         Mirrors logic in frontend utils.js (Prefix -> Slug)
+        With fuzzy matching for partial prefix matches.
         """
-        # 1. Try Image Prefix
+        # 1. Try Image Prefix (exact match)
         prefix = doc.get("metadata", {}).get("image_prefix")
         imgs = self.find_all_images_by_prefix(prefix)
         if imgs:
             return imgs
             
         # 2. Fallback: Try using slug as prefix
-        # Convention: slug + "-" (e.g. "my-slug-")
         slug = doc.get("slug")
         if slug:
             slug_prefix = slug + "-"
             imgs = self.find_all_images_by_prefix(slug_prefix)
             if imgs:
                 return imgs
-                
+            
+            # 3. Fuzzy match: look for any prefix STARTING with slug
+            for cached_prefix in self.prefixed_image_map.keys():
+                if cached_prefix.startswith(slug + "-"):
+                    return self.prefixed_image_map[cached_prefix]
+            
+            # 4. ✅ NEW: Static file fallback - check if physical file exists
+            import os
+            static_path = os.path.join(os.path.dirname(__file__), "..", "..", "static", "images")
+            static_path = os.path.abspath(static_path)
+            
+            for i in range(1, 6):  # Check up to 5 images
+                filename = f"{slug}-0{i}.jpg"
+                full_path = os.path.join(static_path, filename)
+                if os.path.exists(full_path):
+                    # Return static URL if file exists
+                    return [f"/static/images/{filename}"]
+                    
         return []
 
     def find_random_image(self) -> str | None:
