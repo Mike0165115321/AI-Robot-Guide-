@@ -84,6 +84,60 @@ async def get_sync_status(
     }
 
 
+@router.get("/check-availability", response_model=Dict[str, Any])
+async def check_sheets_availability():
+    """
+    ตรวจสอบว่ามี credentials สำหรับ Google Sheets หรือไม่
+    Frontend ใช้เพื่อแสดง UI ที่เหมาะสม
+    """
+    from core.services.google_sheets_service import CREDENTIALS_PATH
+    
+    has_credentials = CREDENTIALS_PATH.exists()
+    
+    return {
+        "has_credentials": has_credentials,
+        "available_modes": ["public"] if not has_credentials else ["public", "service_account"],
+        "recommended_mode": "service_account" if has_credentials else "public",
+        "message": "กรุณา Share Google Sheet เป็น 'Anyone with the link' สำหรับ Public Mode" if not has_credentials else None
+    }
+
+
+@router.post("/connect-public", response_model=Dict[str, Any])
+async def connect_public_sheet(
+    request: ConnectRequest,
+    mongo: MongoDBManager = Depends(get_mongo_manager)
+):
+    """
+    เชื่อมต่อ Google Sheet แบบ Public (ไม่ต้อง credentials)
+    
+    Sheet ต้องถูก Share เป็น "Anyone with the link" ก่อน
+    
+    - **sheet_url**: URL เต็มของ Google Sheet
+    """
+    if not request.sheet_url:
+        raise HTTPException(status_code=400, detail="ต้องระบุ sheet_url")
+    
+    service = get_sheets_service(mongo)
+    success = service.connect_public(request.sheet_url)
+    
+    if not success:
+        raise HTTPException(
+            status_code=400, 
+            detail="เชื่อมต่อไม่สำเร็จ - ตรวจสอบว่า Sheet ถูก Share เป็น 'Anyone with the link' แล้ว"
+        )
+    
+    # Save config
+    _sheets_config["sheet_id"] = service.sheet_id
+    _sheets_config["sheet_url"] = request.sheet_url
+    _sheets_config["mode"] = "public"
+    
+    return {
+        "success": True,
+        "message": f"เชื่อมต่อสำเร็จ (Public Mode): {service.sheet_title}",
+        "status": service.get_status()
+    }
+
+
 @router.post("/sync-now", response_model=Dict[str, Any])
 async def sync_now(
     mongo: MongoDBManager = Depends(get_mongo_manager)

@@ -1,11 +1,15 @@
 """
 Google Sheets Sync Service
 รองรับการ sync ข้อมูลจาก Google Sheets เข้าสู่ MongoDB
+รองรับ 3 โหมด: Public CSV, Service Account, OAuth2
 """
 
 import os
+import io
+import csv
 import json
 import logging
+import requests
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from pathlib import Path
@@ -39,7 +43,10 @@ class SyncResult:
 class GoogleSheetsService:
     """
     Service สำหรับ sync ข้อมูลจาก Google Sheets
-    รองรับทั้ง Polling และ Webhook mode
+    รองรับ 3 โหมด:
+    - public: ดึงข้อมูลผ่าน CSV export (ไม่ต้อง credentials)
+    - service_account: ใช้ Service Account credentials
+    - oauth2: ใช้ User OAuth2 token
     """
     
     def __init__(self, mongo_manager=None):
@@ -48,7 +55,9 @@ class GoogleSheetsService:
         self.worksheet: Optional[Worksheet] = None
         self.mongo = mongo_manager
         self.sheet_id: Optional[str] = None
+        self.sheet_title: Optional[str] = None  # For public mode where we can't get title
         self.last_sync: Optional[str] = None
+        self.connection_mode: Optional[str] = None  # "public", "service_account", "oauth2"
         
         # Required columns mapping (Sheet column → DB field)
         self.column_mapping = {
@@ -60,9 +69,111 @@ class GoogleSheetsService:
             "keywords": "keywords",  # comma-separated in sheet
         }
     
+    def _extract_sheet_id(self, sheet_url: str) -> Optional[str]:
+        """ดึง sheet_id จาก URL"""
+        if not sheet_url:
+            return None
+        # URL format: https://docs.google.com/spreadsheets/d/SHEET_ID/edit
+        parts = sheet_url.split("/d/")
+        if len(parts) > 1:
+            return parts[1].split("/")[0]
+        return None
+
+    def _extract_gid(self, sheet_url: str) -> str:
+        """ดึง gid (sheet tab id) จาก URL, default เป็น 0"""
+        if not sheet_url or "gid=" not in sheet_url:
+            return "0"
+        try:
+            return sheet_url.split("gid=")[1].split("&")[0].split("#")[0]
+        except:
+            return "0"
+
+    def connect_public(self, sheet_url: str) -> bool:
+        """
+        เชื่อมต่อ Google Sheet แบบ Public (ไม่ต้อง credentials)
+        
+        Sheet ต้องถูก share เป็น "Anyone with the link" ก่อน
+        
+        Args:
+            sheet_url: URL เต็มของ Google Sheet
+        
+        Returns:
+            True ถ้าเชื่อมต่อสำเร็จ (sheet เป็น public และอ่านได้)
+        """
+        try:
+            sheet_id = self._extract_sheet_id(sheet_url)
+            if not sheet_id:
+                logging.error("❌ Invalid Google Sheets URL")
+                return False
+            
+            gid = self._extract_gid(sheet_url)
+            
+            # Try fetching CSV to verify the sheet is public
+            csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+            
+            response = requests.get(csv_url, timeout=30.0, allow_redirects=True)
+            
+            if response.status_code == 200:
+                # Verify it's actually CSV data (not an HTML error page)
+                content_type = response.headers.get("content-type", "")
+                if "text/html" in content_type:
+                    logging.error("❌ Sheet is not public or doesn't exist")
+                    return False
+                
+                self.sheet_id = sheet_id
+                self.sheet_title = f"Public Sheet ({sheet_id[:8]}...)"
+                self.connection_mode = "public"
+                self._public_gid = gid
+                
+                logging.info(f"✅ Connected to public sheet: {sheet_id}")
+                return True
+            else:
+                logging.error(f"❌ Failed to access sheet: HTTP {response.status_code}")
+                return False
+                    
+        except Exception as e:
+            logging.error(f"❌ Failed to connect to public sheet: {e}")
+            return False
+
+    def fetch_public_csv(self) -> List[Dict[str, Any]]:
+        """
+        ดึงข้อมูลจาก Public Google Sheet ผ่าน CSV export
+        
+        Returns:
+            List of dict (แต่ละ row เป็น dict)
+        """
+        if self.connection_mode != "public" or not self.sheet_id:
+            logging.error("❌ Not connected in public mode")
+            return []
+        
+        try:
+            gid = getattr(self, '_public_gid', '0')
+            csv_url = f"https://docs.google.com/spreadsheets/d/{self.sheet_id}/export?format=csv&gid={gid}"
+            
+            response = requests.get(csv_url, timeout=30.0, allow_redirects=True)
+            
+            if response.status_code != 200:
+                logging.error(f"❌ Failed to fetch CSV: HTTP {response.status_code}")
+                return []
+            
+            # Parse CSV
+            # response.text handles encoding automatically
+            csv_content = response.text
+            reader = csv.DictReader(io.StringIO(csv_content))
+            records = list(reader)
+            
+            logging.info(f"📊 Fetched {len(records)} rows from public sheet")
+            return records
+                
+        except Exception as e:
+            logging.error(f"❌ Failed to fetch public CSV: {e}")
+            return []
+
     def connect(self, sheet_id: str = None, sheet_url: str = None) -> bool:
         """
-        เชื่อมต่อ Google Sheet
+        เชื่อมต่อ Google Sheet (Service Account mode)
+        
+        ถ้าไม่มี credentials จะลองใช้ public mode แทน
         
         Args:
             sheet_id: ID ของ sheet (ส่วนยาวๆ ใน URL)
@@ -72,21 +183,23 @@ class GoogleSheetsService:
             True ถ้าเชื่อมต่อสำเร็จ
         """
         try:
-            # Initialize client
-            if not self.client:
-                if not CREDENTIALS_PATH.exists():
-                    logging.error(f"❌ Credentials file not found: {CREDENTIALS_PATH}")
+            # Check if credentials exist
+            if not CREDENTIALS_PATH.exists():
+                logging.warning(f"⚠️ Credentials not found, trying public mode...")
+                if sheet_url:
+                    return self.connect_public(sheet_url)
+                else:
+                    logging.error("❌ No credentials and no URL for public mode")
                     return False
-                
+            
+            # Initialize client with Service Account
+            if not self.client:
                 self.client = gspread.service_account(filename=str(CREDENTIALS_PATH))
-                logging.info("✅ Google Sheets client initialized")
+                logging.info("✅ Google Sheets client initialized (Service Account)")
             
             # Extract sheet_id from URL if needed
             if sheet_url and not sheet_id:
-                # URL format: https://docs.google.com/spreadsheets/d/SHEET_ID/edit
-                parts = sheet_url.split("/d/")
-                if len(parts) > 1:
-                    sheet_id = parts[1].split("/")[0]
+                sheet_id = self._extract_sheet_id(sheet_url)
             
             if not sheet_id:
                 logging.error("❌ No sheet_id or sheet_url provided")
@@ -96,12 +209,18 @@ class GoogleSheetsService:
             self.spreadsheet = self.client.open_by_key(sheet_id)
             self.worksheet = self.spreadsheet.sheet1  # Use first sheet
             self.sheet_id = sheet_id
+            self.sheet_title = self.spreadsheet.title
+            self.connection_mode = "service_account"
             
             logging.info(f"✅ Connected to sheet: {self.spreadsheet.title}")
             return True
             
         except gspread.exceptions.SpreadsheetNotFound:
             logging.error(f"❌ Sheet not found or not shared with service account")
+            # Try public mode as fallback
+            if sheet_url:
+                logging.info("🔄 Trying public mode as fallback...")
+                return self.connect_public(sheet_url)
             return False
         except Exception as e:
             logging.error(f"❌ Failed to connect to Google Sheet: {e}")
@@ -109,11 +228,16 @@ class GoogleSheetsService:
     
     def fetch_all_rows(self) -> List[Dict[str, Any]]:
         """
-        ดึงข้อมูลทั้งหมดจาก Sheet
+        ดึงข้อมูลทั้งหมดจาก Sheet (รองรับทั้ง public และ service_account mode)
         
         Returns:
             List of dict (แต่ละ row เป็น dict)
         """
+        # Use public CSV fetch if in public mode
+        if self.connection_mode == "public":
+            return self.fetch_public_csv()
+        
+        # Service Account mode
         if not self.worksheet:
             logging.error("❌ Not connected to any sheet")
             return []
@@ -266,8 +390,16 @@ class GoogleSheetsService:
     def full_sync(self) -> SyncResult:
         """
         ทำ full sync (fetch → detect → apply)
+        รองรับทั้ง public และ service_account mode
         """
-        if not self.worksheet:
+        # Check if connected (either mode)
+        if not self.sheet_id:
+            result = SyncResult()
+            result.errors.append("Not connected to any sheet")
+            return result
+        
+        # For service_account mode, also check worksheet
+        if self.connection_mode == "service_account" and not self.worksheet:
             result = SyncResult()
             result.errors.append("Not connected to any sheet")
             return result
@@ -286,11 +418,13 @@ class GoogleSheetsService:
     
     def get_status(self) -> Dict[str, Any]:
         """ดึงสถานะการเชื่อมต่อ"""
+        is_connected = self.sheet_id is not None
         return {
-            "connected": self.spreadsheet is not None,
+            "connected": is_connected,
             "sheet_id": self.sheet_id,
-            "sheet_title": self.spreadsheet.title if self.spreadsheet else None,
-            "last_sync": self.last_sync
+            "sheet_title": self.sheet_title,
+            "last_sync": self.last_sync,
+            "mode": self.connection_mode
         }
 
 
