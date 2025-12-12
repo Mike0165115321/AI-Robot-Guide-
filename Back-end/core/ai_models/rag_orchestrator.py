@@ -22,7 +22,7 @@ from .handlers.analytics_handler import AnalyticsHandler
 from core.database.mongodb_manager import MongoDBManager
 from core.database.qdrant_manager import QdrantManager
 from core.tools.image_search_tool import image_search_tool_instance
-from core.tools.system_tool import system_tool_instance
+# system_tool_instance removed - calculator is now frontend-only
 from utils.helper_functions import create_synthetic_document
 from .services.session_manager import SessionManager
 from .services.navigation_service import NavigationService
@@ -127,7 +127,7 @@ class RAGOrchestrator:
             "FAQ": "INFORMATIONAL",
             "GENERAL": "INFORMATIONAL",
             "WELCOME": "WELCOME_FLOW",
-            "CALCULATOR": "SYSTEM_COMMAND",
+            # CALCULATOR removed - handled by frontend widget
         }
         return intent_map.get(frontend_intent.upper(), "INFORMATIONAL")
 
@@ -170,10 +170,7 @@ class RAGOrchestrator:
             "sources": [], "image_url": None, "image_gallery": []
         }
 
-    async def _handle_system_command(self, entity: Optional[str], **kwargs) -> dict:
-        if not entity: return {"answer": "ไม่แน่ใจว่าให้เปิดแอปอะไรคะ?", "action": None, "sources": [], "image_url": None}
-        result_text = await asyncio.to_thread(system_tool_instance.launch, entity)
-        return {"answer": result_text, "action": None, "sources": [], "image_url": None, "image_gallery": []}
+    # _handle_system_command removed - calculator is now handled by frontend widget
 
     async def _handle_informational(
         self, corrected_query: str, entity: Optional[str], sub_queries: List[str], mode: str, 
@@ -366,9 +363,6 @@ class RAGOrchestrator:
             corrected_query = query
             entity = None  # จะหาจาก query หรือ Qdrant search
             
-            if frontend_intent == "CALCULATOR":
-                entity = "calculator"
-            
             # 🚀 [Direct Bypass] ถ้ามี intent NAVIGATE_TO + slug/entity_query ให้ทำงานเลย!
             if intent == "NAVIGATE_TO":
                  target_entity = slug or entity_query or query
@@ -412,7 +406,7 @@ class RAGOrchestrator:
             "SMALL_TALK": self._handle_small_talk,
             "PLAY_MUSIC": self._handle_play_music,
             "INFORMATIONAL": self._handle_informational,
-            "SYSTEM_COMMAND": self._handle_system_command,
+            # SYSTEM_COMMAND removed - calculator is frontend-only
         }
         handler = handler_map.get(intent, self._handle_informational)
         

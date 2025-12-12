@@ -482,7 +482,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Calc: Use default sendMessage (via callback)
                 // FabManager calls sendMessage("...", INTENTS.CALCULATOR)
 
-                // Nav: Custom Avatar Logic
                 // Nav: Custom Avatar Logic using FabManager Widget
                 onNavAction: () => {
                     const resultText = document.getElementById('result-text');
@@ -513,6 +512,36 @@ document.addEventListener('DOMContentLoaded', () => {
                             window.uiController.setEmotion('listening');
                             window.uiController.setStatus("รอเลือกสถานที่...");
                         }
+                    }
+                },
+
+                // Calc: Custom Avatar Logic using FabManager Widget
+                onCalcAction: () => {
+                    const resultText = document.getElementById('result-text');
+                    const infoDisplay = document.getElementById('info-display');
+
+                    if (resultText && infoDisplay) {
+                        // Clear old content
+                        resultText.innerHTML = '';
+                        infoDisplay.innerHTML = '';
+
+                        // Create Widget from FabManager
+                        const fabManager = window.NanApp?.fabManager || new FabManager({
+                            callbacks: { sendMessage: (t, i, d) => sendQuery(t, i, d) }
+                        });
+
+                        // Creating a fresh calculator widget instance 
+                        const widget = fabManager.createCalculatorWidget();
+
+                        // Append to info display
+                        infoDisplay.appendChild(widget);
+
+                        // Enter presentation mode
+                        if (window.avatarAnimator) {
+                            window.avatarAnimator.enterPresentationMode({ html_is_pre_rendered: true });
+                        }
+                        uiController.setEmotion('listening');
+                        uiController.setStatus("🔢 เครื่องคิดเลขพร้อมใช้งานแล้วค่ะ");
                     }
                 }
             }

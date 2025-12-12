@@ -1020,6 +1020,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 msgElement.appendChild(widget);
                 messageArea.appendChild(msgElement);
                 messageArea.scrollTop = messageArea.scrollHeight;
+            },
+
+            onCalcAction: () => {
+                const msgElement = document.createElement('div');
+                msgElement.className = 'message system fade-in';
+                const widget = fabManager.createCalculatorWidget();
+                msgElement.appendChild(widget);
+                messageArea.appendChild(msgElement);
+                messageArea.scrollTop = messageArea.scrollHeight;
             }
         }
     });

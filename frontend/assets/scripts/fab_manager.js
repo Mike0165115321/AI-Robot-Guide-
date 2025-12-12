@@ -85,11 +85,10 @@ class FabManager {
     }
 
     handleCalcAction() {
-        // Calculator is simple enough to just fire an intent
-        const intent = window.NanApp?.INTENTS?.CALCULATOR || 'CALCULATOR';
-        const text = "เปิดเครื่องคิดเลข";
-        if (this.config.callbacks.sendMessage) {
-            this.config.callbacks.sendMessage(text, intent);
+        if (this.config.callbacks.onCalcAction) {
+            this.config.callbacks.onCalcAction();
+        } else {
+            console.warn("Please implement onCalcAction in the host to use createCalculatorWidget()");
         }
     }
 
@@ -270,37 +269,45 @@ class FabManager {
         let listHtml = `<div class="music-results" style="margin-top:10px;">`;
         if (title) listHtml += `<p style="margin-bottom:8px;">ผลลัพธ์สำหรับ: <strong>${title}</strong></p>`;
 
-        results.slice(0, 3).forEach(song => {
+        results.slice(0, 5).forEach((song, index) => {
             listHtml += `
-                <div class="song-item" style="display: flex; gap: 10px; margin-bottom: 8px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; align-items: center;">
+                <div class="song-item" data-index="${index}" style="display: flex; gap: 10px; margin-bottom: 8px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; align-items: center;">
                     <img src="${song.thumbnail}" style="width: 50px; height: 50px; border-radius: 4px; object-fit: cover;">
                     <div style="flex: 1; overflow: hidden;">
                         <div style="font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.title}</div>
                         <div style="font-size: 0.8rem; color: #aaa;">${song.duration}</div>
                     </div>
-                    <button class="play-btn" data-id="${song.video_id}" style="background: #1db954; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-play"></i></button>
+                    <button class="play-btn" data-index="${index}" style="background: #1db954; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-play"></i></button>
                 </div>
             `;
         });
         listHtml += `</div>
+            <div class="music-player-wrapper" style="margin-top: 15px;"></div>
             <button class="close-widget-btn" style="margin-top:10px; background:none; border:none; color:#aaa; font-size:0.8rem; cursor:pointer;">ปิดหน้าต่างนี้</button>
         `;
 
         bubble.innerHTML = listHtml; // Replace content
 
-        // Bind Play Buttons
+        // Store results for later use
+        const songsData = results.slice(0, 5);
+
+        // Bind Play Buttons - Use global musicPlayer instance
         bubble.querySelectorAll('.play-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const videoId = btn.dataset.id;
-                // Emit event or call global player?
-                // Ideally, FabManager shouldn't know about global `playFunction`.
-                // checking window.playMusic or dispatching event.
-                if (window.playMusic) {
-                    window.playMusic(videoId);
-                } else if (window.roomMusicPlayer) {
-                    window.roomMusicPlayer.play(videoId);
+                const index = parseInt(btn.dataset.index);
+                const song = songsData[index];
+
+                if (song && typeof musicPlayer !== 'undefined') {
+                    // Get the player wrapper inside this bubble
+                    const playerWrapper = bubble.querySelector('.music-player-wrapper');
+                    if (playerWrapper) {
+                        // Create player using the global musicPlayer instance
+                        musicPlayer.createPlayer(song, playerWrapper);
+                        // Scroll to player
+                        playerWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 } else {
-                    console.warn("No music player found!");
+                    console.warn("No music player found! Make sure music_player.js is loaded.");
                 }
             });
         });
@@ -358,6 +365,21 @@ class FabManager {
         container.querySelector('.close-widget-btn').addEventListener('click', () => container.remove());
 
         return container;
+    }
+
+    /**
+     * Create the Calculator Widget (Scientific Calculator)
+     * Delegates to CalculatorWidget class from calculator_widget.js
+     */
+    createCalculatorWidget() {
+        if (window.CalculatorWidget) {
+            return CalculatorWidget.create();
+        } else {
+            console.error("CalculatorWidget not loaded! Make sure calculator_widget.js is included.");
+            const container = document.createElement('div');
+            container.innerHTML = '<div class="bubble system-bubble"><p style="color: #ef4444;">❌ ไม่สามารถโหลดเครื่องคิดเลขได้</p></div>';
+            return container;
+        }
     }
 }
 
