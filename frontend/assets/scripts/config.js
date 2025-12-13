@@ -19,3 +19,7 @@ const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const WS_BASE_URL = isLocalDev
     ? `ws://${API_HOST}:${API_PORT}`
     : `${WS_PROTOCOL}//${window.location.host}`;
+
+// Export to window for other scripts
+window.API_BASE_URL = API_BASE_URL;
+window.WS_BASE_URL = WS_BASE_URL;

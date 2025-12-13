@@ -219,10 +219,18 @@
 
         <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 1rem;">
             <h2 style="margin: 0;">รายการข้อมูลทั้งหมด</h2>
-            <button onclick="openFieldSettings()" title="ตั้งค่าการแสดง Fields"
-                style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); border-radius: 8px; padding: 8px 12px; cursor: pointer; color: white; display: flex; align-items: center; gap: 5px;">
-                ⚙️ ตั้งค่า Fields
-            </button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <div id="bulk-actions" style="display: none;">
+                    <button onclick="deleteSelectedItems()"
+                        style="background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); border-radius: 8px; padding: 8px 12px; cursor: pointer; color: #ef4444; display: flex; align-items: center; gap: 5px;">
+                        🗑️ ลบที่เลือก (<span id="selected-count">0</span>)
+                    </button>
+                </div>
+                <button onclick="openFieldSettings()" title="ตั้งค่าการแสดง Fields"
+                    style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); border-radius: 8px; padding: 8px 12px; cursor: pointer; color: white; display: flex; align-items: center; gap: 5px;">
+                    ⚙️ ตั้งค่า Fields
+                </button>
+            </div>
         </div>
 
         <div class="table-container">
@@ -274,7 +282,7 @@
     <script src="assets/scripts/utils.js"></script>
     <script src="assets/scripts/modules/google_sheets.js"></script>
     <script src="assets/scripts/modules/document_analysis.js"></script>
-    <script src="assets/scripts/admin.js"></script>
+    <script src="assets/scripts/admin.js?v=20241213_03"></script>
 </body>
 
 </html>

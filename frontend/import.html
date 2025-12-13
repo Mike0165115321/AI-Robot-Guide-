@@ -615,6 +615,9 @@
                 <button class="mode-tab active" id="tab-upload" onclick="switchInputMode('upload')">
                     📤 อัปโหลดไฟล์
                 </button>
+                <button class="mode-tab" id="tab-document" onclick="switchInputMode('document')">
+                    📄 PDF/เอกสาร
+                </button>
                 <button class="mode-tab manual" id="tab-manual" onclick="switchInputMode('manual')">
                     ✏️ กรอกข้อมูลเอง
                 </button>
@@ -642,6 +645,67 @@
                         <div class="file-stats" id="uploaded-stats">-</div>
                     </div>
                     <button class="btn" style="margin-left: auto;" onclick="resetUpload()">เปลี่ยนไฟล์</button>
+                </div>
+            </div>
+
+            <!-- Document Import Mode Content -->
+            <div class="mode-content" id="mode-document">
+                <p style="margin-bottom: 1rem;">
+                    อัปโหลด PDF หรือ DOC/DOCX → AI จะค้นหาหลายรายการและสร้างข้อมูลอัตโนมัติ
+                </p>
+
+                <!-- Entry Count Input - BEFORE Upload -->
+                <div class="info-box"
+                    style="margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                    <label style="font-weight: 600;">🎯 ต้องการกี่หัวข้อ?</label>
+                    <input type="number" id="doc-target-count" min="1" max="50" value="5"
+                        style="width: 70px; padding: 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; text-align: center; font-size: 1rem;">
+                    <span style="color: var(--text-muted); font-size: 0.9rem;">หัวข้อ (AI จะสรุปให้ตามจำนวนนี้)</span>
+                </div>
+
+                <div class="upload-zone" id="doc-upload-zone"
+                    onclick="document.getElementById('doc-file-input').click()"
+                    style="background: linear-gradient(135deg, rgba(240, 147, 251, 0.1) 0%, rgba(245, 87, 108, 0.1) 100%); cursor: pointer;">
+                    <input type="file" id="doc-file-input" accept=".pdf,.doc,.docx"
+                        onchange="handleDocumentUpload(event)" style="display: none;">
+                    <div class="upload-icon">📄</div>
+                    <p><strong>คลิกเพื่ออัปโหลด PDF หรือ Word</strong></p>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">
+                        AI จะสแกนและหารายการสถานที่/หัวข้อให้อัตโนมัติ
+                    </p>
+                </div>
+
+                <!-- Document Scan Results -->
+                <div id="doc-scan-results" style="display: none; margin-top: 1.5rem;">
+                    <div class="info-box success"
+                        style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <p><strong>📄 <span id="doc-page-count">0</span> หน้า</strong> → AI สร้าง <strong><span
+                                    id="doc-entry-count">0</span></strong> หัวข้อ
+                            <button type="button" class="btn" onclick="rescanDocumentWithCount()"
+                                style="background: rgba(102, 126, 234, 0.3); padding: 0.25rem 0.75rem; font-size: 0.85rem; margin-left: 0.5rem;">
+                                🔄 สแกนใหม่
+                            </button>
+                        </p>
+                    </div>
+
+                    <h4 style="margin: 1rem 0;">รายการที่พบ (แก้ไขได้)</h4>
+                    <div id="doc-entries-list"
+                        style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 400px; overflow-y: auto;">
+                        <!-- Entries will be loaded here -->
+                    </div>
+
+                    <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn" onclick="addNewDocEntry()"
+                            style="background: rgba(102, 126, 234, 0.2);">
+                            ➕ เพิ่มรายการ
+                        </button>
+                    </div>
+
+                    <div class="action-buttons" style="margin-top: 1.5rem;">
+                        <button type="button" class="btn btn-cta" onclick="goToDocStep2()">
+                            ⏭️ ถัดไป: เลือก Fields
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -701,6 +765,23 @@
 AI สามารถช่วยจัดโครงสร้างข้อมูลให้ถ้าเปิดใช้งาน"></textarea>
                         </div>
                     </div>
+
+                    <!-- AI Assist Buttons -->
+                    <div class="ai-assist-buttons"
+                        style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <button type="button" class="btn"
+                            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"
+                            onclick="triggerPDFUpload()">
+                            📄 อัปโหลด PDF
+                        </button>
+                        <button type="button" class="btn"
+                            style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"
+                            onclick="aiWebSearch()">
+                            🌐 ค้นหาข้อมูลจากเว็บ
+                        </button>
+                    </div>
+                    <input type="file" id="pdf-file-input" accept=".pdf" style="display: none;"
+                        onchange="handlePDFUpload(event)">
 
                     <div class="action-buttons" style="justify-content: flex-start;">
                         <button type="button" class="btn btn-cta btn-large" onclick="submitManualEntry()">
@@ -872,10 +953,12 @@ AI สามารถช่วยจัดโครงสร้างข้อ�
 
             // Update tabs
             document.getElementById('tab-upload').classList.toggle('active', mode === 'upload');
+            document.getElementById('tab-document').classList.toggle('active', mode === 'document');
             document.getElementById('tab-manual').classList.toggle('active', mode === 'manual');
 
             // Update content visibility
             document.getElementById('mode-upload').classList.toggle('active', mode === 'upload');
+            document.getElementById('mode-document').classList.toggle('active', mode === 'document');
             document.getElementById('mode-manual').classList.toggle('active', mode === 'manual');
         }
 
@@ -934,6 +1017,336 @@ AI สามารถช่วยจัดโครงสร้างข้อ�
             // Show in transform preview with editable note
             renderTransformPreviewTable({ target_fields: targetFields, transformed_rows: transformedData }, true);
             goToStep(3);
+        }
+
+        // ===========================================
+        // Document Import Mode
+        // ===========================================
+        let documentText = '';
+        let documentEntries = [];
+        let uploadedDocFile = null;  // Store for rescan
+
+
+        async function handleDocumentUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const validExts = ['.pdf', '.doc', '.docx'];
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (!validExts.includes(ext)) {
+                alert('รองรับเฉพาะไฟล์ PDF, DOC, DOCX เท่านั้น');
+                return;
+            }
+
+            // Store file for rescan
+            uploadedDocFile = file;
+
+            const targetCount = parseInt(document.getElementById('doc-target-count').value) || 5;
+
+            showLoading('📄 AI กำลังสแกนเอกสาร...');
+
+            try {
+                // First, just do the scan to get entries (for preview)
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('target_count', targetCount.toString());
+
+                const response = await fetch(`${API_BASE}/api/admin/import/document-scan`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'สแกนเอกสารล้มเหลว');
+                }
+
+                if (!result.success || result.entries.length === 0) {
+                    alert(result.message || 'ไม่พบรายการในเอกสาร');
+                    return;
+                }
+
+                // Save data
+                documentText = result.text_preview;
+                documentEntries = result.entries;
+
+                // Set document mode flag
+                window.isDocumentMode = true;
+
+                // Prepare raw data for Step 2 preview
+                rawData = documentEntries.map(e => ({ title: e.title, description: e.description }));
+
+                // Render raw preview
+                renderRawPreviewTable({
+                    columns: ['title', 'description'],
+                    preview_rows: rawData
+                });
+
+                // Load fields and go to Step 2
+                await loadTargetFields();
+                goToStep(2);
+
+                alert(`✅ พบ ${result.entries.length} รายการ กรุณาเลือก Fields ที่ต้องการ`);
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Function to start streaming extraction (called when user clicks Transform in Step 2)
+        async function startDocumentStreaming() {
+            if (!uploadedDocFile) {
+                alert('ไม่พบไฟล์เอกสาร');
+                return;
+            }
+
+            // Get selected fields using shared function
+            const selectedFields = getSelectedFields();
+
+            if (selectedFields.length === 0) {
+                alert('กรุณาเลือกอย่างน้อย 1 field');
+                return;
+            }
+
+            const targetCount = parseInt(document.getElementById('doc-target-count').value) || 5;
+            const targetFields = selectedFields.join(',');
+
+            // Go to Step 3 and start streaming
+            transformedData = [];
+            targetFields_arr = selectedFields;
+
+            renderStreamingPreviewTable(targetFields_arr);
+            goToStep(3);
+
+            // Start SSE streaming
+            const formData = new FormData();
+            formData.append('file', uploadedDocFile);
+            formData.append('target_count', targetCount.toString());
+            formData.append('target_fields', targetFields);
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/import/document-stream`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const event = JSON.parse(line.slice(6));
+                                handleSSEEvent(event);
+                            } catch (e) {
+                                console.log('SSE parse error:', e);
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            }
+        }
+
+        let targetFields_arr = [];
+        let streamingTotal = 0;
+        let streamingCompleted = 0;
+
+        function handleSSEEvent(event) {
+            const type = event.type;
+            const data = event.data;
+
+            if (type === 'scan') {
+                streamingTotal = data.total_entries;
+                streamingCompleted = 0;
+                updateStreamingProgress();
+            } else if (type === 'entry') {
+                streamingCompleted++;
+                transformedData.push(data);
+                addStreamingEntry(data);
+                updateStreamingProgress();
+            } else if (type === 'done') {
+                updateStreamingProgress(true);
+            } else if (type === 'error') {
+                alert('❌ ' + data.message);
+            }
+        }
+
+        function renderStreamingPreviewTable(fields) {
+            const thead = document.getElementById('transform-preview-thead');
+            const tbody = document.getElementById('transform-preview-tbody');
+
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            // Header
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = '<th>#</th>';
+            fields.forEach(field => {
+                headerRow.innerHTML += `<th>${field}</th>`;
+            });
+            thead.appendChild(headerRow);
+
+            // Add progress row
+            tbody.innerHTML = `<tr id="streaming-progress-row">
+                <td colspan="${fields.length + 1}" style="text-align: center; padding: 2rem;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
+                        <div class="loading-spinner" style="width: 30px; height: 30px;"></div>
+                        <span id="streaming-status">🔄 กำลังประมวลผล...</span>
+                    </div>
+                </td>
+            </tr>`;
+        }
+
+        function addStreamingEntry(data) {
+            const tbody = document.getElementById('transform-preview-tbody');
+            const progressRow = document.getElementById('streaming-progress-row');
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>✅ ${streamingCompleted}</td>`;
+            targetFields_arr.forEach(field => {
+                const value = data[field] || '';
+                const displayValue = typeof value === 'string' ? value.substring(0, 80) : String(value);
+                tr.innerHTML += `<td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(displayValue)}</td>`;
+            });
+
+            // Insert before progress row
+            tbody.insertBefore(tr, progressRow);
+        }
+
+        function updateStreamingProgress(done = false) {
+            const statusEl = document.getElementById('streaming-status');
+            if (statusEl) {
+                if (done) {
+                    const progressRow = document.getElementById('streaming-progress-row');
+                    if (progressRow) progressRow.remove();
+                    statusEl.textContent = `✅ เสร็จสิ้น ${streamingCompleted} รายการ`;
+                } else {
+                    statusEl.textContent = `🔄 กำลังประมวลผล... ${streamingCompleted}/${streamingTotal}`;
+                }
+            }
+        }
+
+        async function rescanDocumentWithCount() {
+            if (!uploadedDocFile) {
+                alert('กรุณาอัปโหลดเอกสารก่อน');
+                return;
+            }
+
+            const targetCount = parseInt(document.getElementById('doc-target-count').value) || 5;
+
+            showLoading(`📄 AI กำลังสแกนใหม่ (${targetCount} หัวข้อ)...`);
+
+            try {
+                const formData = new FormData();
+                formData.append('file', uploadedDocFile);
+                formData.append('target_count', targetCount.toString());
+
+                const response = await fetch(`${API_BASE}/api/admin/import/document-scan`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'สแกนเอกสารล้มเหลว');
+                }
+
+                // Update data
+                documentText = result.text_preview;
+                documentEntries = result.entries;
+
+                // Update UI
+                document.getElementById('doc-page-count').textContent = result.page_count;
+                document.getElementById('doc-entry-count').textContent = result.entries.length;
+                renderDocumentEntries();
+
+                alert(`✅ สแกนใหม่สำเร็จ: พบ ${result.entries.length} หัวข้อ`);
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function renderDocumentEntries() {
+            const container = document.getElementById('doc-entries-list');
+            container.innerHTML = documentEntries.map((entry, index) => `
+                <div class="entry-item" style="background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 8px; display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.2rem;">📌</span>
+                    <input type="text" value="${entry.title || ''}" 
+                        onchange="updateDocEntry(${index}, 'title', this.value)"
+                        style="flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.2); padding: 0.5rem; border-radius: 4px; color: white;">
+                    <input type="text" value="${entry.description || ''}" 
+                        onchange="updateDocEntry(${index}, 'description', this.value)"
+                        placeholder="คำอธิบาย"
+                        style="flex: 2; background: transparent; border: 1px solid rgba(255,255,255,0.2); padding: 0.5rem; border-radius: 4px; color: white;">
+                    <button onclick="removeDocEntry(${index})" style="background: rgba(255,0,0,0.3); border: none; padding: 0.5rem; border-radius: 4px; cursor: pointer; color: white;">🗑️</button>
+                </div>
+            `).join('');
+            document.getElementById('doc-entry-count').textContent = documentEntries.length;
+        }
+
+        function updateDocEntry(index, field, value) {
+            documentEntries[index][field] = value;
+        }
+
+        function removeDocEntry(index) {
+            documentEntries.splice(index, 1);
+            renderDocumentEntries();
+        }
+
+        function addNewDocEntry() {
+            documentEntries.push({ title: '', description: '' });
+            renderDocumentEntries();
+            // Focus on new entry
+            const inputs = document.querySelectorAll('#doc-entries-list input[type="text"]');
+            if (inputs.length > 0) {
+                inputs[inputs.length - 2].focus();
+            }
+        }
+
+        async function goToDocStep2() {
+            // Filter out empty entries
+            documentEntries = documentEntries.filter(e => e.title && e.title.trim());
+
+            if (documentEntries.length === 0) {
+                alert('กรุณาเพิ่มรายการอย่างน้อย 1 รายการ');
+                return;
+            }
+
+            // Use the document entries as raw data for Step 2
+            rawData = documentEntries.map(e => ({ title: e.title, description: e.description }));
+
+            // Set document mode flag
+            window.isDocumentMode = true;
+            window.documentTextForExtract = documentText;
+
+            // Render raw preview for document entries
+            renderRawPreviewTable({
+                columns: ['title', 'description'],
+                preview_rows: rawData
+            });
+
+            // Load fields and go to Step 2
+            await loadTargetFields();
+            goToStep(2);
         }
 
         // ===========================================
@@ -1016,7 +1429,7 @@ AI สามารถช่วยจัดโครงสร้างข้อ�
                     details: details ? [{ heading: 'รายละเอียด', content: details }] : []
                 };
 
-                const response = await fetch(`${API_BASE}/api/admin/locations`, {
+                const response = await fetch(`${API_BASE}/api/admin/locations/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(locationData)
@@ -1040,6 +1453,152 @@ AI สามารถช่วยจัดโครงสร้างข้อ�
                 alert('เกิดข้อผิดพลาด: ' + error.message);
             } finally {
                 hideLoading();
+            }
+        }
+
+        // ===========================================
+        // PDF Upload & AI Assist (Manual Entry)
+        // ===========================================
+        function triggerPDFUpload() {
+            document.getElementById('pdf-file-input').click();
+        }
+
+        async function handlePDFUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                alert('กรุณาเลือกไฟล์ PDF เท่านั้น');
+                return;
+            }
+
+            showLoading('📄 กำลังอ่าน PDF และให้ AI วิเคราะห์...');
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch(`${API_BASE}/api/admin/import/pdf-extract`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'การอ่าน PDF ล้มเหลว');
+                }
+
+                if (!result.success) {
+                    alert(result.message || 'ไม่สามารถอ่านข้อมูลจาก PDF ได้');
+                    return;
+                }
+
+                // Fill form with AI extracted data
+                console.log('📄 PDF API Response:', result);
+                console.log('📄 AI Data:', result.ai_data);
+
+                if (result.ai_data) {
+                    fillFormWithAIData(result.ai_data);
+                    alert(`✅ ${result.message}\n\nAI ช่วยกรอกข้อมูลแล้ว กรุณาตรวจสอบและแก้ไขตามต้องการ`);
+                } else {
+                    alert(`⚠️ ${result.message}\n\nแต่ AI ไม่สามารถ extract ข้อมูลได้ กรุณากรอกเอง`);
+                }
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                hideLoading();
+                // Reset file input
+                event.target.value = '';
+            }
+        }
+
+        async function aiWebSearch() {
+            // Collect current form data
+            const partialData = {
+                title: document.getElementById('manual-title').value.trim(),
+                category: document.getElementById('manual-category').value,
+                topic: document.getElementById('manual-topic').value.trim(),
+                keywords: document.getElementById('manual-keywords').value.trim(),
+                summary: document.getElementById('manual-summary').value.trim(),
+                details: document.getElementById('manual-details').value.trim()
+            };
+
+            // Check if there's enough data for web search
+            const hasData = partialData.title || partialData.topic;
+            if (!hasData) {
+                alert('กรุณากรอกชื่อสถานที่ก่อน\n\nAI จะค้นหาข้อมูลจากเว็บและกรอกให้');
+                return;
+            }
+
+            showLoading('🌐 AI กำลังค้นหาข้อมูลจากเว็บ...');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/import/ai-fill-form`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        partial_data: partialData,
+                        target_fields: ['title', 'category', 'topic', 'summary', 'keywords'],
+                        use_web_search: true
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'ค้นหาข้อมูลล้มเหลว');
+                }
+
+                if (result.success && result.filled_data) {
+                    fillFormWithAIData(result.filled_data);
+                    alert(`✅ ${result.message}\n\nกรุณาตรวจสอบและแก้ไขตามต้องการ`);
+                } else {
+                    alert(result.message || 'ไม่พบข้อมูลจากเว็บ');
+                }
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function fillFormWithAIData(data) {
+            if (data.title) document.getElementById('manual-title').value = data.title;
+            if (data.category) {
+                const categorySelect = document.getElementById('manual-category');
+                // Try to match category option
+                const options = Array.from(categorySelect.options).map(o => o.value);
+                if (options.includes(data.category)) {
+                    categorySelect.value = data.category;
+                } else {
+                    // If no exact match, try partial match or default to 'อื่นๆ'
+                    categorySelect.value = 'อื่นๆ';
+                }
+            }
+            if (data.topic) document.getElementById('manual-topic').value = data.topic;
+            if (data.keywords) {
+                const keywordsValue = Array.isArray(data.keywords) ? data.keywords.join(', ') : data.keywords;
+                document.getElementById('manual-keywords').value = keywordsValue;
+            }
+            if (data.summary) document.getElementById('manual-summary').value = data.summary;
+
+            // Combine detail fields into details textarea
+            const detailParts = [];
+            if (data.detail_overview) detailParts.push(`ภาพรวม: ${data.detail_overview}`);
+            if (data.detail_location) detailParts.push(`ที่ตั้ง: ${data.detail_location}`);
+            if (data.detail_hours_contact) detailParts.push(`เวลา/ติดต่อ: ${data.detail_hours_contact}`);
+            if (data.detail_highlights) detailParts.push(`จุดเด่น: ${data.detail_highlights}`);
+            if (data.detail_price) detailParts.push(`ราคา: ${data.detail_price}`);
+
+            if (detailParts.length > 0) {
+                const existingDetails = document.getElementById('manual-details').value.trim();
+                const newDetails = detailParts.join('\n\n');
+                document.getElementById('manual-details').value = existingDetails
+                    ? existingDetails + '\n\n---\n\n' + newDetails
+                    : newDetails;
             }
         }
 
@@ -1114,8 +1673,40 @@ AI สามารถช่วยจัดโครงสร้างข้อ�
                 // Load target fields
                 await loadTargetFields();
 
-                // Go to step 2
-                goToStep(2);
+                // For Excel/CSV: skip field selection, auto-run AI Transform
+                // Auto-select default fields
+                const defaultFields = ['title', 'category', 'topic', 'summary', 'keywords'];
+                targetFields = defaultFields;
+
+                // Run AI transform automatically
+                showLoading('🤖 AI กำลังวิเคราะห์ข้อมูล...');
+
+                try {
+                    const transformResponse = await fetch(`${API_BASE}/api/admin/import/ai-transform`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            raw_data: rawData,
+                            target_fields: targetFields
+                        })
+                    });
+
+                    if (!transformResponse.ok) {
+                        const error = await transformResponse.json();
+                        throw new Error(error.detail || 'AI Transform ล้มเหลว');
+                    }
+
+                    const transformResult = await transformResponse.json();
+                    transformedData = transformResult.transformed_rows;
+
+                    renderTransformPreviewTable(transformResult);
+                    goToStep(3);  // Skip to Step 3 (AI Transform Preview)
+
+                } catch (transformError) {
+                    alert('AI Transform error: ' + transformError.message);
+                    // Fallback: go to Step 2 for manual field selection
+                    goToStep(2);
+                }
 
             } catch (error) {
                 alert('เกิดข้อผิดพลาด: ' + error.message);
@@ -1315,6 +1906,13 @@ AI สามารถช่วยจัดโครงสร้างข้อ�
         // AI Transform
         // ===========================================
         async function runAITransform() {
+            // Document Mode: Delegate to streaming function
+            if (window.isDocumentMode) {
+                await startDocumentStreaming();
+                return;
+            }
+
+            // Excel/CSV Mode: Standard flow
             targetFields = getSelectedFields();
 
             if (targetFields.length === 0) {
@@ -1325,6 +1923,7 @@ AI สามารถช่วยจัดโครงสร้างข้อ�
             showLoading('🤖 AI กำลังวิเคราะห์ข้อมูล...');
 
             try {
+                // Use regular ai-transform API for Excel/CSV
                 const response = await fetch(`${API_BASE}/api/admin/import/ai-transform`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1339,7 +1938,7 @@ AI สามารถช่วยจัดโครงสร้างข้อ�
                     throw new Error(error.detail || 'AI Transform ล้มเหลว');
                 }
 
-                const result = await response.json();
+                let result = await response.json();
                 transformedData = result.transformed_rows;
 
                 renderTransformPreviewTable(result);

@@ -222,6 +222,367 @@ class AIMapperService:
         return results
 
 
+    async def extract_from_document(
+        self, 
+        document_text: str, 
+        target_fields: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Extract ข้อมูลจากเอกสารยาว (เช่น PDF)
+        รองรับ text หลายหน้า/หลายบรรทัด
+        """
+        if not self.model:
+            if not self._configure_with_next_key():
+                return {field: None for field in target_fields}
+        
+        # สร้าง field descriptions
+        field_descriptions = {
+            "title": "ชื่อหลักของสถานที่/ร้านค้า",
+            "category": "หมวดหมู่หลัก เช่น ที่พัก, ร้านอาหาร, แหล่งท่องเที่ยว, วัด",
+            "topic": "ประเภทเฉพาะ เช่น คาเฟ่, อาหารเหนือ, วัดประวัติศาสตร์",
+            "summary": "สรุปข้อมูลสำคัญทั้งหมดใน 2-3 ประโยค",
+            "keywords": "คำสำคัญสำหรับค้นหา คั่นด้วย comma",
+            "detail_overview": "ข้อมูลทั่วไปและประวัติความเป็นมา",
+            "detail_location": "ที่อยู่ พิกัด GPS และวิธีเดินทาง",
+            "detail_hours_contact": "เวลาทำการ เบอร์โทร Line Facebook",
+            "detail_highlights": "จุดเด่น สิ่งที่น่าสนใจ สิ่งที่ห้ามพลาด",
+            "detail_price": "ช่วงราคา ค่าเข้าชม ค่าใช้จ่าย",
+            "detail_atmosphere": "บรรยากาศ ความรู้สึก สไตล์ของสถานที่",
+            "detail_facilities": "สิ่งอำนวยความสะดวก ที่จอดรถ WiFi ห้องน้ำ",
+            "detail_tips": "เคล็ดลับ คำแนะนำ ช่วงเวลาที่ดีที่สุด",
+        }
+        
+        fields_list = []
+        for field in target_fields:
+            desc = field_descriptions.get(field, field)
+            fields_list.append(f'  "{field}": "{desc}"')
+        fields_json_hint = "{\n" + ",\n".join(fields_list) + "\n}"
+        
+        # Prompt สำหรับ document extraction
+        prompt = f"""[CONTEXT]
+คุณคือ AI Document Extraction Expert ที่เชี่ยวชาญการแปลงเอกสารให้เป็น Structured JSON
+ภารกิจของคุณคือวิเคราะห์เอกสาร PDF และ extract ข้อมูลออกมาให้ตรงกับ fields ที่กำหนด
+
+[DOCUMENT CONTENT]
+---
+{document_text[:15000]}
+---
+
+[TARGET FIELDS - ช่องที่ต้องการ extract]
+{fields_json_hint}
+
+[INSTRUCTIONS]
+1. วิเคราะห์เนื้อหาเอกสารอย่างละเอียด ครอบคลุมทุกหน้า
+2. Extract ข้อมูลที่เกี่ยวข้องลงในแต่ละ field ที่กำหนด
+3. สำหรับ summary ให้สรุปใจความสำคัญทั้งหมดใน 2-3 ประโยค
+4. สำหรับ detail_* fields ให้ใส่รายละเอียดครบถ้วน
+5. ถ้าหาข้อมูลไม่เจอสำหรับ field ใด ให้ใส่ค่า null
+6. **ห้ามสมมติข้อมูลที่ไม่มีอยู่จริงในต้นฉบับ**
+
+[OUTPUT FORMAT]
+ตอบกลับเป็น JSON object เท่านั้น ห้ามมีข้อความอื่นนอกเหนือจาก JSON
+"""
+        
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                response = await asyncio.to_thread(
+                    self.model.generate_content,
+                    prompt
+                )
+                
+                response_text = response.text.strip()
+                print(f"🔍 [AIMapper] Raw AI response (first 500 chars): {response_text[:500]}")
+                
+                # Clean markdown
+                if response_text.startswith("```json"):
+                    response_text = response_text[7:]
+                if response_text.startswith("```"):
+                    response_text = response_text[3:]
+                if response_text.endswith("```"):
+                    response_text = response_text[:-3]
+                response_text = response_text.strip()
+                
+                print(f"🔍 [AIMapper] Cleaned response (first 500 chars): {response_text[:500]}")
+                
+                extracted = json.loads(response_text)
+                
+                # Handle nested structure: {"locations": [...]} or list [...]
+                if isinstance(extracted, dict) and "locations" in extracted:
+                    locations = extracted["locations"]
+                    extracted = locations[0] if locations else {}
+                    print(f"⚠️ [AIMapper] Extracted from 'locations' array, {len(locations)} items")
+                elif isinstance(extracted, list):
+                    print(f"⚠️ [AIMapper] AI returned list with {len(extracted)} items, taking first")
+                    extracted = extracted[0] if extracted else {}
+                
+                result = {}
+                for field in target_fields:
+                    result[field] = extracted.get(field) if isinstance(extracted, dict) else None
+                
+                print(f"✅ [AIMapper] Document extraction completed with {len([v for v in result.values() if v])} fields")
+                return result
+                
+            except json.JSONDecodeError as je:
+                print(f"❌ [AIMapper] JSON parse error: {je}")
+                print(f"❌ [AIMapper] Failed to parse: {response_text[:300] if 'response_text' in dir() else 'N/A'}")
+                return {field: None for field in target_fields}
+                
+            except Exception as e:
+                error_str = str(e)
+                if "429" in error_str or "quota" in error_str.lower():
+                    print(f"⚠️ [AIMapper] Quota exceeded, rotating key...")
+                    if self._configure_with_next_key():
+                        await asyncio.sleep(min(2 ** attempt, 8))
+                        continue
+                    else:
+                        return {field: None for field in target_fields}
+                else:
+                    print(f"❌ [AIMapper] Error: {e}")
+                    return {field: None for field in target_fields}
+        
+        return {field: None for field in target_fields}
+
+    async def extract_with_web_search(
+        self, 
+        search_query: str, 
+        target_fields: List[str]
+    ) -> Dict[str, Any]:
+        """
+        🌐 Extract ข้อมูลโดยใช้ Google Search grounding
+        AI จะค้นหาข้อมูลจากเว็บและ extract ลง fields ที่กำหนด
+        """
+        if not self.model:
+            if not self._configure_with_next_key():
+                return {field: None for field in target_fields}
+        
+        # สร้าง field descriptions
+        field_descriptions = {
+            "title": "ชื่อหลักของสถานที่/ร้านค้า",
+            "category": "หมวดหมู่หลัก เช่น ที่พัก, ร้านอาหาร, แหล่งท่องเที่ยว, วัด",
+            "topic": "ประเภทเฉพาะ เช่น คาเฟ่, อาหารเหนือ, วัดประวัติศาสตร์",
+            "summary": "สรุปข้อมูลสำคัญทั้งหมดใน 2-3 ประโยค",
+            "keywords": "คำสำคัญสำหรับค้นหา คั่นด้วย comma",
+            "detail_overview": "ข้อมูลทั่วไป ประวัติความเป็นมา ความสำคัญ",
+            "detail_location": "ที่อยู่ พิกัด GPS และวิธีเดินทาง",
+            "detail_hours_contact": "เวลาทำการ เบอร์โทร Line Facebook",
+            "detail_highlights": "จุดเด่น สิ่งที่น่าสนใจ สิ่งที่ห้ามพลาด",
+            "detail_price": "ช่วงราคา ค่าเข้าชม ค่าใช้จ่าย",
+            "detail_atmosphere": "บรรยากาศ ความรู้สึก สไตล์ของสถานที่",
+            "detail_facilities": "สิ่งอำนวยความสะดวก ที่จอดรถ WiFi ห้องน้ำ",
+            "detail_tips": "เคล็ดลับ คำแนะนำ ช่วงเวลาที่ดีที่สุด",
+        }
+        
+        fields_list = []
+        for field in target_fields:
+            desc = field_descriptions.get(field, field)
+            fields_list.append(f'  "{field}": "{desc}"')
+        fields_json_hint = "{\n" + ",\n".join(fields_list) + "\n}"
+        
+        # Prompt สำหรับ web search extraction
+        prompt = f"""คุณเป็น AI ผู้เชี่ยวชาญด้านข้อมูลท่องเที่ยวจังหวัดน่าน ประเทศไทย
+
+ค้นหาข้อมูลเกี่ยวกับ: "{search_query}"
+
+โปรดค้นหาจาก Google และสรุปข้อมูลที่พบลงใน JSON format ดังนี้:
+{fields_json_hint}
+
+กฎ:
+1. ใส่ข้อมูลเฉพาะที่พบจากการค้นหาจริงเท่านั้น
+2. ถ้าไม่พบข้อมูลสำหรับ field ใด ให้ใส่ null
+3. สำหรับ summary ให้สรุปใจความสำคัญใน 2-3 ประโยค
+4. ตอบกลับเป็น JSON object เท่านั้น ห้ามมีข้อความอื่น"""
+
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                # ใช้ Google Search grounding
+                from google.generativeai import types
+                
+                response = await asyncio.to_thread(
+                    self.model.generate_content,
+                    prompt,
+                    tools=[types.Tool(google_search=types.GoogleSearch())]
+                )
+                
+                response_text = response.text.strip()
+                
+                # Clean markdown
+                if response_text.startswith("```json"):
+                    response_text = response_text[7:]
+                if response_text.startswith("```"):
+                    response_text = response_text[3:]
+                if response_text.endswith("```"):
+                    response_text = response_text[:-3]
+                response_text = response_text.strip()
+                
+                # หา JSON object ใน response
+                import re
+                json_match = re.search(r'\{[\s\S]*\}', response_text)
+                if json_match:
+                    response_text = json_match.group()
+                
+                extracted = json.loads(response_text)
+                
+                result = {}
+                for field in target_fields:
+                    result[field] = extracted.get(field)
+                
+                print(f"✅ [AIMapper] Web search extraction completed for: {search_query}")
+                return result
+                
+            except json.JSONDecodeError as je:
+                print(f"❌ [AIMapper] JSON parse error: {je}")
+                print(f"Response was: {response_text[:500] if 'response_text' in dir() else 'N/A'}")
+                return {field: None for field in target_fields}
+                
+            except Exception as e:
+                error_str = str(e)
+                if "429" in error_str or "quota" in error_str.lower():
+                    print(f"⚠️ [AIMapper] Quota exceeded, rotating key...")
+                    if self._configure_with_next_key():
+                        await asyncio.sleep(min(2 ** attempt, 8))
+                        continue
+                    else:
+                        return {field: None for field in target_fields}
+                else:
+                    print(f"❌ [AIMapper] Web search error: {e}")
+                    return {field: None for field in target_fields}
+        
+        return {field: None for field in target_fields}
+
+    async def detect_entries(self, document_text: str, target_count: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        🔍 Detect entries/topics in a large document
+        AI จะสแกนเอกสารและระบุหัวข้อ/entries ที่พบ
+        
+        Args:
+            document_text: ข้อความจากเอกสาร
+            target_count: จำนวนหัวข้อที่ต้องการ (None = AI แนะนำ)
+            
+        Returns:
+            List of {title, description} for each detected entry
+        """
+        if not self.model:
+            if not self._configure_with_next_key():
+                return []
+        
+        # Truncate text if too long
+        max_chars = 15000
+        if len(document_text) > max_chars:
+            document_text = document_text[:max_chars] + "\n...[ตัดทอน]..."
+        
+        # Build count instruction
+        if target_count and target_count > 0:
+            count_instruction = f"4. สร้างให้ได้ {target_count} หัวข้อเท่านั้น (รวมหัวข้อที่คล้ายกัน หรือแยกย่อยตามความเหมาะสม)"
+        else:
+            count_instruction = "4. ระบุทุกหัวข้อที่พบ ไม่จำกัดจำนวน"
+        
+        prompt = f"""คุณเป็น AI ผู้เชี่ยวชาญในการวิเคราะห์เอกสารท่องเที่ยว
+
+จากเอกสารต่อไปนี้ ให้ระบุรายการสถานที่/หัวข้อทั้งหมดที่พบ
+
+[เอกสาร]
+{document_text}
+
+[คำสั่ง]
+1. สแกนเอกสารหาสถานที่ท่องเที่ยว ร้านอาหาร ที่พัก หรือหัวข้อสำคัญ
+2. สำหรับแต่ละรายการ ให้ระบุ title และ description สั้นๆ
+3. ตอบเป็น JSON array เท่านั้น
+{count_instruction}
+
+[ตัวอย่าง output]
+[
+  {{"title": "วัดภูมินทร์", "description": "วัดที่มีภาพจิตรกรรมฝาผนังกระซิบรักบันลือโลก"}},
+  {{"title": "ถนนคนเดินน่าน", "description": "ตลาดนัดยามเย็นกลางเมืองน่าน"}}
+]
+
+ตอบเป็น JSON array เท่านั้น:"""
+
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                response = await asyncio.to_thread(
+                    self.model.generate_content,
+                    prompt
+                )
+                
+                response_text = response.text.strip()
+                
+                # Clean markdown
+                if response_text.startswith("```json"):
+                    response_text = response_text[7:]
+                if response_text.startswith("```"):
+                    response_text = response_text[3:]
+                if response_text.endswith("```"):
+                    response_text = response_text[:-3]
+                response_text = response_text.strip()
+                
+                entries = json.loads(response_text)
+                
+                if not isinstance(entries, list):
+                    entries = [entries]
+                
+                print(f"✅ [AIMapper] Detected {len(entries)} entries in document")
+                return entries
+                
+            except json.JSONDecodeError as je:
+                print(f"❌ [AIMapper] JSON parse error: {je}")
+                return []
+                
+            except Exception as e:
+                error_str = str(e)
+                if "429" in error_str or "quota" in error_str.lower():
+                    print(f"⚠️ [AIMapper] Quota exceeded, rotating key...")
+                    if self._configure_with_next_key():
+                        await asyncio.sleep(min(2 ** attempt, 8))
+                        continue
+                    else:
+                        return []
+                else:
+                    print(f"❌ [AIMapper] Error detecting entries: {e}")
+                    return []
+        
+        return []
+
+    async def extract_multiple_entries(
+        self,
+        document_text: str,
+        entries: List[Dict[str, str]],
+        target_fields: List[str]
+    ) -> List[Dict[str, Any]]:
+        """
+        📊 Extract data for multiple entries from document
+        AI จะ extract ข้อมูลของแต่ละ entry ตาม fields ที่กำหนด
+        """
+        if not self.model:
+            if not self._configure_with_next_key():
+                return []
+        
+        results = []
+        
+        for entry in entries:
+            entry_title = entry.get("title", "")
+            if not entry_title:
+                continue
+            
+            # Create focused search text
+            search_prompt = f"หัวข้อ: {entry_title}\nคำอธิบาย: {entry.get('description', '')}"
+            combined = f"{search_prompt}\n\n{document_text}"
+            
+            # Use existing extraction method
+            extracted = await self.extract_from_document(
+                document_text=combined,
+                target_fields=target_fields
+            )
+            
+            # Ensure title is set
+            if not extracted.get("title"):
+                extracted["title"] = entry_title
+            
+            results.append(extracted)
+        
+        print(f"✅ [AIMapper] Extracted data for {len(results)} entries")
+        return results
+
+
 # Singleton instance
 ai_mapper_service = AIMapperService()
 

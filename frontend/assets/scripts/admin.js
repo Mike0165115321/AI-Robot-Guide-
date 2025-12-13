@@ -11,8 +11,9 @@ async function fetchAndDisplayLocations() {
         console.error("locationsTableBody not found during fetch");
         return;
     }
-    // [V5.4] Adjusted colspan from 6 to 7 to account for the new "Preview" column
-    locationsTableBody.innerHTML = `<tr><td colspan="${visibleFields.length || 7}">Loading data...</td></tr>`;
+    // [V5.4] Adjusted colspan from 6 to 7 to account for the new "Preview" column + Checkbox
+    const colSpanCount = (visibleFields.length || 7) + 1;
+    locationsTableBody.innerHTML = `<tr><td colspan="${colSpanCount}">Loading data...</td></tr>`;
 
     try {
         const skip = (currentPage - 1) * itemsPerPage;
@@ -33,7 +34,7 @@ async function fetchAndDisplayLocations() {
 
         if (!Array.isArray(locations) || locations.length === 0) {
             // [V5.4] Adjusted colspan - now dynamic
-            locationsTableBody.innerHTML = `<tr><td colspan="${visibleFields.length || 7}">No locations found. Add one below!</td></tr>`;
+            locationsTableBody.innerHTML = `<tr><td colspan="${colSpanCount}">No locations found. Add one below!</td></tr>`;
             renderPaginationControls(0, currentPage, itemsPerPage);
             return;
         }
@@ -81,10 +82,29 @@ async function fetchAndDisplayLocations() {
             }
 
             // Dynamic column rendering based on visibleFields
-            let rowHtml = '';
+            let rowHtml = `
+                <td style="text-align: center; vertical-align: middle;">
+                    <input type="checkbox" class="row-checkbox" value="${location.slug}" onchange="updateBulkActionState()" onclick="event.stopPropagation()" style="transform: scale(1.5); cursor: pointer;">
+                </td>
+            `;
+
+            // Allow clicking the row to toggle checkbox
+            row.onclick = function (e) {
+                // Ignore if clicked on button or link
+                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) return;
+
+                const cb = this.querySelector('.row-checkbox');
+                if (cb) {
+                    cb.checked = !cb.checked;
+                    updateBulkActionState();
+                }
+            };
+            row.style.cursor = 'pointer';
+
             visibleFields.forEach(field => {
                 let cellContent = '';
                 let cellStyle = '';
+                // ... (rest of switch case, unchanged logic within loop structure)
 
                 switch (field) {
                     case 'preview':
@@ -141,12 +161,133 @@ async function fetchAndDisplayLocations() {
             locationsTableBody.appendChild(row);
         });
 
+        // Reset select all button state
+        updateBulkActionState();
+
         renderPaginationControls(totalItems, currentPage, itemsPerPage);
 
     } catch (error) {
         console.error('Fetch error:', error);
         // [V5.4] Adjusted colspan
-        locationsTableBody.innerHTML = `<tr><td colspan="${visibleFields.length || 7}">Failed to load data. Please check connection.</td></tr>`;
+        const colSpanCount = (visibleFields.length || 7) + 1;
+        locationsTableBody.innerHTML = `<tr><td colspan="${colSpanCount}">Failed to load data. Please check connection.</td></tr>`;
+    }
+}
+
+async function deleteLocation(slug, silent = false) {
+    if (!slug) {
+        if (!silent) alert('Error: Invalid slug provided for deletion.');
+        return false;
+    }
+    if (!silent && !confirm(`คุณแน่ใจหรือไม่ว่าจะลบรายการ "${slug}"?`)) return false;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/locations/${slug}`, { method: 'DELETE' });
+        if (response.status === 204) {
+            if (!silent) {
+                alert(`ลบข้อมูล "${slug}" เรียบร้อยแล้ว!`);
+                fetchAndDisplayLocations(); // Refresh table
+            }
+            return true;
+        } else {
+            if (!silent) {
+                let errorDetail = response.statusText;
+                try {
+                    const errorData = await response.json();
+                    errorDetail = errorData.detail || errorDetail;
+                } catch (e) { /* Ignore */ }
+                alert(`ลบข้อมูลไม่สำเร็จ: ${errorDetail}`);
+            }
+            return false;
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        if (!silent) alert('เกิดข้อผิดพลาดขณะทำการลบ (ดู Console)');
+        return false;
+    }
+}
+
+async function deleteSelectedItems() {
+    const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('กรุณาเลือกรายการที่ต้องการลบ');
+        return;
+    }
+
+    if (!confirm(`⚠️ ยืนยันการลบ ${selectedCheckboxes.length} รายการที่เลือก?\n\nการกระทำนี้ไม่สามารถย้อนกลับได้!`)) {
+        return;
+    }
+
+    let deletedCount = 0;
+
+    // Show loading state on button
+    const btn = document.getElementById('bulk-actions').querySelector('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ กำลังลบ...';
+    btn.disabled = true;
+
+    try {
+        const slugs = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+        // Delete sequentially to avoid DB lock issues
+        for (const slug of slugs) {
+            const success = await deleteLocation(slug, true); // true = silent mode
+            if (success) {
+                deletedCount++;
+                // Update progress
+                btn.innerHTML = `⏳ ลบแล้ว ${deletedCount}/${slugs.length}`;
+            }
+        }
+
+    } catch (error) {
+        console.error('Bulk delete error:', error);
+    } finally {
+        alert(`ดำเนินการเสร็จสิ้น! ลบไปทั้งหมด ${deletedCount} รายการ`);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        fetchAndDisplayLocations();
+    }
+}
+
+function toggleSelectAllBtn(btn) {
+    const isSelecting = btn.dataset.state !== 'selected';
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+
+    checkboxes.forEach(cb => {
+        cb.checked = isSelecting;
+    });
+
+    updateBulkActionState();
+}
+
+function updateBulkActionState() {
+    const selectedCount = document.querySelectorAll('.row-checkbox:checked').length;
+    const bulkActionsContainer = document.getElementById('bulk-actions');
+    const selectedCountSpan = document.getElementById('selected-count');
+
+    // Toggle Button Logic
+    const selectAllBtn = document.getElementById('select-all-btn');
+    const allCheckboxes = document.querySelectorAll('.row-checkbox');
+
+    if (selectAllBtn) {
+        if (allCheckboxes.length > 0 && selectedCount === allCheckboxes.length) {
+            selectAllBtn.innerText = 'ยกเลิก';
+            selectAllBtn.dataset.state = 'selected';
+            selectAllBtn.style.background = 'rgba(239,68,68,0.2)';
+            selectAllBtn.style.color = '#ef4444';
+        } else {
+            selectAllBtn.innerText = 'เลือกทั้งหมด';
+            selectAllBtn.dataset.state = 'unselected';
+            selectAllBtn.style.background = 'rgba(102,126,234,0.1)';
+            selectAllBtn.style.color = '#667eea';
+        }
+    }
+
+    if (selectedCount > 0) {
+        bulkActionsContainer.style.display = 'block';
+        selectedCountSpan.innerText = selectedCount;
+    } else {
+        bulkActionsContainer.style.display = 'none';
     }
 }
 
@@ -154,15 +295,13 @@ function renderPaginationControls(total, current, limit) {
     if (!paginationContainer) return;
     paginationContainer.innerHTML = '';
 
-    if (total === 0) return;
-
-    const totalPages = Math.ceil(total / limit);
+    const totalPages = Math.max(1, Math.ceil(total / limit)); // At least 1 page
 
     // First Button
     const firstBtn = document.createElement('button');
     firstBtn.innerText = 'First';
     firstBtn.className = 'pagination-btn';
-    firstBtn.disabled = current === 1;
+    firstBtn.disabled = current <= 1;
     firstBtn.onclick = () => { currentPage = 1; fetchAndDisplayLocations(); };
     paginationContainer.appendChild(firstBtn);
 
@@ -170,7 +309,7 @@ function renderPaginationControls(total, current, limit) {
     const prevBtn = document.createElement('button');
     prevBtn.innerText = 'Prev';
     prevBtn.className = 'pagination-btn';
-    prevBtn.disabled = current === 1;
+    prevBtn.disabled = current <= 1;
     prevBtn.onclick = () => { if (current > 1) { currentPage--; fetchAndDisplayLocations(); } };
     paginationContainer.appendChild(prevBtn);
 
@@ -184,7 +323,7 @@ function renderPaginationControls(total, current, limit) {
     const nextBtn = document.createElement('button');
     nextBtn.innerText = 'Next';
     nextBtn.className = 'pagination-btn';
-    nextBtn.disabled = current === totalPages;
+    nextBtn.disabled = current >= totalPages;
     nextBtn.onclick = () => { if (current < totalPages) { currentPage++; fetchAndDisplayLocations(); } };
     paginationContainer.appendChild(nextBtn);
 
@@ -192,35 +331,9 @@ function renderPaginationControls(total, current, limit) {
     const lastBtn = document.createElement('button');
     lastBtn.innerText = 'Last';
     lastBtn.className = 'pagination-btn';
-    lastBtn.disabled = current === totalPages;
+    lastBtn.disabled = current >= totalPages;
     lastBtn.onclick = () => { currentPage = totalPages; fetchAndDisplayLocations(); };
     paginationContainer.appendChild(lastBtn);
-}
-
-async function deleteLocation(slug) {
-    if (!slug) {
-        alert('Error: Invalid slug provided for deletion.');
-        return;
-    }
-    if (!confirm(`คุณแน่ใจหรือไม่ว่าจะลบรายการ "${slug}"?`)) return;
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/locations/${slug}`, { method: 'DELETE' });
-        if (response.status === 204) {
-            alert(`ลบข้อมูล "${slug}" เรียบร้อยแล้ว!`);
-            fetchAndDisplayLocations(); // Refresh table
-        } else {
-            let errorDetail = response.statusText;
-            try {
-                const errorData = await response.json();
-                errorDetail = errorData.detail || errorDetail;
-            } catch (e) { /* Ignore parsing error if no JSON body */ }
-            alert(`ลบข้อมูลไม่สำเร็จ: ${errorDetail}`);
-        }
-    } catch (error) {
-        console.error('Delete error:', error);
-        alert('เกิดข้อผิดพลาดขณะทำการลบ (ดู Console)');
-    }
 }
 
 async function openEditModal(slug) {
@@ -769,6 +882,16 @@ function renderTableHeaders() {
     if (!thead) return;
 
     let headerHtml = '<tr>';
+
+    // Add Select All Button Header
+    headerHtml += `
+        <th style="width: 100px; text-align: center;">
+            <button id="select-all-btn" onclick="toggleSelectAllBtn(this)" 
+                style="padding: 4px 8px; font-size: 0.8em; border-radius: 4px; border: 1px solid rgba(102,126,234,0.5); background: rgba(102,126,234,0.1); color: #667eea; cursor: pointer;">
+                เลือกทั้งหมด
+            </button>
+        </th>
+    `;
 
     visibleFields.forEach(field => {
         const displayName = FIELD_DISPLAY_NAMES[field] || field;

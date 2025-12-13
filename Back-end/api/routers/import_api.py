@@ -7,7 +7,8 @@ API Router สำหรับ AI-Powered Smart ETL System
 import asyncio
 import logging
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, File, UploadFile, HTTPException, Body, Depends
+from fastapi import APIRouter, File, UploadFile, HTTPException, Body, Depends, Form
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from core.services.import_service import import_service
@@ -60,6 +61,59 @@ class ConfirmSaveResponse(BaseModel):
     success: bool
     saved_count: int = Field(..., description="จำนวน records ที่ save สำเร็จ")
     failed_count: int = Field(0, description="จำนวน records ที่ save ไม่สำเร็จ")
+    message: str
+
+
+class PDFExtractResponse(BaseModel):
+    """Response model สำหรับ PDF text extraction และ AI fill"""
+    success: bool
+    extracted_text: Optional[str] = Field(None, description="Text ที่ extract ได้จาก PDF")
+    page_count: int = Field(0, description="จำนวนหน้าใน PDF")
+    ai_data: Optional[Dict[str, Any]] = Field(None, description="ข้อมูลที่ AI extract ได้")
+    message: str
+
+
+class AIFillFormRequest(BaseModel):
+    """Request model สำหรับ AI ช่วยเติมข้อมูล"""
+    partial_data: Dict[str, Any] = Field(..., description="ข้อมูลบางส่วนที่กรอกมา")
+    target_fields: List[str] = Field(
+        default=["title", "category", "topic", "summary", "keywords"],
+        description="Fields ที่ต้องการให้ AI ช่วยเติม"
+    )
+    use_web_search: bool = Field(
+        default=False,
+        description="ถ้า True จะใช้ Google Search หาข้อมูลเพิ่มเติม"
+    )
+
+
+class AIFillFormResponse(BaseModel):
+    """Response model สำหรับ AI fill form"""
+    success: bool
+    filled_data: Dict[str, Any] = Field(..., description="ข้อมูลที่ AI ช่วยเติมให้")
+    message: str
+
+
+class DocumentScanResponse(BaseModel):
+    """Response model สำหรับ document scan"""
+    success: bool
+    page_count: int = Field(0, description="จำนวนหน้าในเอกสาร")
+    text_preview: str = Field("", description="ตัวอย่างข้อความจากเอกสาร")
+    entries: List[Dict[str, str]] = Field(default=[], description="รายการ entries ที่ AI พบ")
+    message: str
+    ai_suggested_count: int = Field(0, description="จำนวนหัวข้อที่ AI แนะนำ")
+
+
+class DocumentExtractRequest(BaseModel):
+    """Request model สำหรับ document extract"""
+    document_text: str = Field(..., description="ข้อความจากเอกสาร")
+    entries: List[Dict[str, str]] = Field(..., description="รายการ entries ที่ต้องการ extract")
+    target_fields: List[str] = Field(..., description="Fields ที่ต้องการให้ AI extract")
+
+
+class DocumentExtractResponse(BaseModel):
+    """Response model สำหรับ document extract"""
+    success: bool
+    data: List[Dict[str, Any]] = Field(default=[], description="ข้อมูลที่ extract ได้")
     message: str
 
 # =============================================================================
@@ -291,7 +345,7 @@ async def ai_transform_data(request: AITransformRequest):
         transformed = await ai_mapper_service.transform_batch(
             rows=request.raw_data,
             target_fields=request.target_fields,
-            concurrency=3  # Process 3 rows at a time
+            concurrency=8  # Process 8 rows at a time for faster import
         )
         
         logging.info(f"✅ [ImportAPI] AI transform completed: {len(transformed)} rows processed")
@@ -347,11 +401,25 @@ async def confirm_save_data(
             if not slug:
                 slug = f"item-{idx + 1}"
             
-            # Check for duplicate slug, add suffix if needed
-            existing = await asyncio.to_thread(db.get_location_by_slug, slug)
-            if existing:
-                import time
-                slug = f"{slug}-{int(time.time()) % 10000}"
+            # Check for duplicate slug and secure uniqueness
+            original_slug = slug
+            import uuid
+            
+            # Check if slug exists in DB (loop to ensure uniqueness)
+            retry_count = 0
+            while retry_count < 5:
+                existing = await asyncio.to_thread(db.get_location_by_slug, slug)
+                if not existing:
+                    break
+                
+                # If exists, append random suffix
+                suffix = uuid.uuid4().hex[:6]
+                slug = f"{original_slug}-{suffix}"
+                retry_count += 1
+            
+            if retry_count >= 5:
+                # Fallback if still busy
+                slug = f"{original_slug}-{uuid.uuid4().hex[:12]}"
             
             # Build location document matching new schema
             location_doc = {
@@ -409,6 +477,348 @@ async def confirm_save_data(
         message=message
     )
 
+
+@router.post("/pdf-extract", response_model=PDFExtractResponse, tags=["Admin :: Bulk Import"])
+async def extract_from_pdf(file: UploadFile = File(...)):
+    """
+    📄 Extract ข้อความจาก PDF และให้ AI วิเคราะห์ข้อมูลสำหรับ Manual Entry
+
+    1. อ่าน PDF ทุกหน้า
+    2. ให้ AI วิเคราะห์และ extract ข้อมูลลง fields ที่กำหนด
+    3. ส่งกลับข้อมูลสำหรับกรอกลงฟอร์ม
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="ไม่พบชื่อไฟล์")
+    
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="รองรับเฉพาะไฟล์ PDF เท่านั้น")
+    
+    try:
+        # Read PDF content
+        file_content = await file.read()
+        
+        if not file_content:
+            raise HTTPException(status_code=400, detail="ไฟล์ว่างเปล่า")
+        
+        # Extract text from PDF
+        from core.services.pdf_reader_service import pdf_reader_service
+        extracted_text = pdf_reader_service.extract_text(file_content)
+        page_count = pdf_reader_service.get_page_count(file_content)
+        
+        if not extracted_text.strip():
+            return PDFExtractResponse(
+                success=False,
+                extracted_text="",
+                page_count=page_count,
+                ai_data=None,
+                message="ไม่พบข้อความใน PDF (อาจเป็นไฟล์ภาพหรือ scanned document)"
+            )
+        
+        # Use AI to extract data from PDF text
+        from core.services.ai_mapper_service import ai_mapper_service
+        
+        target_fields = ["title", "category", "topic", "summary", "keywords", 
+                        "detail_overview", "detail_location", "detail_hours_contact",
+                        "detail_highlights", "detail_price"]
+        
+        ai_data = await ai_mapper_service.extract_from_document(
+            document_text=extracted_text,
+            target_fields=target_fields
+        )
+        
+        logging.info(f"✅ [ImportAPI] PDF extracted: {page_count} pages, AI filled {len([v for v in ai_data.values() if v])} fields")
+        logging.info(f"📄 [ImportAPI] AI Data: {ai_data}")
+        
+        return PDFExtractResponse(
+            success=True,
+            extracted_text=extracted_text[:2000],  # Limit text preview
+            page_count=page_count,
+            ai_data=ai_data,
+            message=f"อ่าน PDF สำเร็จ {page_count} หน้า"
+        )
+        
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logging.error(f"❌ [ImportAPI] PDF extract error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการอ่าน PDF: {str(e)}")
+
+
+@router.post("/ai-fill-form", response_model=AIFillFormResponse, tags=["Admin :: Bulk Import"])
+async def ai_fill_form(request: AIFillFormRequest):
+    """
+    🤖 AI ช่วยเติมข้อมูลที่ขาดหายไปในฟอร์ม
+    
+    รับข้อมูลบางส่วน (เช่น title, details) และให้ AI ช่วยเติม fields อื่นๆ
+    ถ้า use_web_search=True จะค้นหาข้อมูลจาก Google ด้วย
+    """
+    if not request.partial_data:
+        raise HTTPException(status_code=400, detail="ไม่มีข้อมูลให้ประมวลผล")
+    
+    try:
+        from core.services.ai_mapper_service import ai_mapper_service
+        
+        # รวมข้อมูลที่มีเป็น text
+        input_text = "\n".join([
+            f"{k}: {v}" for k, v in request.partial_data.items() 
+            if v and str(v).strip()
+        ])
+        
+        if not input_text.strip():
+            return AIFillFormResponse(
+                success=False,
+                filled_data={},
+                message="กรุณากรอกข้อมูลบางส่วนก่อน เช่น ชื่อสถานที่ หรือรายละเอียด"
+            )
+        
+        # เลือกวิธีการ extract
+        if request.use_web_search:
+            # 🌐 ใช้ Google Custom Search หาข้อมูล
+            from core.services.web_search_service import web_search_service
+            
+            search_query = request.partial_data.get("title", "") or request.partial_data.get("details", "")
+            search_query = f"{search_query} จังหวัดน่าน ข้อมูลท่องเที่ยว"  # เพิ่ม context
+            
+            logging.info(f"🌐 [ImportAPI] Web searching for: {search_query}")
+            
+            # ค้นหาจาก Google
+            web_results = await web_search_service.search_and_summarize(search_query)
+            
+            if web_results:
+                # รวมข้อมูลจากเว็บกับข้อมูลที่มี แล้วให้ AI วิเคราะห์
+                combined_text = f"{input_text}\n\n{web_results}"
+                target_fields = request.target_fields + ["detail_overview", "detail_location", 
+                                "detail_hours_contact", "detail_highlights", "detail_price"]
+            else:
+                combined_text = input_text
+                target_fields = request.target_fields
+                logging.warning("⚠️ [ImportAPI] Web search returned no results, using local data only")
+            
+            ai_data = await ai_mapper_service.extract_from_document(
+                document_text=combined_text,
+                target_fields=target_fields
+            )
+        else:
+            # 📝 ใช้ข้อมูลที่กรอกมาเท่านั้น
+            ai_data = await ai_mapper_service.extract_from_document(
+                document_text=input_text,
+                target_fields=request.target_fields
+            )
+        
+        # รวมกับข้อมูลเดิม (ไม่ทับข้อมูลที่กรอกมาแล้ว)
+        filled_data = {**request.partial_data}
+        for field, value in ai_data.items():
+            if value and (field not in filled_data or not filled_data[field]):
+                filled_data[field] = value
+        
+        filled_count = len([v for v in ai_data.values() if v])
+        method = "🌐 Web Search" if request.use_web_search else "📝 Local"
+        logging.info(f"✅ [ImportAPI] {method} - AI filled {filled_count} fields")
+        
+        return AIFillFormResponse(
+            success=True,
+            filled_data=filled_data,
+            message=f"AI ช่วยเติมข้อมูลสำเร็จ {filled_count} fields" + (" (ค้นจากเว็บ)" if request.use_web_search else "")
+        )
+        
+    except Exception as e:
+        logging.error(f"❌ [ImportAPI] AI fill form error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"AI ช่วยเติมข้อมูลล้มเหลว: {str(e)}")
+
+
+# =============================================================================
+# Document Import Endpoints - สำหรับอัปโหลดเอกสาร PDF/DOC และให้ AI สร้างหลาย entries
+# =============================================================================
+
+@router.post("/document-scan", response_model=DocumentScanResponse)
+async def document_scan(
+    file: UploadFile = File(..., description="ไฟล์ PDF หรือ DOC/DOCX"),
+    target_count: int = Form(default=0, description="จำนวนหัวข้อที่ต้องการ (0 = AI แนะนำ)")
+):
+    """
+    📄 Scan เอกสาร PDF/DOC และให้ AI ระบุ entries ที่พบ
+    
+    1. อ่านข้อความจากเอกสาร
+    2. AI สแกนหาหัวข้อ/สถานที่
+    3. ส่งกลับ entries ที่พบ (ผู้ใช้แก้ไขได้)
+    """
+    # Validate file type
+    from core.services.doc_reader_service import doc_reader_service
+    
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="กรุณาระบุชื่อไฟล์")
+    
+    if not doc_reader_service.is_supported(file.filename):
+        raise HTTPException(
+            status_code=400, 
+            detail=f"รองรับเฉพาะไฟล์ PDF, DOC, DOCX เท่านั้น"
+        )
+    
+    try:
+        # Read file
+        file_bytes = await file.read()
+        
+        if len(file_bytes) == 0:
+            raise HTTPException(status_code=400, detail="ไฟล์ว่างเปล่า")
+        
+        # Extract text
+        extracted_text, page_count = doc_reader_service.extract_text(file_bytes, file.filename)
+        
+        if not extracted_text.strip():
+            return DocumentScanResponse(
+                success=False,
+                page_count=page_count,
+                text_preview="",
+                entries=[],
+                message="ไม่พบข้อความในเอกสาร (อาจเป็นไฟล์ภาพหรือ scanned document)"
+            )
+        
+        # AI detect entries with target count
+        from core.services.ai_mapper_service import ai_mapper_service
+        
+        entries = await ai_mapper_service.detect_entries(extracted_text, target_count=target_count if target_count > 0 else None)
+        
+        ai_suggested_count = len(entries)
+        logging.info(f"✅ [ImportAPI] Document scan: {page_count} pages, {len(entries)} entries found (target: {target_count})")
+        
+        return DocumentScanResponse(
+            success=True,
+            page_count=page_count,
+            text_preview=extracted_text[:2000],
+            entries=entries,
+            message=f"พบ {len(entries)} รายการในเอกสาร {page_count} หน้า",
+            ai_suggested_count=ai_suggested_count
+        )
+        
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logging.error(f"❌ [ImportAPI] Document scan error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการสแกนเอกสาร: {str(e)}")
+
+
+@router.post("/document-extract", response_model=DocumentExtractResponse)
+async def document_extract(request: DocumentExtractRequest):
+    """
+    📊 Extract ข้อมูลจากเอกสารตาม entries และ fields ที่เลือก
+    
+    1. รับ entries ที่ผู้ใช้กำหนด (จาก document-scan หรือแก้ไขเอง)
+    2. AI extract ข้อมูลแต่ละ entry ตาม fields ที่เลือก
+    3. ส่งกลับ table data พร้อมบันทึก
+    """
+    if not request.entries:
+        raise HTTPException(status_code=400, detail="กรุณาระบุ entries ที่ต้องการ extract")
+    
+    if not request.target_fields:
+        raise HTTPException(status_code=400, detail="กรุณาเลือก fields ที่ต้องการ extract")
+    
+    try:
+        from core.services.ai_mapper_service import ai_mapper_service
+        
+        results = await ai_mapper_service.extract_multiple_entries(
+            document_text=request.document_text,
+            entries=request.entries,
+            target_fields=request.target_fields
+        )
+        
+        logging.info(f"✅ [ImportAPI] Document extract: {len(results)} entries extracted")
+        
+        return DocumentExtractResponse(
+            success=True,
+            data=results,
+            message=f"Extract ข้อมูลสำเร็จ {len(results)} รายการ"
+        )
+        
+    except Exception as e:
+        logging.error(f"❌ [ImportAPI] Document extract error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการ extract: {str(e)}")
+
+
+@router.post("/document-stream")
+async def document_stream(
+    file: UploadFile = File(..., description="ไฟล์ PDF หรือ DOC/DOCX"),
+    target_count: int = Form(default=5, description="จำนวนหัวข้อที่ต้องการ"),
+    target_fields: str = Form(default="title,category,topic,summary,keywords", description="Fields ที่ต้องการ (comma-separated)")
+):
+    """
+    📊 SSE Streaming: อัปโหลด → สแกน → Extract ทีละ entry → Stream ผลลัพธ์
+    
+    ส่ง SSE events:
+    - {"type": "scan", "data": {"page_count": 5, "total_entries": 5}}
+    - {"type": "entry", "data": {"index": 0, "title": "...", ...}}
+    - {"type": "done", "data": {"total": 5}}
+    - {"type": "error", "data": {"message": "..."}}
+    """
+    import json
+    from core.services.doc_reader_service import doc_reader_service
+    from core.services.ai_mapper_service import ai_mapper_service
+    
+    # Read file BEFORE streaming (to avoid closed file error)
+    file_bytes = await file.read()
+    filename = file.filename
+    
+    async def generate():
+        try:
+            # 1. Validate file
+            if len(file_bytes) == 0:
+                yield f"data: {json.dumps({'type': 'error', 'data': {'message': 'ไฟล์ว่างเปล่า'}})}\n\n"
+                return
+            
+            # 2. Extract text
+            extracted_text, page_count = doc_reader_service.extract_text(file_bytes, filename)
+            if not extracted_text.strip():
+                yield f"data: {json.dumps({'type': 'error', 'data': {'message': 'ไม่พบข้อความในเอกสาร'}})}\n\n"
+                return
+            
+            # 3. Detect entries
+            entries = await ai_mapper_service.detect_entries(extracted_text, target_count=target_count)
+            
+            # Send scan result
+            yield f"data: {json.dumps({'type': 'scan', 'data': {'page_count': page_count, 'total_entries': len(entries)}})}\n\n"
+            
+            # 4. Extract each entry and stream
+            fields_list = [f.strip() for f in target_fields.split(',') if f.strip()]
+            
+            for idx, entry in enumerate(entries):
+                try:
+                    # Extract this entry
+                    entry_title = entry.get("title", "")
+                    search_prompt = f"หัวข้อ: {entry_title}\nคำอธิบาย: {entry.get('description', '')}"
+                    combined = f"{search_prompt}\n\n{extracted_text}"
+                    
+                    extracted = await ai_mapper_service.extract_from_document(
+                        document_text=combined,
+                        target_fields=fields_list
+                    )
+                    
+                    # Ensure title is set
+                    extracted['title'] = extracted.get('title') or entry_title
+                    extracted['_index'] = idx
+                    
+                    # Send entry result
+                    yield f"data: {json.dumps({'type': 'entry', 'data': extracted}, ensure_ascii=False)}\n\n"
+                    
+                except Exception as entry_error:
+                    logging.warning(f"Entry {idx} failed: {entry_error}")
+                    yield f"data: {json.dumps({'type': 'entry', 'data': {'title': entry.get('title', f'Entry {idx+1}'), '_error': str(entry_error), '_index': idx}})}\n\n"
+            
+            # 5. Done
+            yield f"data: {json.dumps({'type': 'done', 'data': {'total': len(entries)}})}\n\n"
+            logging.info(f"✅ [ImportAPI] Document stream completed: {len(entries)} entries")
+            
+        except Exception as e:
+            logging.error(f"❌ [ImportAPI] Document stream error: {e}", exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'data': {'message': str(e)}})}\n\n"
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 def _build_summary(row: dict) -> str:
     """สร้าง summary จากข้อมูลที่ extract ได้"""
