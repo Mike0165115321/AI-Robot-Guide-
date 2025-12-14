@@ -34,21 +34,21 @@ class QueryInterpreter:
         self.model_to_use = settings.GROQ_LLAMA_MODEL
         api_key = groq_key_manager.get_key()
         if not api_key:
-            logging.error("🚨 [Interpreter] CRITICAL: No Groq API key found on init.")
+            logging.error("🚨 [Interpreter] วิกฤต: ไม่พบ Groq API Key ในการเริ่มต้นทำงาน")
             self.client = None
         else:
             self.client = AsyncGroq(api_key=api_key)
-        logging.info(f"🧠 Query Interpreter (V6.4 - Pre-correction) initialized with model: {self.model_to_use}")
+        logging.info(f"🧠 Query Interpreter (V6.4 - Pre-correction) เริ่มทำงานด้วยโมเดล: {self.model_to_use}")
 
     async def close(self):
         """Closes the AsyncGroq client."""
         if self.client:
-            logging.info("⏳ [Interpreter] Closing Groq client...")
+            logging.info("⏳ [Interpreter] กำลังปิดการเชื่อมต่อ Groq...")
             try:
                 await self.client.close()
-                logging.info("✅ [Interpreter] Groq client closed.")
+                logging.info("✅ [Interpreter] ปิดการเชื่อมต่อ Groq เรียบร้อยแล้ว")
             except Exception as e:
-                logging.error(f"❌ Error closing Groq client: {e}")
+                logging.error(f"❌ เกิดข้อผิดพลาดในการปิด Groq client: {e}")
 
     def _normalize_query(self, query: str) -> str:
         """Strips whitespace and common Thai particles for matching."""
@@ -61,7 +61,7 @@ class QueryInterpreter:
 
     async def _get_groq_response(self, system_prompt: str, user_query: str) -> Optional[str]:
         if not self.client:
-            logging.error("❌ [Interpreter] Groq client not initialized (No API key).")
+            logging.error("❌ [Interpreter] Groq client (ไม่พบ API Key)")
             return None
         try:
             chat_completion = await self.client.chat.completions.create(
@@ -75,7 +75,7 @@ class QueryInterpreter:
             )
             return chat_completion.choices[0].message.content.strip()
         except Exception as e:
-            logging.error(f"❌ [Interpreter] Groq API Error: {e}", exc_info=True)
+            logging.error(f"❌ [Interpreter] เกิดข้อผิดพลาดกับ Groq API: {e}", exc_info=True)
             return None
 
     async def interpret_and_route(self, query: str) -> Dict[str, Any]:
@@ -89,11 +89,11 @@ class QueryInterpreter:
         normalized_for_correction = self._normalize_query(original_query)
         corrected_query = self._PRE_CORRECTION_MAP.get(normalized_for_correction, original_query)
         if corrected_query != original_query:
-            logging.info(f"✅ [Interpreter] Pre-corrected: '{original_query}' -> '{corrected_query}'")
+            logging.info(f"✅ [Interpreter] แก้ไขคำผิดเบื้องต้น: '{original_query}' -> '{corrected_query}'")
 
         normalized_for_canned = self._normalize_query(corrected_query)
         if normalized_for_canned in self._QUERY_MAP:
-            logging.info(f"✅ [Interpreter] Canned response for '{corrected_query}'")
+            logging.info(f"✅ [Interpreter] ใช้คำตอบสำเร็จรูปสำหรับ '{corrected_query}'")
             response_key = self._QUERY_MAP[normalized_for_canned]
             response = self._CANNED_RESPONSES[response_key].copy()
             response["corrected_query"] = corrected_query
@@ -104,26 +104,26 @@ class QueryInterpreter:
             "is_complex": False, "sub_queries": [corrected_query]
         }
         
-        system_prompt = f"""You are an expert Thai language interpreter, router, and query decomposer for a Nan province tourism guide AI.
-Your task is to analyze a noisy user query.
-You MUST return a JSON object with exactly these 5 keys: "corrected_query", "intent", "entity", "is_complex", "sub_queries".
+        system_prompt = f"""คุณคือผู้เชี่ยวชาญด้านภาษาและการตีความเจตนา (Intent Classification) สำหรับระบบ AI แนะนำการท่องเที่ยวน่าน
+หน้าที่ของคุณคือวิเคราะห์ข้อความของผู้ใช้ (ซึ่งอาจมีคำผิดหรือความกำกวม)
+คุณต้องตอบกลับเป็น JSON Object ที่มี 5 keys ดังนี้เท่านั้น: "corrected_query", "intent", "entity", "is_complex", "sub_queries".
 
-1.  **corrected_query**: Reconstruct the query into a clear, natural Thai sentence.
-2.  **intent**: Classify into ONE: "INFORMATIONAL", "PLAY_MUSIC", "SYSTEM_COMMAND", "SMALL_TALK", "WELCOME_GREETING".
+1.  **corrected_query**: เรียบเรียงประโยคใหม่ให้เป็นภาษาไทยที่ถูกต้อง เป็นธรรมชาติ และชัดเจน
+2.  **intent**: ระบุเจตนา เพียง 1 อย่างจาก: "INFORMATIONAL", "PLAY_MUSIC", "SYSTEM_COMMAND", "SMALL_TALK", "WELCOME_GREETING".
 3.  **entity**: 
-    - If "PLAY_MUSIC", extract song/artist.
-    - If "SYSTEM_COMMAND", extract app name.
-    - If "SMALL_TALK" or "WELCOME_GREETING", return null.
-    - If "INFORMATIONAL" AND `is_complex: true`, return null.
-    - If "INFORMATIONAL" AND `is_complex: false`, extract the SINGLE main topic (e.g., "วัดภูมินทร์", "ปู่ม่านย่าม่าน", "ดอยเสมอดาว"). If no single topic, return null.
-4.  **is_complex**: (Boolean) Is this a complex question that requires multiple separate information retrievals? 
-    - `true` if it compares items (A vs B), asks for multiple distinct topics (A and B), or has sequential logic.
-    - `false` if it's a simple, single-topic question.
+    - ถ้าเป็น "PLAY_MUSIC", ให้ระบุชื่อเพลง/ศิลปิน
+    - ถ้าเป็น "SYSTEM_COMMAND", ให้ระบุชื่อแอป
+    - ถ้าเป็น "SMALL_TALK" หรือ "WELCOME_GREETING", ให้ส่งค่า null
+    - ถ้าเป็น "INFORMATIONAL" และ `is_complex: true`, ให้ส่งค่า null
+    - ถ้าเป็น "INFORMATIONAL" และ `is_complex: false`, ให้ระบุชื่อสถานที่หรือหัวข้อหลักเพียงหนึ่งเดียว (เช่น "วัดภูมินทร์", "ปู่ม่านย่าม่าน"). ถ้าไม่มีหัวข้อที่เจาะจง ให้ส่งค่า null
+4.  **is_complex**: (Boolean) เป็นคำถามซับซ้อนที่ต้องค้นหาข้อมูลแยกกันหลายส่วนหรือไม่?
+    - `true` ถ้าเป็นการเปรียบเทียบ (A vs B), ถามหลายหัวข้อ (A และ B), หรือมีลำดับเหตุผล
+    - `false` ถ้าเป็นคำถามหัวข้อเดียวง่ายๆ
 5.  **sub_queries**: (List of strings)
-    - If `is_complex: false`, return a list containing only the `corrected_query`.
-    - If `is_complex: true`, break the `corrected_query` down into the simplest possible sub-queries.
+    - ถ้า `is_complex: false`, ให้ใส่ `corrected_query` อันเดียวใน list
+    - ถ้า `is_complex: true`, ให้แตก `corrected_query` ออกเป็นคำถามย่อยๆ ที่ง่ายที่สุดสำหรับการค้นหา
 
-**EXAMPLES (Crucial):**
+**ตัวอย่าง (สำคัญมาก):**
 * Input: "วัด พูมิน ไปไง"
 Output: {{"corrected_query": "วัดภูมินทร์ไปยังไง", "intent": "INFORMATIONAL", "entity": "วัดภูมินทร์", "is_complex": false, "sub_queries": ["วัดภูมินทร์ไปยังไง"]}}
 * Input: "ขอดูรูปปู่ม่านย่าม่าน"
@@ -144,7 +144,7 @@ Output: {{"corrected_query": "วัดภูมินทร์กับวั�
 Output: {{"corrected_query": "ประวัติศาสตร์น่าน และ ชนเผ่าที่น่าสนใจ", "intent": "INFORMATIONAL", "entity": null, "is_complex": true, "sub_queries": ["ประวัติศาสตร์จังหวัดน่าน", "ชนเผ่าที่น่าสนใจในจังหวัดน่าน"]}}
 """
 
-        logging.info(f"✍️🧠 [Interpreter] Interpreting with LLM: '{corrected_query}'")
+        logging.info(f"✍️🧠 [Interpreter] กำลังวิเคราะห์ด้วย LLM โดยใช้ข้อความ: '{corrected_query}'")
         response_str = await self._get_groq_response(system_prompt, corrected_query)
         if not response_str:
             return fallback_result
@@ -155,10 +155,10 @@ Output: {{"corrected_query": "ประวัติศาสตร์น่า�
                 raise ValueError("Missing required keys")
             if "entity" not in result: result["entity"] = None
 
-            logging.info(f"✅ [Interpreter] LLM Result: {result}")
+            logging.info(f"✅ [Interpreter] ผลลัพธ์จาก LLM: {result}")
             return result
         except Exception as e:
-            logging.error(f"❌ [Interpreter] Failed to parse LLM JSON: {e}. Response: {response_str}")
+            logging.error(f"❌ [Interpreter] ไม่สามารถแปลง JSON จาก LLM ได้: {e}. คำตอบที่ได้: {response_str}")
             return fallback_result
         
 

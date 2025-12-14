@@ -45,11 +45,11 @@ class ImportService:
             # แปลงเป็น List of Dict
             records = df.to_dict(orient='records')
             
-            print(f"✅ [ImportService] Parsed Excel: {len(records)} rows, {len(df.columns)} columns")
+            print(f"✅ [ImportService] อ่าน Excel สำเร็จ: {len(records)} แถว, {len(df.columns)} คอลัมน์")
             return records
             
         except Exception as e:
-            print(f"❌ [ImportService] Error parsing Excel: {e}")
+            print(f"❌ [ImportService] เกิดข้อผิดพลาดในการอ่าน Excel: {e}")
             raise ValueError(f"ไม่สามารถอ่านไฟล์ Excel ได้: {str(e)}")
     
     def parse_csv(self, file_content: bytes, encoding: str = 'utf-8') -> List[Dict[str, Any]]:
@@ -68,7 +68,7 @@ class ImportService:
             try:
                 df = pd.read_csv(io.BytesIO(file_content), encoding=encoding)
             except UnicodeDecodeError:
-                print("⚠️ [ImportService] UTF-8 failed, trying TIS-620...")
+                print("⚠️ [ImportService] UTF-8 ล้มเหลว, กำลังลอง TIS-620...")
                 df = pd.read_csv(io.BytesIO(file_content), encoding='tis-620')
             
             # Clean data
@@ -77,11 +77,11 @@ class ImportService:
             
             records = df.to_dict(orient='records')
             
-            print(f"✅ [ImportService] Parsed CSV: {len(records)} rows, {len(df.columns)} columns")
+            print(f"✅ [ImportService] อ่าน CSV สำเร็จ: {len(records)} แถว, {len(df.columns)} คอลัมน์")
             return records
             
         except Exception as e:
-            print(f"❌ [ImportService] Error parsing CSV: {e}")
+            print(f"❌ [ImportService] เกิดข้อผิดพลาดในการอ่าน CSV: {e}")
             raise ValueError(f"ไม่สามารถอ่านไฟล์ CSV ได้: {str(e)}")
     
     def parse_file(self, file_content: bytes, filename: str) -> List[Dict[str, Any]]:

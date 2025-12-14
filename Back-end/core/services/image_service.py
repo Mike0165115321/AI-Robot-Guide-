@@ -20,7 +20,7 @@ class ImageService:
     def refresh_cache(self):
         """Loads all image metadata from MongoDB into memory."""
         if self.collection is None:
-            logging.warning("⚠️ ImageService: 'image_metadata' collection not found.")
+            logging.warning("⚠️ ImageService: ไม่พบ collection 'image_metadata'")
             return
 
         try:
@@ -38,9 +38,9 @@ class ImageService:
                             self.prefixed_image_map[prefix] = []
                         self.prefixed_image_map[prefix].append(url)
             
-            logging.info(f"✅ ImageService: Loaded {len(self.all_image_files)} images with {len(self.prefixed_image_map)} prefixes.")
+            logging.info(f"✅ ImageService: โหลดรูปภาพ {len(self.all_image_files)} รูป พร้อม prefix {len(self.prefixed_image_map)} รายการ")
         except Exception as e:
-            logging.error(f"❌ ImageService: Error refreshing cache: {e}")
+            logging.error(f"❌ ImageService: เกิดข้อผิดพลาดในการรีเฟรช cache: {e}")
 
     def find_all_images_by_prefix(self, prefix: str) -> List[str]:
         if not prefix: return []
@@ -135,7 +135,7 @@ class ImageService:
                     if google_urls:
                         image_url = google_urls[0]
                 except Exception as e:
-                    logging.warning(f"Image injection search failed for {keyword}: {e}")
+                    logging.warning(f"การค้นหารูปภาพเพื่อแทรกเนื้อหาล้มเหลวสำหรับ {keyword}: {e}")
             
             if image_url:
                 full_url = self.construct_full_image_url(image_url)

@@ -27,7 +27,7 @@ logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logging.info("🚀 [Lifespan] Application Starting Up...")
+    logging.info("🚀 [Lifespan] กำลังเริ่มต้นแอปพลิเคชัน...")
     
     app.state.mongo_manager = MongoDBManager()
     app.state.qdrant_manager = QdrantManager()
@@ -45,24 +45,24 @@ async def lifespan(app: FastAPI):
     try:
         await app.state.qdrant_manager.initialize()
     except Exception as e:
-        logging.critical(f"❌ [Lifespan] CRITICAL: Failed to initialize Qdrant. {e}", exc_info=True)
+        logging.critical(f"❌ [Lifespan] วิกฤต: ไม่สามารถเริ่มต้น Qdrant ได้ {e}", exc_info=True)
         # raise e  <-- Commented out to allow server to start without Qdrant
 
     app.state.cleanup_task = asyncio.create_task(start_background_cleanup())
-    logging.info("✅ [Lifespan] Background cleanup task started.")
+    logging.info("✅ [Lifespan] งานทำความสะอาดเบื้องหลังเริ่มต้นแล้ว")
     
-    logging.info("✅ [Lifespan] Startup complete. Ready to serve requests.")
+    logging.info("✅ [Lifespan] เริ่มต้นเสร็จสมบูรณ์ พร้อมให้บริการ")
     
     yield 
-    logging.info("⏳ [Lifespan] Application Shutting Down...")
+    logging.info("⏳ [Lifespan] กำลังปิดแอปพลิเคชัน...")
     
     await app.state.qdrant_manager.close()
     await app.state.query_interpreter.close()
     
     app.state.cleanup_task.cancel()
-    logging.info("✅ [Lifespan] Background cleanup task stopped.")
+    logging.info("✅ [Lifespan] งานทำความสะอาดเบื้องหลังหยุดแล้ว")
     
-    logging.info("✅ [Lifespan] Shutdown complete.")
+    logging.info("✅ [Lifespan] ปิดการทำงานสมบูรณ์")
 
 
 app = FastAPI(
@@ -76,7 +76,7 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = BACKEND_ROOT / "static"
 STATIC_DIR.mkdir(parents=True, exist_ok=True) 
 
-logging.info(f"✅ Serving static files from directory: {STATIC_DIR}")
+logging.info(f"✅ ให้บริการไฟล์ static จาก: {STATIC_DIR}")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # CORS Configuration - กำหนด origins ที่อนุญาตอย่างชัดเจนเพื่อความปลอดภัย
@@ -149,8 +149,8 @@ async def get_navigation_list(
         from fastapi.responses import JSONResponse
         return JSONResponse(content=location_list, media_type="application/json; charset=utf-8")
     except Exception as e:
-        logging.error(f"❌ [API-NavList] Error getting navigation list: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Could not retrieve navigation list.")
+        logging.error(f"❌ [API-NavList] เกิดข้อผิดพลาดในการดึงรายการนำทาง: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="ไม่สามารถดึงข้อมูลรายการนำทางได้")
     
 @app.get("/api/stream")
 async def get_stream_url(video_url: str):
@@ -165,7 +165,7 @@ async def get_stream_url(video_url: str):
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
-        print(f"Error checking status: {e}")
+        print(f"เกิดข้อผิดพลาดในการตรวจสอบสถานะ: {e}")
         return {"status": "error", "message": str(e)}
 
 
@@ -178,9 +178,9 @@ async def get_stream_url(video_url: str):
 
 FRONTEND_DIR = settings.FRONTEND_DIR
 
-logging.info(f"✅ Serving frontend from directory: {FRONTEND_DIR}")
+logging.info(f"✅ ให้บริการ frontend จาก: {FRONTEND_DIR}")
 if not FRONTEND_DIR.is_dir():
-    logging.critical(f"❌ CRITICAL ERROR: Frontend directory not found at {FRONTEND_DIR}")
+    logging.critical(f"❌ ข้อผิดพลาดร้ายแรง: ไม่พบโฟลเดอร์ frontend ที่ {FRONTEND_DIR}")
 
 app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="assets")
 templates = Jinja2Templates(directory=str(FRONTEND_DIR))

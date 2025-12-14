@@ -12,10 +12,6 @@ from core.config import settings
 from core.ai_models.key_manager import groq_key_manager
 
 def sanitize_text_for_speech(text: str) -> str:
-    """
-    ทำความสะอาดข้อความก่อนส่งให้ TTS
-    ลบ: URL, emoji, markdown, อักขระพิเศษ
-    """
     import unicodedata
     
     # 1. ลบ URL / Links
@@ -85,7 +81,6 @@ def sanitize_text_for_speech(text: str) -> str:
 
 local_whisper_model = None
 
-# 🌐 Voice mapping for 7 languages (Edge TTS voices)
 VOICE_MAP = {
     "th": ["th-TH-PremwadeeNeural", "th-TH-NiwatNeural"],
     "en": ["en-US-JennyNeural", "en-US-GuyNeural"],
@@ -98,14 +93,13 @@ VOICE_MAP = {
 
 class SpeechHandler:
     def __init__(self):
-        logging.info("🎤 [Speech] Initializing SpeechHandler (Primary: Groq, Fallback: Local)")
-        # Import language detector for TTS voice selection
+        logging.info("🎤 [Speech] กำลังเริ่มต้น SpeechHandler (หลัก: Groq, สำรอง: Local)")
         try:
             from core.services.language_detector import language_detector
             self.lang_detector = language_detector
         except ImportError:
             self.lang_detector = None
-            logging.warning("⚠️ [Speech] Language detector not available")
+            logging.warning("⚠️ [Speech] ไม่สามารถใช้งาน Language detector ได้")
         
     def _get_groq_client(self):
         api_key = groq_key_manager.get_key()
@@ -134,10 +128,10 @@ class SpeechHandler:
         
         if local_whisper_model is None:
             model_size = settings.WHISPER_MODEL_SIZE
-            logging.info(f"🔄 [Speech] Loading Local Whisper '{model_size}' (Fallback)...")
+            logging.info(f"🔄 [Speech] กำลังโหลด Local Whisper '{model_size}' (ระบบสำรอง)...")
             local_whisper_model = whisper.load_model(model_size, device=settings.DEVICE)
         
-        logging.info("🐢 [Speech] Transcribing with Local Whisper...")
+        logging.info("🐢 [Speech] กำลังแปลงเสียงเป็นข้อความด้วย Local Whisper...")
         result = local_whisper_model.transcribe(file_path, language="th")
         return result.get('text', '').strip()
 
@@ -149,19 +143,19 @@ class SpeechHandler:
             temp_file_path = temp_file.name
 
         try:
-            logging.info("🚀 [Speech] Trying Groq Whisper...")
+            logging.info("🚀 [Speech] กำลังลองใช้ Groq Whisper...")
             text = await asyncio.to_thread(self._transcribe_with_groq, temp_file_path)
-            logging.info(f"✅ [Speech] Groq Result: '{text}'")
+            logging.info(f"✅ [Speech] ผลลัพธ์จาก Groq: '{text}'")
             return text
 
         except Exception as e:
-            logging.warning(f"⚠️ [Speech] Groq failed ({e}). Switching to Local Whisper...")
+            logging.warning(f"⚠️ [Speech] Groq ล้มเหลว ({e}). กำลังเปลี่ยนไปใช้ Local Whisper...")
             try:
                 text = await asyncio.to_thread(self._transcribe_with_local, temp_file_path)
-                logging.info(f"✅ [Speech] Local Result: '{text}'")
+                logging.info(f"✅ [Speech] ผลลัพธ์จาก Local: '{text}'")
                 return text
             except Exception as local_e:
-                logging.error(f"❌ [Speech] All STT methods failed: {local_e}")
+                logging.error(f"❌ [Speech] การแปลงเสียงเป็นข้อความล้มเหลวทั้งหมด: {local_e}")
                 return ""
         finally:
             if os.path.exists(temp_file_path):
@@ -178,25 +172,25 @@ class SpeechHandler:
         
         # Validate cleaned text isn't empty
         if not clean_text.strip():
-            logging.warning("⚠️ [TTS] Text became empty after sanitization, using fallback text")
+            logging.warning("⚠️ [TTS] ข้อความว่างเปล่าหลังจากการทำความสะอาด ใช้ข้อความสำรองแทน")
             clean_text = "ขอโทษค่ะ ไม่สามารถอ่านข้อความได้"
         
-        print(f"🗣️  [TTS] Synthesizing speech for: '{clean_text[:50]}...'")
+        print(f"🗣️  [TTS] กำลังสังเคราะห์เสียงสำหรับ: '{clean_text[:50]}...'")
         
         # 🌐 Detect language and select appropriate voices
         detected_lang = "th"  # default
         if self.lang_detector:
             detected_lang = self.lang_detector.detect(text)
-            logging.info(f"🌐 [TTS] Detected language: {detected_lang}")
+            logging.info(f"🌐 [TTS] ภาษาที่ตรวจพบ: {detected_lang}")
         
         # Get voices for detected language
         voices_to_try = VOICE_MAP.get(detected_lang, VOICE_MAP["th"])
-        logging.info(f"🔊 [TTS] Using voices: {voices_to_try}")
+        logging.info(f"🔊 [TTS] กำลังใช้เสียง: {voices_to_try}")
         
         # ========== Try Edge TTS (Primary - Microsoft) ==========
         for voice in voices_to_try:
             try:
-                logging.info(f"🚀 [TTS] Trying Edge TTS voice: {voice}")
+                logging.info(f"🚀 [TTS] กำลังลองใช้เสียง Edge TTS: {voice}")
                 communicate = edge_tts.Communicate(clean_text, voice, rate="-10%")
                 
                 mp3_buffer = io.BytesIO()
@@ -205,19 +199,19 @@ class SpeechHandler:
                         mp3_buffer.write(chunk["data"])
                 
                 if mp3_buffer.tell() == 0:
-                    logging.warning(f"⚠️ [TTS] No audio data received with voice {voice}")
+                    logging.warning(f"⚠️ [TTS] ไม่ได้รับข้อมูลเสียงจากเสียง {voice}")
                     continue
                     
                 mp3_buffer.seek(0)
-                logging.info(f"✅ [TTS] Success with Edge TTS voice: {voice}")
+                logging.info(f"✅ [TTS] สำเร็จด้วยเสียง Edge TTS: {voice}")
                 return mp3_buffer.read()
 
             except Exception as e:
-                logging.warning(f"⚠️ [TTS] Edge TTS voice {voice} failed: {e}")
+                logging.warning(f"⚠️ [TTS] เสียง Edge TTS {voice} ล้มเหลว: {e}")
                 continue
         
         # ========== Fallback to gTTS (Google TTS) ==========
-        logging.warning("⚠️ [TTS] Edge TTS failed, trying gTTS fallback...")
+        logging.warning("⚠️ [TTS] Edge TTS ล้มเหลว กำลังลองใช้ gTTS สำรอง...")
         try:
             from gtts import gTTS
             
@@ -228,7 +222,7 @@ class SpeechHandler:
             
             # --- Friend's Feature: Speed up 1.25x using pydub ---
             try:
-                logging.info("⚡ [TTS] Applying 1.25x speedup to gTTS output...")
+                logging.info("⚡ [TTS] กำลังเร่งความเร็ว 1.25x ให้กับผลลัพธ์ gTTS...")
                 audio = AudioSegment.from_mp3(mp3_buffer)
                 faster_audio = audio.speedup(playback_speed=1.25)
                 
@@ -236,15 +230,15 @@ class SpeechHandler:
                 faster_audio.export(output_buffer, format='mp3')
                 output_buffer.seek(0)
                 
-                logging.info("✅ [TTS] Success with gTTS fallback (Speed 1.25x)")
+                logging.info("✅ [TTS] สำเร็จด้วย gTTS สำรอง (ความเร็ว 1.25x)")
                 return output_buffer.read()
             except Exception as pydub_error:
-                logging.warning(f"⚠️ [TTS] pydub speedup failed, returning normal speed gTTS: {pydub_error}")
+                logging.warning(f"⚠️ [TTS] การเร่งความเร็วด้วย pydub ล้มเหลว คืนค่า gTTS ความเร็วปกติ: {pydub_error}")
                 mp3_buffer.seek(0)
                 return mp3_buffer.read()
             
         except Exception as gtts_error:
-            logging.error(f"❌ [TTS] All TTS methods failed: {gtts_error}", exc_info=True)
-            raise RuntimeError("Failed to synthesize speech with both edge-tts and gTTS.")
+            logging.error(f"❌ [TTS] วิธีการ TTS ทั้งหมดล้มเหลว: {gtts_error}", exc_info=True)
+            raise RuntimeError("ไม่สามารถสังเคราะห์เสียงด้วยทั้ง edge-tts และ gTTS")
 
 speech_handler_instance = SpeechHandler()

@@ -29,7 +29,7 @@ class WebSearchService:
             List of search results with title, snippet, link
         """
         if not self.api_key or not self.cse_id:
-            print("❌ [WebSearch] Missing GOOGLE_API_KEY or GOOGLE_CSE_ID")
+            print("❌ [WebSearch] ขาด GOOGLE_API_KEY หรือ GOOGLE_CSE_ID")
             return []
         
         params = {
@@ -59,11 +59,11 @@ class WebSearchService:
                             "link": item.get("link", "")
                         })
                     
-                    print(f"✅ [WebSearch] Found {len(results)} results for: {query}")
+                    print(f"✅ [WebSearch] พบ {len(results)} ผลลัพธ์สำหรับ: {query}")
                     return results
                     
         except Exception as e:
-            print(f"❌ [WebSearch] Error: {e}")
+            print(f"❌ [WebSearch] ข้อผิดพลาด: {e}")
             return []
     
     async def search_and_summarize(self, query: str) -> str:

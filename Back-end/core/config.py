@@ -17,11 +17,11 @@ class Settings:
     
     # 2. LLM Models
     GEMINI_MODEL = "gemini-2.5-flash"          # โมเดลหลัก (Google)
-    GROQ_LLAMA_MODEL = "llama-3.3-70b-versatile" # โมเดลหลัก (Groq - RAG/Interpreter)
+    GROQ_LLAMA_MODEL = "llama-3.3-70b-versatile" # โมเดลหลัก (Groq)
     GROQ_SMALL_TALK_MODEL = "llama-3.1-8b-instant" # โมเดลคุยเล่น (เน้นเร็ว)
     
     # 3. Speech & Audio Models
-    GROQ_WHISPER_MODEL = "whisper-large-v3" # Groq STT (เร็วสุด)
+    GROQ_WHISPER_MODEL = "whisper-large-v3" # Groq STT 
     WHISPER_MODEL_SIZE = "medium"                       # Local Whisper Fallback (base/small/medium)
     TTS_VOICE = "th-TH-PremwadeeNeural"               # เสียงพูด (Edge TTS)
     

@@ -25,7 +25,7 @@ try:
     LANGDETECT_AVAILABLE = True
 except ImportError:
     LANGDETECT_AVAILABLE = False
-    logging.warning("⚠️ langdetect not installed. Run: pip install langdetect")
+    logging.warning("⚠️ ไม่พบ langdetect กรุณาติดตั้ง: pip install langdetect")
 
 
 class LanguageDetector:
@@ -79,7 +79,7 @@ class LanguageDetector:
             return self.DEFAULT_LANG
         
         if not LANGDETECT_AVAILABLE:
-            logging.warning("⚠️ langdetect not available, using default language")
+            logging.warning("⚠️ langdetect ไม่พร้อมใช้งาน ใช้ภาษาเริ่มต้น")
             return self.DEFAULT_LANG
         
         try:
@@ -111,7 +111,7 @@ class LanguageDetector:
                     print(f"🌐 [MIXED LANGUAGE] 2nd: {results[1].lang} ({results[1].prob:.2f})")
                 print(f"🌐 [MIXED LANGUAGE] → Fallback to English (neutral)")
                 print(f"🌐 ═══════════════════════════════════════════")
-                logging.info(f"🌐 [Language] Mixed detected → Fallback to English")
+                logging.info(f"🌐 [Language] ตรวจพบภาษาผสม → ใช้ภาษาอังกฤษเป็นค่ากลาง")
                 return "en"
             
             # Single language detected with high confidence
@@ -121,17 +121,17 @@ class LanguageDetector:
                 print(f"🌐 [LANGUAGE DETECTED] {top_lang.lang} → {top_code} ({lang_name})")
                 print(f"🌐 [CONFIDENCE] {top_lang.prob:.2f}")
                 print(f"🌐 ═══════════════════════════════════════════")
-                logging.info(f"🌐 [Language] Detected: {top_lang.lang} → {top_code}")
+                logging.info(f"🌐 [Language] ตรวจพบภาษา: {top_lang.lang} → {top_code}")
                 return top_code
             else:
-                logging.info(f"🌐 [Language] Detected '{top_lang.lang}' not supported, using default")
+                logging.info(f"🌐 [Language] ภาษาที่ตรวจพบ '{top_lang.lang}' ไม่รองรับ ใช้ภาษาเริ่มต้น")
                 return self.DEFAULT_LANG
                 
         except LangDetectException as e:
-            logging.warning(f"⚠️ [Language] Detection failed: {e}")
+            logging.warning(f"⚠️ [Language] การตรวจจับล้มเหลว: {e}")
             return self.DEFAULT_LANG
         except Exception as e:
-            logging.error(f"❌ [Language] Error: {e}")
+            logging.error(f"❌ [Language] ข้อผิดพลาด: {e}")
             return self.DEFAULT_LANG
     
     def detect_with_confidence(self, text: str) -> Tuple[str, float]:
@@ -187,17 +187,17 @@ class LanguageDetector:
         
         if prompt_path.exists():
             content = prompt_path.read_text(encoding="utf-8")
-            logging.info(f"📝 [Prompt] Loaded: {prompt_path}")
+            logging.info(f"📝 [Prompt] โหลดแล้ว: {prompt_path}")
             return content
         
         # Fallback to Thai
         fallback_path = self.prompts_dir / "th" / f"{prompt_name}.txt"
         if fallback_path.exists():
-            logging.warning(f"⚠️ [Prompt] {prompt_path} not found, using Thai fallback")
+            logging.warning(f"⚠️ [Prompt] ไม่พบ {prompt_path} ใช้ภาษาไทยเป็น fallback")
             return fallback_path.read_text(encoding="utf-8")
         
         # Final fallback - return empty
-        logging.error(f"❌ [Prompt] No prompt found for: {prompt_name}")
+        logging.error(f"❌ [Prompt] ไม่พบ prompt สำหรับ: {prompt_name}")
         return ""
     
     def is_supported(self, lang_code: str) -> bool:

@@ -16,9 +16,9 @@ class MongoDBManager:
             )
             self.db = self.client[settings.MONGO_DATABASE_NAME]
             self.client.server_info()
-            print("✅ MongoDB connection successful.")
+            print("✅ การเชื่อมต่อ MongoDB สำเร็จ")
         except Exception as e:
-            print(f"❌ Failed to connect to MongoDB: {e}")
+            print(f"❌ เชื่อมต่อ MongoDB ล้มเหลว: {e}")
             self.client = None
             self.db = None
 
@@ -34,7 +34,7 @@ class MongoDBManager:
             valid_object_ids = []
             for mid in mongo_ids:
                 try: valid_object_ids.append(ObjectId(mid))
-                except InvalidId: print(f"⚠️ Warning: Invalid MongoDB ID ignored: {mid}")
+                except InvalidId: print(f"⚠️ คำเตือน: รหัส MongoDB ไม่ถูกต้องถูกละเลย: {mid}")
             if not valid_object_ids: return []
             cursor = collection.find({"_id": {"$in": valid_object_ids}})
             docs_map = {str(doc["_id"]): doc for doc in cursor}
@@ -44,7 +44,7 @@ class MongoDBManager:
                 if doc: ordered_docs.append(doc)
             return ordered_docs
         except Exception as e:
-            print(f"❌ Error fetching multiple locations by IDs: {e}")
+            print(f"❌ เกิดข้อผิดพลาดในการดึงข้อมูลหลายสถานที่ด้วยรหัส: {e}")
             return []
         
     def add_location(self, location_data: dict, collection_name: str = "nan_locations"):
@@ -52,10 +52,10 @@ class MongoDBManager:
         if collection is not None:
             try:
                 result = collection.insert_one(location_data)
-                print(f"📄 Added new location with ID: {result.inserted_id}")
+                print(f"📄 เพิ่มสถานที่ใหม่ด้วยรหัส: {result.inserted_id}")
                 return str(result.inserted_id)
             except Exception as e:
-                print(f"❌ Error adding location: {e}")
+                print(f"❌ เกิดข้อผิดพลาดในการเพิ่มสถานที่: {e}")
                 return None
         return None
     
@@ -64,10 +64,10 @@ class MongoDBManager:
         if collection is not None:
             try: return collection.find_one({"_id": ObjectId(mongo_id)})
             except InvalidId:
-                print(f"❌ Invalid MongoDB ID format: '{mongo_id}'")
+                print(f"❌ รูปแบบรหัส MongoDB ไม่ถูกต้อง: '{mongo_id}'")
                 return None
             except Exception as e:
-                print(f"❌ Error finding document by ID '{mongo_id}': {e}")
+                print(f"❌ เกิดข้อผิดพลาดในการค้นหาเอกสารด้วยรหัส '{mongo_id}': {e}")
                 return None
         return None
 
@@ -76,7 +76,7 @@ class MongoDBManager:
         if collection is not None:
             try: return collection.find_one({"slug": slug})
             except Exception as e:
-                print(f"❌ Error finding document by slug '{slug}': {e}")
+                print(f"❌ เกิดข้อผิดพลาดในการค้นหาเอกสารด้วย Slug '{slug}': {e}") # ใช้ Slug ทับศัพท์เพราะเป็น term เฉพาะทาง
                 return None
         return None
 
@@ -87,7 +87,7 @@ class MongoDBManager:
                 query = {"title": {"$regex": re.escape(title), "$options": "i"}} 
                 return collection.find_one(query)
             except Exception as e:
-                print(f"❌ Error finding document by title '{title}': {e}")
+                print(f"❌ เกิดข้อผิดพลาดในการค้นหาเอกสารด้วยชื่อเรื่อง '{title}': {e}")
                 return None
         return None
 
@@ -96,7 +96,7 @@ class MongoDBManager:
         if collection is not None:
             try: return list(collection.find({}))
             except Exception as e:
-                print(f"❌ Error fetching all locations: {e}")
+                print(f"❌ เกิดข้อผิดพลาดในการดึงข้อมูลสถานที่ทั้งหมด: {e}")
                 return []
         return []
 
@@ -109,7 +109,7 @@ class MongoDBManager:
                 items = list(cursor)
                 return items, total_count
             except Exception as e:
-                print(f"❌ Error fetching paginated locations: {e}")
+                print(f"❌ เกิดข้อผิดพลาดในการดึงข้อมูลสถานที่แบบแบ่งหน้า: {e}")
                 return [], 0
         return [], 0
 
@@ -120,10 +120,10 @@ class MongoDBManager:
                 result = collection.update_one({"_id": ObjectId(mongo_id)}, {"$set": new_data})
                 return result.modified_count
             except InvalidId:
-                print(f"❌ Cannot update: Invalid MongoDB ID format: '{mongo_id}'")
+                print(f"❌ ไม่สามารถอัปเดตได้: รูปแบบรหัส MongoDB ไม่ถูกต้อง: '{mongo_id}'")
                 return 0
             except Exception as e:
-                print(f"❌ Error updating document by ID: {e}")
+                print(f"❌ เกิดข้อผิดพลาดในการอัปเดตเอกสารด้วยรหัส: {e}")
                 return 0
         return 0
 
@@ -134,7 +134,7 @@ class MongoDBManager:
                 result = collection.update_one({"slug": slug}, {"$set": new_data})
                 return result.modified_count
             except Exception as e:
-                print(f"❌ Error updating document by slug '{slug}': {e}")
+                print(f"❌ เกิดข้อผิดพลาดในการอัปเดตเอกสารด้วย Slug '{slug}': {e}")
                 return 0
         return 0
     def delete_location(self, mongo_id: str, collection_name: str = "nan_locations"):
@@ -144,10 +144,10 @@ class MongoDBManager:
                 result = collection.delete_one({"_id": ObjectId(mongo_id)})
                 return result.deleted_count
             except InvalidId:
-                print(f"❌ Cannot delete: Invalid MongoDB ID format: '{mongo_id}'")
+                print(f"❌ ไม่สามารถลบได้: รูปแบบรหัส MongoDB ไม่ถูกต้อง: '{mongo_id}'")
                 return 0
             except Exception as e:
-                print(f"❌ Error deleting document by ID: {e}")
+                print(f"❌ เกิดข้อผิดพลาดในการลบเอกสารด้วยรหัส: {e}")
                 return 0
         return 0
 
@@ -158,7 +158,7 @@ class MongoDBManager:
                 result = collection.delete_one({"slug": slug})
                 return result.deleted_count
             except Exception as e:
-                print(f"❌ Error deleting document by slug '{slug}': {e}")
+                print(f"❌ เกิดข้อผิดพลาดในการลบเอกสารด้วย Slug '{slug}': {e}")
                 return 0
         return 0
 
@@ -167,11 +167,11 @@ class MongoDBManager:
         if collection is not None:
             try:
                 collection.insert_one(log_data)
-                print(f"✅ Logged analytics event (Topic: {log_data.get('interest_topic')}, Origin: {log_data.get('user_origin')})")
+                print(f"✅ บันทึกเหตุการณ์ Analytics (หัวข้อ: {log_data.get('interest_topic')}, ที่มา: {log_data.get('user_origin')})")
             except Exception as e:
-                print(f"❌ Error logging analytics event: {e}")
+                print(f"❌ เกิดข้อผิดพลาดในการบันทึกเหตุการณ์ Analytics: {e}")
         else:
-            print("❌ Error logging analytics: Collection 'analytics_logs' not available.")
+            print("❌ เกิดข้อผิดพลาดในการบันทึก Analytics: ไม่พบ Collection 'analytics_logs'")
             
     def get_distinct_categories(self, collection_name: str = "nan_locations") -> List[str]:
         """
@@ -180,16 +180,16 @@ class MongoDBManager:
         collection = self.get_collection(collection_name)
         if collection is not None:
             try:
-                print("🧠 [DB] Querying distinct categories...")
+                print("🧠 [DB] กำลังค้นหาหมวดหมู่ทั้งหมด...")
                 categories = collection.distinct("category")
                 
                 # กรองค่าที่เป็น None หรือค่าว่างออก
                 valid_categories = [cat for cat in categories if cat]
                 
-                print(f"✅ [DB] Found {len(valid_categories)} distinct categories.")
+                print(f"✅ [DB] พบ {len(valid_categories)} หมวดหมู่")
                 return valid_categories
             except Exception as e:
-                print(f"❌ Error getting distinct categories: {e}")
+                print(f"❌ เกิดข้อผิดพลาดในการดึงข้อมูลหมวดหมู่: {e}")
                 return []
         return []
 
@@ -276,5 +276,5 @@ class MongoDBManager:
             }
 
         except Exception as e:
-            print(f"❌ Error aggregating analytics: {e}")
+            print(f"❌ เกิดข้อผิดพลาดในการรวบรวมข้อมูล Analytics: {e}")
             return {"origin_stats": [], "province_stats": [], "interest_stats": [], "location_stats": [], "total_conversations": 0}

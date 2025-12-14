@@ -39,12 +39,12 @@ class PDFReaderService:
             doc.close()
             
             full_text = "\n\n".join(text_parts)
-            logging.info(f"📄 [PDFReader] Extracted {len(full_text)} characters from {len(text_parts)} pages")
+            logging.info(f"📄 [PDFReader] ดึงข้อความได้ {len(full_text)} ตัวอักษร จาก {len(text_parts)} หน้า")
             
             return full_text
             
         except Exception as e:
-            logging.error(f"❌ [PDFReader] Error extracting text: {e}")
+            logging.error(f"❌ [PDFReader] เกิดข้อผิดพลาดในการดึงข้อความ: {e}")
             raise ValueError(f"ไม่สามารถอ่าน PDF ได้: {str(e)}")
     
     def get_page_count(self, pdf_bytes: bytes) -> int:

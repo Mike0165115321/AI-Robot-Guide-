@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const textQueryForm = document.getElementById('text-query-form');
 
     let websocket = null;
+    // 🎧 ตัวจัดการเสียงและสถานะการสนทนา
     let mainAudioContext = null;
     let currentAudioSource = null;
     let conversationLoopActive = false; // เริ่มต้นยังไม่ฟัง จนกว่า setActive จะถูกเรียก
@@ -45,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setActive: async (active) => {
             if (active) {
                 console.log("🟢 Avatar Start Sequence (Wake Word Mode)...");
+                // ⏳ รอให้ AvatarAnimator พร้อมใช้งาน (โหลดโมเดล 3D เสร็จ)
                 await waitForAnimator();
 
                 if (!mainAudioContext) await initializeAudioSystem();
@@ -158,6 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.avatarAnimator) window.avatarAnimator.stopSpeaking();
     }
 
+    // 🔊 ฟังก์ชันเล่นเสียงและ Sync ปาก Avatar (Lip Sync Logic)
     async function playAudio(audioData) {
         if (!mainAudioContext) return;
         stopCurrentAudio();
@@ -169,11 +172,13 @@ document.addEventListener('DOMContentLoaded', () => {
             source.buffer = audioBuffer;
             source.connect(mainAudioContext.destination);
 
+            // 🟢 [Trigger] สั่งให้ Avatar เริ่มขยับปาก (Start Speaking Animation)
             if (window.avatarAnimator) window.avatarAnimator.startSpeaking();
-            uiController.setEmotion('speaking');
+            uiController.setEmotion('speaking'); // เปลี่ยนหน้าตาเป็น "กำลังพูด"
 
             return new Promise((resolve) => {
                 source.onended = () => {
+                    // 🔴 [Stop] สั่งให้ Avatar หยุดขยับปากเมื่อเสียงจบ (Stop Speaking Animation)
                     if (window.avatarAnimator) window.avatarAnimator.stopSpeaking();
                     currentAudioSource = null;
                     resolve();
@@ -296,12 +301,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 const hasVisual = data.image_url || data.image_gallery?.length || data.sources?.length || (data.action === 'SHOW_MAP_EMBED');
-
-                // Trigger presentation if there are visuals OR if there is a text answer
                 const shouldEnterPresentation = hasVisual || (data.answer && data.answer.length > 0);
 
                 if (shouldEnterPresentation) {
-                    uiController.enterPresentation(data);
+                    uiController.enterPresentation(data);// 👈 สั่งเปิดหน้าต่างรูปภาพ
                 } else if (data.answer) {
                     uiController.setStatus(data.answer);
                 }
@@ -309,13 +312,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 uiController.setEmotion(data.emotion || 'talking');
 
             } else if (event.data instanceof ArrayBuffer) {
+                // รับไฟล์เสียงจาก Backend
                 if (voiceHandler) voiceHandler.stop(false);
                 await playAudio(event.data);
-
                 // Reset silence timer เพราะ AI ตอบมาแล้ว (ยังมีการโต้ตอบ)
                 if (wakeWordHandler) wakeWordHandler.resetSilenceTimer();
-
-                // [FIX] เพิ่ม delay ก่อนเริ่มฟังใหม่ - ป้องกัน AI พูดแทรก/จับเสียงสะท้อน
+                // delay ก่อนเริ่มฟังใหม่ - ป้องกัน AI พูดแทรก/จับเสียงสะท้อน
                 if (conversationLoopActive && !musicHandler.isPlaying()) {
                     setTimeout(() => {
                         if (conversationLoopActive) {
@@ -391,6 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAIModeUI(aiModeManager.getMode());
     }
 
+    // 📤 ส่งข้อความไปหา Backend (Fast Mode / Detailed Mode)
     function sendQuery(query, intent = null, additionalData = {}) {
         if (websocket && websocket.readyState === WebSocket.OPEN) {
             stopCurrentAudio();

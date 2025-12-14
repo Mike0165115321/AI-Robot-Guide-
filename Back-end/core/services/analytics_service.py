@@ -22,7 +22,7 @@ class AnalyticsService:
         This is fire-and-forget (should be awaited but not block critical path if possible).
         """
         if self.collection is None:
-            logging.warning("Analytics collection not available, skipping log.")
+            logging.warning("ไม่พบคอลเลกชัน Analytics ข้ามการบันทึก log")
             return
 
         try:
@@ -44,10 +44,10 @@ class AnalyticsService:
             
             # Using insert_one directly (could be batched in high-load systems)
             self.collection.insert_one(log_entry)
-            logging.debug(f"📊 Analytics Logged: {topic} | {location_title} | {user_origin}")
+            logging.debug(f"📊 Analytics บันทึกแล้ว: {topic} | {location_title} | {user_origin}")
 
         except Exception as e:
-            logging.error(f"❌ Failed to log analytics: {e}")
+            logging.error(f"❌ บันทึก analytics ล้มเหลว: {e}")
 
     async def get_dashboard_summary(self, days: int = 30):
         """
@@ -72,5 +72,5 @@ class AnalyticsService:
                 if "_id" in log: log["_id"] = str(log["_id"])
             return logs
         except Exception as e:
-            logging.error(f"❌ Error fetching interaction logs: {e}")
+            logging.error(f"❌ เกิดข้อผิดพลาดในการดึง logs การมีส่วนร่วม: {e}")
             return []

@@ -22,7 +22,7 @@ from .handlers.analytics_handler import AnalyticsHandler
 from core.database.mongodb_manager import MongoDBManager
 from core.database.qdrant_manager import QdrantManager
 from core.tools.image_search_tool import image_search_tool_instance
-# system_tool_instance removed - calculator is now frontend-only
+# system_tool_instance ถูกลบออก - เครื่องคิดเลขย้ายไปทำที่ frontend แล้ว
 from utils.helper_functions import create_synthetic_document
 from .services.session_manager import SessionManager
 from .services.navigation_service import NavigationService
@@ -46,12 +46,10 @@ class RAGOrchestrator:
         qdrant_manager: QdrantManager,
         query_interpreter: QueryInterpreter,
     ):
-        logging.info("⚙️  RAG Orchestrator (Refactored V8.1) is initializing...")
+        logging.info("⚙️  กำลังเริ่มต้นระบบ RAG Orchestrator (Refactored V8.1)...")
         self.mongo_manager = mongo_manager
         self.qdrant_manager = qdrant_manager
         self.query_interpreter = query_interpreter
-
-        # ✅ เรียกใช้ Services ใหม่
         self.session_manager = SessionManager(mongo_manager)
         self.prompt_engine = PromptEngine()
         self.nav_service = NavigationService(mongo_manager, self.prompt_engine)
@@ -60,9 +58,11 @@ class RAGOrchestrator:
         self.reranker_model_name = settings.RERANKER_MODEL_NAME
         self.device = settings.DEVICE
 
-        logging.info(f"🔄 Loading Re-ranker Model ('{self.reranker_model_name}' on '{self.device}')...")
+        logging.info(f"🔄 กำลังโหลดโมเดล Re-ranker ('{self.reranker_model_name}' บน '{self.device}')...")
+        # โหลดโมเดล CrossEncoder สำหรับทำ Reranking
+        # ช่วยจัดลำดับความสำคัญของเอกสารที่ค้นหาเจอ ให้แม่นยำขึ้น
         self.reranker = CrossEncoder(self.reranker_model_name, device=self.device)
-        logging.info("✅ Re-ranker Model loaded.")
+        logging.info("✅ โหลดโมเดล Re-ranker เรียบร้อยแล้ว")
 
         self.log_collection = self.mongo_manager.get_collection("query_logs")
         
@@ -71,8 +71,7 @@ class RAGOrchestrator:
             query_interpreter=self.query_interpreter,
             orchestrator_callback=self.answer_query
         )
-        
-        logging.info("✅ RAG Orchestrator is ready.")
+        logging.info("✅ RAG Orchestrator พร้อมใช้งาน")
 
     def _prepare_source_and_image_data(self, docs_to_show: List[Dict[str, Any]]) -> Dict[str, Any]:
         source_info: List[dict] = []
@@ -107,7 +106,7 @@ class RAGOrchestrator:
                     upsert=True
                 )
             except Exception as e:
-                logging.error(f"Error updating welcome state: {e}")
+                logging.error(f"เกิดข้อผิดพลาดในการอัปเดตสถานะการต้อนรับ: {e}")
         
         # ข้อความทักทายแบบเป็นกันเอง
         return {
@@ -127,7 +126,7 @@ class RAGOrchestrator:
             "FAQ": "INFORMATIONAL",
             "GENERAL": "INFORMATIONAL",
             "WELCOME": "WELCOME_FLOW",
-            # CALCULATOR removed - handled by frontend widget
+            # เครื่องคิดเลขถูกลบออก - จัดการโดย widget ฝั่ง frontend
         }
         return intent_map.get(frontend_intent.upper(), "INFORMATIONAL")
 
@@ -152,7 +151,7 @@ class RAGOrchestrator:
                 "sources": [], "image_url": None, "image_gallery": []
             }
         
-        logging.info(f"🎵 [Music] Searching YouTube for: '{search_query}'")
+        logging.info(f"🎵 [Music] กำลังค้นหาเพลงใน YouTube สำหรับ: '{search_query}'")
         search_results = await youtube_handler_instance.search_music(query=search_query)
         
         if not search_results:
@@ -170,7 +169,7 @@ class RAGOrchestrator:
             "sources": [], "image_url": None, "image_gallery": []
         }
 
-    # _handle_system_command removed - calculator is now handled by frontend widget
+    # _handle_system_command ถูกลบออก - เครื่องคิดเลขถูกจัดการโดย frontend widget แล้ว
 
     async def _handle_informational(
         self, corrected_query: str, entity: Optional[str], sub_queries: List[str], mode: str, 
@@ -183,7 +182,7 @@ class RAGOrchestrator:
             search_queries.append(f"{entity} จังหวัดน่าน")
         
         unique_queries = list(set([q for q in search_queries if q.strip()]))
-        logging.info(f"🛰️ [RAG] Searching for: {unique_queries}")
+        logging.info(f"🛰️ [RAG] กำลังค้นหาข้อมูล: {unique_queries}")
         
         mongo_ids_from_search = []
         qdrant_results_combined = []
@@ -194,20 +193,20 @@ class RAGOrchestrator:
                 if res.payload and res.payload.get("mongo_id"):
                     mongo_ids_from_search.append(res.payload.get("mongo_id"))
 
-        # [Fallback] If Qdrant returns no results (or is down), try MongoDB text search
+        # [แผนสำรอง] หาก Qdrant ไม่พบผลลัพธ์ (หรือระบบล่ม) ให้ลองค้นหาข้อความใน MongoDB แทน
         if not qdrant_results_combined:
-            logging.info("⚠️ [RAG] Qdrant returned no results. Trying MongoDB text search fallback...")
-            # Use entity if available, otherwise corrected_query
+            logging.info("⚠️ [RAG] Qdrant ไม่พบผลลัพธ์ กำลังลองค้นหาด้วยข้อความใน MongoDB...")
+            # ใช้ entity ถ้ามี มิฉะนั้นใช้ corrected_query
             search_term = entity if entity else corrected_query
-            logging.info(f"⚠️ [RAG] Qdrant returned no results. Trying MongoDB text search fallback with: '{search_term}'")
+            logging.info(f"⚠️ [RAG] Qdrant ไม่พบผลลัพธ์ กำลังลองค้นหาด้วยข้อความใน MongoDB ด้วยคำว่า: '{search_term}'")
             mongo_results = await asyncio.to_thread(self.mongo_manager.get_location_by_title, search_term)
             if mongo_results:
-                # Convert MongoDB result to a format similar to Qdrant payload
-                # Note: Qdrant results typically have a 'payload' and 'score'
-                # We'll create a mock Qdrant-like result for consistency
+                # แปลงผลลัพธ์จาก MongoDB ให้อยู่ในรูปแบบคล้ายกับ payload ของ Qdrant
+                # หมายเหตุ: ผลลัพธ์ของ Qdrant มักจะมี 'payload' และ 'score'
+                # เราจะสร้างข้อมูลจำลองแบบ Qdrant เพื่อความสม่ำเสมอ
                 mock_qdrant_result = {
                     "payload": {
-                        "mongo_id": str(mongo_results.get("_id")), # Ensure _id is included for later retrieval
+                        "mongo_id": str(mongo_results.get("_id")), # ตรวจสอบให้แน่ใจว่าได้รวม _id ไว้สำหรับการดึงข้อมูลในภายหลัง
                         "title": mongo_results.get("title"),
                         "summary": mongo_results.get("summary"),
                         "category": mongo_results.get("category"),
@@ -216,11 +215,11 @@ class RAGOrchestrator:
                         "image_urls": mongo_results.get("image_urls", []),
                         "metadata": mongo_results.get("metadata", {})
                     },
-                    "score": 1.0 # Assign a high score for fallback
+                    "score": 1.0 # ให้คะแนนสูงสำหรับการค้นหาสำรอง
                 }
                 qdrant_results_combined.append(mock_qdrant_result)
                 mongo_ids_from_search.append(str(mongo_results.get("_id")))
-                logging.info(f"✅ [RAG] Found fallback result in MongoDB: {mongo_results.get('title')}")
+                logging.info(f"✅ [RAG] พบผลลัพธ์สำรองใน MongoDB: {mongo_results.get('title')}")
 
         unique_ids = list(dict.fromkeys(mongo_ids_from_search))
         if not unique_ids:
@@ -231,11 +230,27 @@ class RAGOrchestrator:
             return {"answer": "พบข้อมูลแต่ดึงรายละเอียดไม่ได้ค่ะ", "action": None, "sources": [], "image_url": None, "image_gallery": []}
 
         docs_with_synthetic = await asyncio.to_thread(lambda docs: [(doc, create_synthetic_document(doc)) for doc in docs], retrieved_docs)
+        # 🔄 [RERANKING] ขั้นตอนการจัดลำดับใหม่
+        # จับคู่ (User Query, Document) เพื่อให้โมเดล Reranker ให้คะแนนความเกี่ยวข้อง 
         sentence_pairs = [[corrected_query, synthetic_doc] for doc, synthetic_doc in docs_with_synthetic]
         
+        # ให้คะแนนความเหมือน (Score) ยิ่งเยอะยิ่งเกี่ยวข้องกันมาก
         scores = await asyncio.to_thread(self.reranker.predict, sentence_pairs, show_progress_bar=False)
-        reranked_results = sorted(zip(scores, docs_with_synthetic), key=lambda x: x[0], reverse=True)
+        
+        # 🔍 [Debug Log] แสดงคะแนน Reranking ของแต่ละเอกสาร
+        logging.info(f"📊 [Reranking] กำลังจัดลำดับเอกสาร {len(scores)} รายการ...")
+        for i, (score, (doc, _)) in enumerate(zip(scores, docs_with_synthetic)):
+            logging.info(f"   🔹 เอกสาร: {doc.get('title')} | คะแนน: {score:.4f}")
 
+        # เรียงลำดับใหม่ตามคะแนน (มากไปน้อย)
+        reranked_results = sorted(zip(scores, docs_with_synthetic), key=lambda x: x[0], reverse=True)
+        
+        # 🔍 [Debug Log] ผลลัพธ์หลังจัดลำดับ (Top 3)
+        logging.info(f"🏆 [Reranking] 3 อันดับแรกหลังจัดลำดับใหม่:")
+        for i, (score, (doc, _)) in enumerate(reranked_results[:3]):
+             logging.info(f"   🥇 #{i+1}: {doc.get('title')} (คะแนน: {score:.4f})")
+
+        # เลือกเฉพาะเอกสารที่มีคะแนนสูงสุด Top K อันดับแรก
         top_k = settings.TOP_K_RERANK_VOICE if mode == "voice" else settings.TOP_K_RERANK_TEXT
         final_docs = [doc for score, (doc, _) in reranked_results[:top_k]]
         
@@ -264,26 +279,25 @@ class RAGOrchestrator:
             {"role": "user", "content": prompt_dict["user"]}
         ]
 
-        # 🆕 Use ai_mode to select model: detailed = Gemini, fast = Groq/Llama
-        logging.info(f"🤖 [LLM] Using AI Mode: {ai_mode}")
+        logging.info(f"🤖 [LLM] กำลังใช้โหมด AI: {ai_mode}")
         
         if ai_mode == "detailed":
-            # Use Gemini for detailed responses
+            # ใช้ Gemini สำหรับคำตอบที่ละเอียด 
             raw_answer = await get_gemini_response(
                 user_query=prompt_dict["user"],
                 system_prompt=prompt_dict["system"],
                 max_tokens=8192
             )
         else:
-            # Use Groq/Llama for fast responses
+            # ใช้ Groq/Llama สำหรับการตอบกลับที่รวดเร็ว
             try:
                 raw_answer = await get_groq_response(
                     messages=messages,
                     model_name=settings.GROQ_LLAMA_MODEL
                 )
             except Exception as e:
-                logging.error(f"⚠️ [Groq] Text Gen failed: {e}. Falling back to Gemini...")
-                # Automatic Fallback to Gemini
+                logging.error(f"⚠️ [Groq] การสร้างข้อความล้มเหลว: {e} กำลังเปลี่ยนไปใช้ Gemini...")
+                # สลับไปใช้ Gemini โดยอัตโนมัติ
                 raw_answer = await get_gemini_response(
                     user_query=prompt_dict["user"],
                     system_prompt=prompt_dict["system"],
@@ -303,7 +317,7 @@ class RAGOrchestrator:
                 for url in google_imgs:
                     if url not in static_gallery: static_gallery.append(url)
             except Exception as e:
-                logging.error(f"❌ Google Image Search failed: {e}")
+                logging.error(f"❌ การค้นหารูปภาพ Google ล้มเหลว: {e}")
 
         return {
             "answer": final_answer_with_images,
@@ -318,7 +332,7 @@ class RAGOrchestrator:
         try:
             collection = self.mongo_manager.get_collection("nan_locations")
             if collection is None:
-                logging.warning("⚠️ [NavList] MongoDB not available. Returning mock data.")
+                logging.warning("⚠️ [NavList] ไม่สามารถเชื่อมต่อ MongoDB ได้ กำลังส่งคืนข้อมูลจำลอง")
                 return []
 
             docs = await asyncio.to_thread(lambda: list(collection.find(
@@ -335,7 +349,7 @@ class RAGOrchestrator:
             
             return docs
         except Exception as e:
-            logging.error(f"❌ [NavList] Error: {e}")
+            logging.error(f"❌ [NavList] เกิดข้อผิดพลาด: {e}")
             return []
 
     async def handle_get_directions(self, entity_slug: str, user_lat: float = None, user_lon: float = None) -> dict:
@@ -354,7 +368,7 @@ class RAGOrchestrator:
             self.session_manager.collection.update_one({"session_id": session_id}, {"$unset": {"awaiting": ""}})
             return await self.analytics_handler.handle_analytics_response(query, session_id, mode)
 
-        logging.info(f"🔄 [Session] ID: {session_id} | Turn: {current_turn} | AI Mode: {ai_mode} | Frontend Intent: {frontend_intent}")
+        logging.info(f"🔄 [Session] ID: {session_id} | รอบที่: {current_turn} | โหมด AI: {ai_mode} | เจตนาจาก Frontend: {frontend_intent}")
 
         # 🆕 ใช้ frontend_intent โดยตรง - ไม่ต้องเรียก LLM วิเคราะห์เจตนา
         if frontend_intent and frontend_intent != "GENERAL":
@@ -367,18 +381,18 @@ class RAGOrchestrator:
             if intent == "NAVIGATE_TO":
                  target_entity = slug or entity_query or query
                  if target_entity:
-                     logging.info(f"🏎️ [Quick Nav] Bypassing Logic for Navigation to: '{target_entity}'")
+                     logging.info(f"🏎️ [Quick Nav] ข้าม Logic เพื่อนำทางไปยัง: '{target_entity}'")
                      return await self.handle_get_directions(entity_slug=target_entity)
 
-            logging.info(f"🚀 [Intent] Using FRONTEND intent: {intent}")
+            logging.info(f"🚀 [Intent] ใช้เจตนาจาก FRONTEND: {intent}")
         else:
             # fallback: ถ้าไม่มี frontend_intent ใช้ INFORMATIONAL เลย (ไม่ต้องเรียก LLM)
             intent = "INFORMATIONAL"
             corrected_query = query
             entity = None
-            logging.info(f"📝 [Intent] No frontend intent, defaulting to: {intent}")
+            logging.info(f"📝 [Intent] ไม่มีเจตนาจาก Frontend ใช้ค่าเริ่มต้นเป็น: {intent}")
         
-        logging.info(f"🚦 Intent: {intent} | Query: {query} | Entity: {entity}")
+        logging.info(f"🚦 เจตนา: {intent} | คำค้น: {query} | เอนทิตี: {entity}")
 
         navigation_keywords = ["นำทาง", "เส้นทาง", "พาไป", "ขอทาง", "ไปยัง", "ไปวัด", "ไปที่"]
         is_nav_request = any(kw in corrected_query for kw in navigation_keywords)
@@ -389,13 +403,13 @@ class RAGOrchestrator:
             if not target_entity and session_id:
                 last_topic = await self.session_manager.get_last_topic(session_id)
                 if last_topic:
-                    logging.info(f"🧠 [Memory] User didn't say where, assuming last topic: '{last_topic}'")
+                    logging.info(f"🧠 [Memory] ผู้ใช้ไม่ได้ระบุสถานที่ สันนิษฐานว่าเป็นหัวข้อล่าสุด: '{last_topic}'")
                     target_entity = last_topic
                 else:
                     return {"answer": "ได้เลยค่ะ! แต่ช่วยบอกน้องน่านหน่อยได้ไหมคะว่าจะให้ **นำทางไปที่ไหน?** 😊", "action": None, "sources": [], "image_url": None}
 
             if target_entity:
-                logging.info(f"🗺️ [Smart Router] Switching to Navigation Handler for: '{target_entity}'")
+                logging.info(f"🗺️ [Smart Router] เปลี่ยนไปใช้ตัวจัดการการนำทางสำหรับ: '{target_entity}'")
                 return await self.handle_get_directions(
                     entity_slug=target_entity, 
                     user_lat=kwargs.get('user_lat', 0.0),
@@ -403,22 +417,21 @@ class RAGOrchestrator:
                 )
         handler_map = {
             "WELCOME_GREETING": self._handle_welcome_flow,
-            "SMALL_TALK": self._handle_small_talk,
+            "SMALL_TALK": self._handle_small_talk,  # 👈 [จุดแยก] ถ้าเป็น SMALL_TALK ไปใช้โมเดลเล็ก (Llama 8B)
             "PLAY_MUSIC": self._handle_play_music,
             "INFORMATIONAL": self._handle_informational,
-            # SYSTEM_COMMAND removed - calculator is frontend-only
         }
         handler = handler_map.get(intent, self._handle_informational)
         
         response = await handler(
             corrected_query=corrected_query,
             entity=entity,
-            is_complex=False,  # Default since we bypass Query Interpreter
-            sub_queries=[],    # Default since we bypass Query Interpreter
+            is_complex=False,  # ค่าเริ่มต้นเนื่องจากเราข้าม Query Interpreter
+            sub_queries=[],    # ค่าเริ่มต้นเนื่องจากเราข้าม Query Interpreter
             mode=mode,
             session_id=session_id,
             turn_count=current_turn,
-            ai_mode=ai_mode,   # 🆕 Pass ai_mode to handlers
+            ai_mode=ai_mode,   # 🆕 ส่ง ai_mode ไปยัง handlers
             **kwargs
         )
 
@@ -431,7 +444,7 @@ class RAGOrchestrator:
                 topic=primary_topic
             )
             
-            # 🚀 [Analytics] Log Interest Event if topic is found
+            # 🚀 [Analytics] บันทึกเหตุการณ์ความสนใจหากพบหัวข้อ
             if primary_topic:
                 await self.analytics_handler.log_interest_event(session_id, primary_topic, query)
             

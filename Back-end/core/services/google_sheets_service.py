@@ -103,7 +103,7 @@ class GoogleSheetsService:
         try:
             sheet_id = self._extract_sheet_id(sheet_url)
             if not sheet_id:
-                logging.error("❌ Invalid Google Sheets URL")
+                logging.error("❌ Google Sheets URL ไม่ถูกต้อง")
                 return False
             
             gid = self._extract_gid(sheet_url)
@@ -117,7 +117,7 @@ class GoogleSheetsService:
                 # Verify it's actually CSV data (not an HTML error page)
                 content_type = response.headers.get("content-type", "")
                 if "text/html" in content_type:
-                    logging.error("❌ Sheet is not public or doesn't exist")
+                    logging.error("❌ Sheet ไม่เป็นสาธารณะหรือไม่มีอยู่จริง")
                     return False
                 
                 self.sheet_id = sheet_id
@@ -125,14 +125,14 @@ class GoogleSheetsService:
                 self.connection_mode = "public"
                 self._public_gid = gid
                 
-                logging.info(f"✅ Connected to public sheet: {sheet_id}")
+                logging.info(f"✅ เชื่อมต่อกับ public sheet สำเร็จ: {sheet_id}")
                 return True
             else:
-                logging.error(f"❌ Failed to access sheet: HTTP {response.status_code}")
+                logging.error(f"❌ ไม่สามารถเข้าถึง sheet: HTTP {response.status_code}")
                 return False
                     
         except Exception as e:
-            logging.error(f"❌ Failed to connect to public sheet: {e}")
+            logging.error(f"❌ การเชื่อมต่อกับ public sheet ล้มเหลว: {e}")
             return False
 
     def fetch_public_csv(self) -> List[Dict[str, Any]]:
@@ -143,7 +143,7 @@ class GoogleSheetsService:
             List of dict (แต่ละ row เป็น dict)
         """
         if self.connection_mode != "public" or not self.sheet_id:
-            logging.error("❌ Not connected in public mode")
+            logging.error("❌ ไม่ได้เชื่อมต่อในโหมด public")
             return []
         
         try:
@@ -153,7 +153,7 @@ class GoogleSheetsService:
             response = requests.get(csv_url, timeout=30.0, allow_redirects=True)
             
             if response.status_code != 200:
-                logging.error(f"❌ Failed to fetch CSV: HTTP {response.status_code}")
+                logging.error(f"❌ ดึง CSV ล้มเหลว: HTTP {response.status_code}")
                 return []
             
             # Parse CSV
@@ -162,11 +162,11 @@ class GoogleSheetsService:
             reader = csv.DictReader(io.StringIO(csv_content))
             records = list(reader)
             
-            logging.info(f"📊 Fetched {len(records)} rows from public sheet")
+            logging.info(f"📊 ดึงข้อมูลได้ {len(records)} แถวจาก public sheet")
             return records
                 
         except Exception as e:
-            logging.error(f"❌ Failed to fetch public CSV: {e}")
+            logging.error(f"❌ ดึง public CSV ล้มเหลว: {e}")
             return []
 
     def connect(self, sheet_id: str = None, sheet_url: str = None) -> bool:
@@ -185,24 +185,24 @@ class GoogleSheetsService:
         try:
             # Check if credentials exist
             if not CREDENTIALS_PATH.exists():
-                logging.warning(f"⚠️ Credentials not found, trying public mode...")
+                logging.warning(f"⚠️ ไม่พบ Credentials กำลังลองใช้โหมด public...")
                 if sheet_url:
                     return self.connect_public(sheet_url)
                 else:
-                    logging.error("❌ No credentials and no URL for public mode")
+                    logging.error("❌ ไม่มี credentials และไม่มี URL สำหรับโหมด public")
                     return False
             
             # Initialize client with Service Account
             if not self.client:
                 self.client = gspread.service_account(filename=str(CREDENTIALS_PATH))
-                logging.info("✅ Google Sheets client initialized (Service Account)")
+                logging.info("✅ Google Sheets client เริ่มต้นแล้ว (Service Account)")
             
             # Extract sheet_id from URL if needed
             if sheet_url and not sheet_id:
                 sheet_id = self._extract_sheet_id(sheet_url)
             
             if not sheet_id:
-                logging.error("❌ No sheet_id or sheet_url provided")
+                logging.error("❌ ไม่ได้ระบุ sheet_id หรือ sheet_url")
                 return False
             
             # Open spreadsheet
@@ -212,18 +212,18 @@ class GoogleSheetsService:
             self.sheet_title = self.spreadsheet.title
             self.connection_mode = "service_account"
             
-            logging.info(f"✅ Connected to sheet: {self.spreadsheet.title}")
+            logging.info(f"✅ เชื่อมต่อกับ sheet: {self.spreadsheet.title}")
             return True
             
         except gspread.exceptions.SpreadsheetNotFound:
-            logging.error(f"❌ Sheet not found or not shared with service account")
+            logging.error(f"❌ ไม่พบ Sheet หรือไม่ได้แชร์กับ service account")
             # Try public mode as fallback
             if sheet_url:
-                logging.info("🔄 Trying public mode as fallback...")
+                logging.info("🔄 กำลังลองโหมด public เพื่อสำรองข้อมูล...")
                 return self.connect_public(sheet_url)
             return False
         except Exception as e:
-            logging.error(f"❌ Failed to connect to Google Sheet: {e}")
+            logging.error(f"❌ เชื่อมต่อกับ Google Sheet ล้มเหลว: {e}")
             return False
     
     def fetch_all_rows(self) -> List[Dict[str, Any]]:
@@ -239,16 +239,16 @@ class GoogleSheetsService:
         
         # Service Account mode
         if not self.worksheet:
-            logging.error("❌ Not connected to any sheet")
+            logging.error("❌ ไม่ได้เชื่อมต่อกับ sheet ใดๆ")
             return []
         
         try:
             # Get all records (assumes first row is header)
             records = self.worksheet.get_all_records()
-            logging.info(f"📊 Fetched {len(records)} rows from sheet")
+            logging.info(f"📊 ดึงข้อมูลได้ {len(records)} แถวจาก sheet")
             return records
         except Exception as e:
-            logging.error(f"❌ Failed to fetch rows: {e}")
+            logging.error(f"❌ ดึงข้อมูลแถวไม่สำเร็จ: {e}")
             return []
     
     def _normalize_row(self, row: Dict[str, Any]) -> Dict[str, Any]:
@@ -322,11 +322,11 @@ class GoogleSheetsService:
                 # Only delete if it was synced from THIS specific sheet
                 if synced_from == "google_sheets" and synced_sheet_id == self.sheet_id:
                     changes["to_delete"].append(db_row)
-                    logging.info(f"🗑️ Will delete (synced from this sheet): {slug}")
+                    logging.info(f"🗑️ จะลบ (ซิงค์มาจาก sheet นี้): {slug}")
                 else:
-                    logging.debug(f"⏭️ Skipping delete (not from this sheet): {slug}")
+                    logging.debug(f"⏭️ ข้ามการลบ (ไม่ได้มาจาก sheet นี้): {slug}")
         
-        logging.info(f"📊 Changes detected - Create: {len(changes['to_create'])}, Update: {len(changes['to_update'])}, Delete: {len(changes['to_delete'])}")
+        logging.info(f"📊 ตรวจพบการเปลี่ยนแปลง - สร้าง: {len(changes['to_create'])}, อัปเดต: {len(changes['to_update'])}, ลบ: {len(changes['to_delete'])}")
         return changes
     
     def _has_changes(self, db_row: Dict, sheet_row: Dict) -> bool:
@@ -384,7 +384,7 @@ class GoogleSheetsService:
                 result.errors.append(f"Delete failed for {row.get('slug')}: {e}")
         
         self.last_sync = result.timestamp
-        logging.info(f"✅ Sync complete: {result.to_dict()}")
+        logging.info(f"✅ การซิงค์เสร็จสมบูรณ์: {result.to_dict()}")
         return result
     
     def full_sync(self) -> SyncResult:

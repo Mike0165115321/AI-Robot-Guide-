@@ -26,16 +26,16 @@ async def handle_audio_chat(
     file: UploadFile = File(...)
 ):
     try:
-        logging.info(f"💬 [API-Audio] Received audio file: {file.filename}")
+        logging.info(f"💬 [API-Audio] ได้รับไฟล์เสียง: {file.filename}")
         audio_bytes = await file.read()
 
         transcribed_text = await speech_handler_instance.transcribe_audio_bytes(audio_bytes)
         
         if not transcribed_text:
-            logging.warning("[API-Audio] Transcription failed or was empty.")
+            logging.warning("[API-Audio] การถอดเสียงล้มเหลวหรือว่างเปล่า")
             return ChatResponse(answer="ขออภัยค่ะ น้องน่านไม่ได้ยินที่คุณพูดเลย ลองพูดอีกครั้งนะคะ")
 
-        logging.info(f"👂 [API-Audio] Heard (Transcribed): '{transcribed_text}'")
+        logging.info(f"👂 [API-Audio] ได้ยิน (ถอดเสียง): '{transcribed_text}'")
         
         result = await orchestrator.answer_query(transcribed_text, mode='text')
         
@@ -53,11 +53,11 @@ async def handle_audio_chat(
         
         result["transcribed_query"] = transcribed_text
         
-        logging.info(f"✅ [API-Audio] Sending response back to client.")
+        logging.info(f"✅ [API-Audio] กำลังส่งคำตอบกลับไปยังไคลเอนต์")
         return result
     
     except Exception as e:
-        logging.error(f"❌ [API-Audio] An unexpected error occurred: {e}", exc_info=True)
+        logging.error(f"❌ [API-Audio] เกิดข้อผิดพลาดที่ไม่คาดคิด: {e}", exc_info=True)
         return ChatResponse(answer="ขออภัยค่ะ เกิดข้อผิดพลาดร้ายแรงในการประมวลผลเสียงค่ะ")
 
 @router.post("/", response_model=ChatResponse)
@@ -75,7 +75,7 @@ async def handle_text_chat(
 
         if isinstance(query_data, dict) and (action := query_data.get("action")):
             # 🚀 [แก้ไข] เพิ่มการ log session_id
-            logging.info(f"⚡️ [API-Text] Received EXPLICIT ACTION: '{action}' | Session: '{session_id}'")
+            logging.info(f"⚡️ [API-Text] ได้รับ EXPLICIT ACTION: '{action}' | Session: '{session_id}'")
             
             if action == "GET_DIRECTIONS":
                 entity_slug = query_data.get("entity_slug")
@@ -88,11 +88,11 @@ async def handle_text_chat(
                 result = await orchestrator.handle_get_directions(entity_slug, user_lat, user_lon)
             
             else:
-                logging.warning(f"Received unknown explicit action: {action}")
+                logging.warning(f"ได้รับ action ที่ไม่รู้จัก: {action}")
                 result = {"answer": "ขออภัยค่ะ ไม่รู้จักคำสั่ง Action นี้ค่ะ", "action": None}
 
         elif isinstance(query_data, str):
-            logging.info(f"💬 [API-Text] Received IMPLICIT query: '{query_data}' | Session: '{session_id}'")
+            logging.info(f"💬 [API-Text] ได้รับ IMPLICIT query: '{query_data}' | Session: '{session_id}'")
             result = await orchestrator.answer_query(
                 query=query_data, 
                 mode='text', 
@@ -114,7 +114,7 @@ async def handle_text_chat(
             for source in result["sources"]:
                 raw_urls = source.get("image_urls", []) 
                 source["image_urls"] = [construct_full_image_url(url) for url in raw_urls if url]
-        logging.info(f"✅ [API-Text] Sending response back to client.")
+        logging.info(f"✅ [API-Text] กำลังส่งคำตอบกลับไปยังไคลเอนต์")
         
         # 📊 Async Log to Analytics
         user_query_str = query_data if isinstance(query_data, str) else str(query_data)
@@ -132,7 +132,7 @@ async def handle_text_chat(
         return result
     
     except Exception as e:
-        logging.error(f"❌ [API-Text] An unexpected error occurred: {e}", exc_info=True)
+        logging.error(f"❌ [API-Text] เกิดข้อผิดพลาดที่ไม่คาดคิด: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred.")
 
 # 🆕 Endpoint สำหรับรับข้อมูล province จาก Toast Notification
@@ -154,7 +154,7 @@ async def receive_welcome_data(
     รับข้อมูลจังหวัด/ประเทศจาก Toast Notification และบันทึกลง analytics
     """
     try:
-        logging.info(f"📊 [Welcome] Received province data: {data.user_province} | {data.user_origin}")
+        logging.info(f"📊 [Welcome] ได้รับข้อมูลจังหวัด: {data.user_province} | {data.user_origin}")
         
         # Log to analytics
         await analytics.log_interaction(
@@ -170,7 +170,7 @@ async def receive_welcome_data(
         return {"status": "success", "message": "ขอบคุณสำหรับข้อมูลค่ะ!"}
         
     except Exception as e:
-        logging.error(f"❌ [Welcome] Error saving data: {e}")
+        logging.error(f"❌ [Welcome] ข้อผิดพลาดในการบันทึกข้อมูล: {e}")
         return {"status": "error", "message": str(e)}
 
 # 🆕 Music Search Endpoint - สำหรับ in-place search
@@ -189,7 +189,7 @@ async def search_music(request: MusicSearchRequest):
         if not song_name:
             return {"success": False, "error": "กรุณาระบุชื่อเพลง", "results": []}
         
-        logging.info(f"🎵 [Music Search] Query: '{song_name}'")
+        logging.info(f"🎵 [Music Search] คำค้นหา: '{song_name}'")
         results = await youtube_handler_instance.search_music(query=song_name)
         
         if not results:
@@ -198,7 +198,7 @@ async def search_music(request: MusicSearchRequest):
         return {"success": True, "query": song_name, "results": results}
         
     except Exception as e:
-        logging.error(f"❌ [Music Search] Error: {e}")
+        logging.error(f"❌ [Music Search] ข้อผิดพลาด: {e}")
         return {"success": False, "error": str(e), "results": []}
 
 class MusicStreamRequest(BaseModel):
@@ -214,7 +214,7 @@ async def get_audio_stream(request: MusicStreamRequest):
         if not video_url:
             raise HTTPException(status_code=400, detail="Missing video_url")
             
-        logging.info(f"🎧 [Music Stream] Getting stream for: {video_url}")
+        logging.info(f"🎧 [Music Stream] กำลังดึงสตรีมสำหรับ: {video_url}")
         
         # Reuse existing logic from youtube_handler
         stream_url = await youtube_handler_instance.get_audio_stream_url(video_url)
@@ -225,7 +225,7 @@ async def get_audio_stream(request: MusicStreamRequest):
         return {"stream_url": stream_url}
         
     except Exception as e:
-        logging.error(f"❌ [Music Stream] Error: {e}")
+        logging.error(f"❌ [Music Stream] ข้อผิดพลาด: {e}")
         return {"error": str(e), "stream_url": None}
 
 # 🆕 Navigation Endpoint - สำหรับ in-place display
@@ -249,7 +249,7 @@ async def get_navigation(
         if not target:
              return {"success": False, "error": "Missing slug or query"}
 
-        logging.info(f"🏎️ [HTTP Nav] Requesting directions for: '{target}'")
+        logging.info(f"🏎️ [HTTP Nav] กำลังขอเส้นทางสำหรับ: '{target}'")
         
         # Directly call orchestrator logic (which calls NavigationService)
         # Note: handle_get_directions expects 'entity_slug' but it handles title fallback too
@@ -274,7 +274,7 @@ async def get_navigation(
              }
 
     except Exception as e:
-        logging.error(f"❌ [HTTP Nav] Error: {e}")
+        logging.error(f"❌ [HTTP Nav] ข้อผิดพลาด: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -297,7 +297,7 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                     slug = query_data.get("slug")
                     entity_query = query_data.get("entity_query") # manual query text if slug is missing
                     
-                    logging.info(f"💬 [WS] text: {query_text} | Mode: {ai_mode} | Intent: {intent} | Slug: {slug}")
+                    logging.info(f"💬 [WS] ข้อความ: {query_text} | โหมด: {ai_mode} | เจตนา: {intent} | Slug: {slug}")
                     
                     result = await orchestrator.answer_query(
                         query_text, 
@@ -309,32 +309,32 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                     )
                     await websocket.send_json(result)
                 except Exception as e:
-                    logging.error(f"❌ [WS] Error processing text: {e}")
+                    logging.error(f"❌ [WS] ข้อผิดพลาดในการประมวลผลข้อความ: {e}")
                     await websocket.send_json({"answer": "เกิดข้อผิดพลาดในการประมวลผลค่ะ"})
 
             elif "bytes" in data:
                 try:
                     audio_bytes = data["bytes"]
-                    logging.info(f"🎤 [WS] Received audio bytes: {len(audio_bytes)} bytes")
+                    logging.info(f"🎤 [WS] ได้รับข้อมูลเสียง: {len(audio_bytes)} bytes")
                     
                     transcribed_text = await speech_handler_instance.transcribe_audio_bytes(audio_bytes)
                     if transcribed_text:
-                        logging.info(f"👂 [WS] Transcribed: {transcribed_text}")
+                        logging.info(f"👂 [WS] ถอดเสียง: {transcribed_text}")
                         result = await orchestrator.answer_query(transcribed_text, mode='text')
                         result["transcribed_query"] = transcribed_text
                         await websocket.send_json(result)
                     else:
                         await websocket.send_json({"answer": "ขออภัยค่ะ ไม่ได้ยินเสียงเลย"})
                 except Exception as e:
-                    logging.error(f"❌ [WS] Error processing audio: {e}")
+                    logging.error(f"❌ [WS] ข้อผิดพลาดในการประมวลผลเสียง: {e}")
                     await websocket.send_json({"answer": "เกิดข้อผิดพลาดในการประมวลผลเสียงค่ะ"})
 
     except WebSocketDisconnect:
-        logging.info("🔌 [WS] Client disconnected")
+        logging.info("🔌 [WS] ไคลเอนต์ตัดการเชื่อมต่อ")
     except RuntimeError as e:
         if "Cannot call \"receive\" once a disconnect message has been received" in str(e):
-            logging.info("🔌 [WS] Client disconnected (RuntimeError handled)")
+            logging.info("🔌 [WS] ไคลเอนต์ตัดการเชื่อมต่อ (จัดการ RuntimeError)")
         else:
-            logging.error(f"❌ [WS] Runtime error: {e}")
+            logging.error(f"❌ [WS] ข้อผิดพลาด Runtime: {e}")
     except Exception as e:
-        logging.error(f"❌ [WS] Unexpected error: {e}")
+        logging.error(f"❌ [WS] ข้อผิดพลาดที่ไม่คาดคิด: {e}")

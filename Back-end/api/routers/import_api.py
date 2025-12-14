@@ -306,7 +306,7 @@ async def preview_raw_file(file: UploadFile = File(...)):
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        logging.error(f"❌ [ImportAPI] Error previewing file: {e}", exc_info=True)
+        logging.error(f"❌ [ImportAPI] เกิดข้อผิดพลาดในการดูตัวอย่างไฟล์: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการอ่านไฟล์: {str(e)}")
 
 
@@ -340,7 +340,7 @@ async def ai_transform_data(request: AITransformRequest):
         from core.services.ai_mapper_service import ai_mapper_service
         
         # Process with AI
-        logging.info(f"🤖 [ImportAPI] Starting AI transform for {len(request.raw_data)} rows, fields: {request.target_fields}")
+        logging.info(f"🤖 [ImportAPI] เริ่มต้นการแปลงด้วย AI สำหรับ {len(request.raw_data)} แถว, ฟิลด์: {request.target_fields}")
         
         transformed = await ai_mapper_service.transform_batch(
             rows=request.raw_data,
@@ -348,7 +348,7 @@ async def ai_transform_data(request: AITransformRequest):
             concurrency=8  # Process 8 rows at a time for faster import
         )
         
-        logging.info(f"✅ [ImportAPI] AI transform completed: {len(transformed)} rows processed")
+        logging.info(f"✅ [ImportAPI] การแปลงด้วย AI เสร็จสิ้น: ประมวลผลไป {len(transformed)} แถว")
         
         return AITransformResponse(
             original_rows=request.raw_data,
@@ -358,7 +358,7 @@ async def ai_transform_data(request: AITransformRequest):
         )
         
     except Exception as e:
-        logging.error(f"❌ [ImportAPI] AI transform error: {e}", exc_info=True)
+        logging.error(f"❌ [ImportAPI] ข้อผิดพลาดในการแปลงด้วย AI: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, 
             detail=f"AI Transform ล้มเหลว: {str(e)}"
@@ -451,7 +451,7 @@ async def confirm_save_data(
                 desc_for_vector = f"หัวข้อ: {location_doc['title']}\nประเภท: {location_doc['topic']}\nสรุป: {location_doc['summary']}"
                 await vector_db.upsert_location(mongo_id=mongo_id, description=desc_for_vector)
             except Exception as ve:
-                logging.warning(f"⚠️ Vector creation failed for {mongo_id}: {ve}")
+                logging.warning(f"⚠️ การสร้าง Vector ล้มเหลวสำหรับ {mongo_id}: {ve}")
             
             saved_count += 1
             logging.info(f"✅ Saved: {location_doc['title']} (slug: {slug})")
@@ -460,7 +460,7 @@ async def confirm_save_data(
             failed_count += 1
             error_msg = f"Row {idx + 1}: {str(e)}"
             errors.append(error_msg)
-            logging.error(f"❌ Failed to save row {idx + 1}: {e}")
+            logging.error(f"❌ บันทึกแถวที่ {idx + 1} ล้มเหลว: {e}")
     
     # Build result message
     if failed_count == 0:
@@ -526,8 +526,8 @@ async def extract_from_pdf(file: UploadFile = File(...)):
             target_fields=target_fields
         )
         
-        logging.info(f"✅ [ImportAPI] PDF extracted: {page_count} pages, AI filled {len([v for v in ai_data.values() if v])} fields")
-        logging.info(f"📄 [ImportAPI] AI Data: {ai_data}")
+        logging.info(f"✅ [ImportAPI] ดึงข้อมูลจาก PDF: {page_count} หน้า, AI เติมข้อมูล {len([v for v in ai_data.values() if v])} ฟิลด์")
+        logging.info(f"📄 [ImportAPI] ข้อมูลจาก AI: {ai_data}")
         
         return PDFExtractResponse(
             success=True,
@@ -540,7 +540,7 @@ async def extract_from_pdf(file: UploadFile = File(...)):
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        logging.error(f"❌ [ImportAPI] PDF extract error: {e}", exc_info=True)
+        logging.error(f"❌ [ImportAPI] ข้อผิดพลาดในการดึงข้อมูลจาก PDF: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการอ่าน PDF: {str(e)}")
 
 
@@ -579,7 +579,7 @@ async def ai_fill_form(request: AIFillFormRequest):
             search_query = request.partial_data.get("title", "") or request.partial_data.get("details", "")
             search_query = f"{search_query} จังหวัดน่าน ข้อมูลท่องเที่ยว"  # เพิ่ม context
             
-            logging.info(f"🌐 [ImportAPI] Web searching for: {search_query}")
+            logging.info(f"🌐 [ImportAPI] กำลังค้นหาข้อมูลจากเว็บสำหรับ: {search_query}")
             
             # ค้นหาจาก Google
             web_results = await web_search_service.search_and_summarize(search_query)
@@ -592,7 +592,7 @@ async def ai_fill_form(request: AIFillFormRequest):
             else:
                 combined_text = input_text
                 target_fields = request.target_fields
-                logging.warning("⚠️ [ImportAPI] Web search returned no results, using local data only")
+                logging.warning("⚠️ [ImportAPI] การค้นหาจากเว็บไม่พบผลลัพธ์ ใช้ข้อมูลท้องถิ่นเท่านั้น")
             
             ai_data = await ai_mapper_service.extract_from_document(
                 document_text=combined_text,
@@ -613,7 +613,7 @@ async def ai_fill_form(request: AIFillFormRequest):
         
         filled_count = len([v for v in ai_data.values() if v])
         method = "🌐 Web Search" if request.use_web_search else "📝 Local"
-        logging.info(f"✅ [ImportAPI] {method} - AI filled {filled_count} fields")
+        logging.info(f"✅ [ImportAPI] {method} - AI เติมข้อมูล {filled_count} ฟิลด์")
         
         return AIFillFormResponse(
             success=True,
@@ -622,7 +622,7 @@ async def ai_fill_form(request: AIFillFormRequest):
         )
         
     except Exception as e:
-        logging.error(f"❌ [ImportAPI] AI fill form error: {e}", exc_info=True)
+        logging.error(f"❌ [ImportAPI] ข้อผิดพลาดในการเติมข้อมูลด้วย AI แบบฟอร์ม: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"AI ช่วยเติมข้อมูลล้มเหลว: {str(e)}")
 
 
@@ -679,7 +679,7 @@ async def document_scan(
         entries = await ai_mapper_service.detect_entries(extracted_text, target_count=target_count if target_count > 0 else None)
         
         ai_suggested_count = len(entries)
-        logging.info(f"✅ [ImportAPI] Document scan: {page_count} pages, {len(entries)} entries found (target: {target_count})")
+        logging.info(f"✅ [ImportAPI] สแกนเอกสาร: {page_count} หน้า, พบ {len(entries)} รายการ (เป้าหมาย: {target_count})")
         
         return DocumentScanResponse(
             success=True,
@@ -693,7 +693,7 @@ async def document_scan(
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        logging.error(f"❌ [ImportAPI] Document scan error: {e}", exc_info=True)
+        logging.error(f"❌ [ImportAPI] ข้อผิดพลาดในการสแกนเอกสาร: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการสแกนเอกสาร: {str(e)}")
 
 
@@ -721,7 +721,7 @@ async def document_extract(request: DocumentExtractRequest):
             target_fields=request.target_fields
         )
         
-        logging.info(f"✅ [ImportAPI] Document extract: {len(results)} entries extracted")
+        logging.info(f"✅ [ImportAPI] ดึงข้อมูลจากเอกสาร: ได้รับ {len(results)} รายการ")
         
         return DocumentExtractResponse(
             success=True,
@@ -730,7 +730,7 @@ async def document_extract(request: DocumentExtractRequest):
         )
         
     except Exception as e:
-        logging.error(f"❌ [ImportAPI] Document extract error: {e}", exc_info=True)
+        logging.error(f"❌ [ImportAPI] ข้อผิดพลาดในการดึงข้อมูลจากเอกสาร: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการ extract: {str(e)}")
 
 

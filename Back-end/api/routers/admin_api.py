@@ -32,7 +32,7 @@ def _find_first_image_for_prefix(prefix: str) -> str | None:
                 return f"/static/images/{f.name}"
         return None
     except Exception as e:
-        logging.error(f"Error finding first image for prefix '{prefix}': {e}", exc_info=False)
+        logging.error(f"เกิดข้อผิดพลาดในการหารูปภาพแรกสำหรับ prefix '{prefix}': {e}", exc_info=False)
         return None
 
 @router.post("/locations/upload-image/", tags=["Admin :: Image Upload"])
@@ -57,10 +57,10 @@ async def upload_location_image(
                 file_path = STATIC_IMAGE_DIR / new_filename
                 with file_path.open("wb") as buffer:
                     buffer.write(content)
-                logging.info(f"🖼️  Image uploaded and saved as: {new_filename}")
+                logging.info(f"🖼️  อัปโหลดและบันทึกรูปภาพเรียบร้อยแล้ว: {new_filename}")
                 return new_filename
             except Exception as e:
-                logging.error(f"❌ Error during file save (sync thread) for prefix '{prefix}': {e}", exc_info=True)
+                logging.error(f"❌ เกิดข้อผิดพลาดขณะบันทึกไฟล์ (sync thread) สำหรับ prefix '{prefix}': {e}", exc_info=True)
                 return None
         saved_filename = await asyncio.to_thread(
             save_file_in_thread,
@@ -74,7 +74,7 @@ async def upload_location_image(
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
-        logging.error(f"❌ Error uploading image for prefix '{image_prefix}': {e}", exc_info=True)
+        logging.error(f"❌ เกิดข้อผิดพลาดในการอัปโหลดรูปภาพสำหรับ prefix '{image_prefix}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Could not upload image: {e}")
 
 @router.get("/analytics/dashboard", tags=["Admin :: Analytics"])
@@ -89,7 +89,7 @@ async def get_analytics_dashboard(
         stats = await analytics.get_dashboard_summary(days)
         return stats
     except Exception as e:
-        logging.error(f"❌ Error fetching analytics dashboard: {e}", exc_info=True)
+        logging.error(f"❌ เกิดข้อผิดพลาดในการดึงข้อมูล Analytics Dashboard: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch analytics data.")
 
 
@@ -160,14 +160,14 @@ async def get_available_fields(
                 "sampled_documents": len(docs)
             }
         except Exception as e:
-            logging.error(f"❌ Error getting schema fields: {e}", exc_info=True)
+            logging.error(f"❌ เกิดข้อผิดพลาดในการดึง Schema Fields: {e}", exc_info=True)
             return {"fields": [], "error": str(e)}
     
     try:
         result = await asyncio.to_thread(get_fields_sync)
         return result
     except Exception as e:
-        logging.error(f"❌ Error in get_available_fields: {e}", exc_info=True)
+        logging.error(f"❌ เกิดข้อผิดพลาดใน get_available_fields: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch schema fields.")
 
 @router.post(
@@ -181,11 +181,11 @@ async def create_location(
     db: MongoDBManager = Depends(get_mongo_manager),
     vector_db: QdrantManager = Depends(get_qdrant_manager)
 ):
-    logging.info(f"Attempting to create new location with slug: {location_data.slug}")
+    logging.info(f"กำลังพยายามสร้างสถานที่ใหม่ด้วย Slug: {location_data.slug}")
     try:
         existing = await asyncio.to_thread(db.get_location_by_slug, location_data.slug)
         if existing:
-            logging.warning(f"Create failed: Slug '{location_data.slug}' already exists.")
+            logging.warning(f"การสร้างล้มเหลว: Slug '{location_data.slug}' มีอยู่แล้ว")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Slug '{location_data.slug}' นี้มีอยู่แล้ว กรุณาใช้ Slug อื่น"
@@ -193,7 +193,7 @@ async def create_location(
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
-        logging.error(f"Error checking existing slug '{location_data.slug}': {e}", exc_info=True)
+        logging.error(f"เกิดข้อผิดพลาดในการตรวจสอบ Slug '{location_data.slug}' ที่มีอยู่: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error checking for existing slug.")
     mongo_id_str = ""
     try:
@@ -203,29 +203,35 @@ async def create_location(
         )
         if not mongo_id_str:
              raise Exception("Failed to create document in MongoDB (add_location returned None or empty string).")
-        logging.info(f"Successfully created in MongoDB: slug='{location_data.slug}', mongo_id='{mongo_id_str}'")
+        logging.info(f"สร้างข้อมูลใน MongoDB สำเร็จ: slug='{location_data.slug}', mongo_id='{mongo_id_str}'")
     except Exception as e:
-        logging.error(f"❌ Error creating location '{location_data.slug}' in MongoDB: {e}", exc_info=True)
+        logging.error(f"❌ เกิดข้อผิดพลาดในการสร้างสถานที่ '{location_data.slug}' ใน MongoDB: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create location in database: {e}"
         )
+    # 🔄 [SYNC] MongoDB -> Qdrant (Create)
+    # ส่วนนี้คือการนำข้อมูลที่เพิ่งสร้างใน MongoDB ไปสร้าง Vector ลง Qdrant ทันที
+    # เพื่อให้สามารถค้นหาแบบ Semantic Search ได้ทันทีโดยไม่ต้องรอ Sync รอบใหญ่
     try:
         desc_title = location_data.title
         desc_topic = location_data.topic
         desc_summary = location_data.summary
+        # เตรียมข้อความที่จะนำไปทำ Embedding (Vector)
         description_for_vector = f"หัวข้อ: {desc_title}\nประเภท: {desc_topic}\nสรุป: {desc_summary}"
+        
+        # สั่งให้ QdrantManager ทำการสร้าง Vector และบันทึกลงฐานข้อมูล Qdrant
         await vector_db.upsert_location(mongo_id=mongo_id_str, description=description_for_vector)
-        logging.info(f"Successfully created vector for mongo_id '{mongo_id_str}'.")
+        logging.info(f"สร้าง Vector สำหรับ mongo_id '{mongo_id_str}' สำเร็จ")
     except Exception as vector_e:
-        logging.error(f"⚠️ WARNING: MongoDB created for slug '{location_data.slug}', but FAILED to create vector for {mongo_id_str}. Error: {vector_e}", exc_info=True)
+        logging.error(f"⚠️ คำเตือน: สร้างข้อมูลใน MongoDB สำหรับ slug '{location_data.slug}' สำเร็จ แต่ล้มเหลวในการสร้าง Vector สำหรับ {mongo_id_str} ข้อผิดพลาด: {vector_e}", exc_info=True)
     try:
         new_location_doc = await asyncio.to_thread(db.get_location_by_id, mongo_id_str)
         if not new_location_doc:
             raise Exception("Could not retrieve document immediately after creation.")
         return LocationInDB(**new_location_doc)
     except Exception as e:
-         logging.error(f"❌ CRITICAL: MongoDB created (ID: {mongo_id_str}) but failed to retrieve it for response. Error: {e}", exc_info=True)
+         logging.error(f"❌ วิกฤต: สร้างใน MongoDB แล้ว (ID: {mongo_id_str}) แต่ไม่สามารถดึงข้อมูลมาตอบกลับได้ ข้อผิดพลาด: {e}", exc_info=True)
          raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Location created but failed to retrieve. Check DB manually for ID {mongo_id_str}."
@@ -249,7 +255,7 @@ async def analyze_document_endpoint(file: UploadFile = File(...)):
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
-        logging.error(f"❌ Error during document analysis: {e}", exc_info=True)
+        logging.error(f"❌ เกิดข้อผิดพลาดระหว่างการวิเคราะห์เอกสาร: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred during analysis: {str(e)}")
 
 
@@ -265,7 +271,7 @@ async def get_all_locations_summary(
             enriched_models = []
             for loc_dict in locations_from_db:
                 if not isinstance(loc_dict, dict) or '_id' not in loc_dict:
-                    logging.warning(f"Skipping invalid location data: {loc_dict}")
+                    logging.warning(f"ข้ามข้อมูลสถานที่ที่ไม่ถูกต้อง: {loc_dict}")
                     continue
                 try:
                     prefix = (loc_dict.get("metadata") or {}).get("image_prefix")
@@ -277,7 +283,7 @@ async def get_all_locations_summary(
                     )
                     enriched_models.append(summary_model)
                 except ValidationError as e:
-                    logging.warning(f"Skipping location due to validation error: {loc_dict.get('slug', 'N/A')}. Details: {e}")
+                    logging.warning(f"ข้ามสถานที่เนื่องจากข้อผิดพลาดในการตรวจสอบความถูกต้อง: {loc_dict.get('slug', 'N/A')} รายละเอียด: {e}")
                     continue
 
             return {
@@ -287,14 +293,14 @@ async def get_all_locations_summary(
                 "limit": limit
             }
         except Exception as e:
-            logging.error(f"❌ Error enriching summaries in sync thread: {e}", exc_info=True)
+            logging.error(f"❌ เกิดข้อผิดพลาดในการรวมข้อมูลสรุปใน sync thread: {e}", exc_info=True)
             return {"items": [], "total_count": 0, "page": 1, "limit": limit}
 
     try:
         result = await asyncio.to_thread(get_paginated_summaries_sync)
         return result
     except Exception as e:
-        logging.error(f"❌ Unexpected error getting all locations summary: {e}", exc_info=True)
+        logging.error(f"❌ เกิดข้อผิดพลาดที่ไม่คาดคิดในการดึงข้อมูลสรุปสถานที่ทั้งหมด: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error retrieving location summaries.")
 
 
@@ -303,12 +309,12 @@ async def get_location_by_slug(
     slug: str,
     db: MongoDBManager = Depends(get_mongo_manager)
 ):
-    logging.info(f"Attempting to fetch location with slug: {slug}")
+    logging.info(f"กำลังพยายามดึงข้อมูลสถานที่ด้วย Slug: {slug}")
     try:
         location_data = await asyncio.to_thread(db.get_location_by_slug, slug)
 
         if not location_data:
-            logging.warning(f"Location not found for slug: {slug}")
+            logging.warning(f"ไม่พบสถานที่สำหรับ Slug: {slug}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail=f"Location with slug '{slug}' not found.")
 
@@ -320,20 +326,20 @@ async def get_location_by_slug(
             preview_image_url=preview_url
         )
         
-        logging.debug(f"Raw data from DB for slug '{slug}': {location_data}")
+        logging.debug(f"ข้อมูลดิบจาก DB สำหรับ Slug '{slug}': {location_data}")
         return location_model
 
     except HTTPException as http_exc:
         raise http_exc
     except ValidationError as e:
-         logging.error(f"❌ Pydantic Validation Error for slug '{slug}': {e}", exc_info=True)
-         logging.error(f"Data causing validation error: {location_data}")
+        logging.error(f"❌ เกิดข้อผิดพลาด Pydantic Validation สำหรับ Slug '{slug}': {e}", exc_info=True)
+         logging.error(f"ข้อมูลที่ทำให้เกิดข้อผิดพลาดในการตรวจสอบความถูกต้อง: {location_data}")
          raise HTTPException(
              status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
              detail=f"Data inconsistency error for location '{slug}'. Check server logs."
          )
     except Exception as e:
-        logging.error(f"❌ Unexpected error fetching location '{slug}': {e}", exc_info=True)
+        logging.error(f"❌ เกิดข้อผิดพลาดที่ไม่คาดคิดในการดึงข้อมูลสถานที่ '{slug}': {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An internal error occurred while fetching location '{slug}'."
@@ -347,12 +353,12 @@ async def update_location_by_slug(
     db: MongoDBManager = Depends(get_mongo_manager),
     vector_db: QdrantManager = Depends(get_qdrant_manager)
 ):
-    logging.info(f"Attempting to update location with slug: {slug}")
+    logging.info(f"กำลังพยายามอัปเดตสถานที่ด้วย Slug: {slug}")
     if location_update.slug != slug:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Slug in URL parameter does not match slug in request body.")
     update_data = location_update.model_dump(exclude_unset=True)
-    logging.debug(f"Update data for slug '{slug}': {update_data}")
+    logging.debug(f"ข้อมูลอัปเดตสำหรับ Slug '{slug}': {update_data}")
     mongo_id = None
     updated_location = None
     try:
@@ -360,16 +366,16 @@ async def update_location_by_slug(
         if modified_count == 0:
             exists = await asyncio.to_thread(db.get_location_by_slug, slug)
             if not exists:
-                logging.warning(f"Update failed: Location not found for slug '{slug}'.")
+                logging.warning(f"การอัปเดตล้มเหลว: ไม่พบสถานที่สำหรับ Slug '{slug}'")
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                     detail=f"Location with slug '{slug}' not found.")
-            logging.info(f"Location '{slug}' update received, but data was identical. No changes made.")
+            logging.info(f"ได้รับคำขออัปเดตสถานที่ '{slug}' แต่ข้อมูลเหมือนเดิม ไม่มีการเปลี่ยนแปลง")
             updated_location = exists
         else:
-             logging.info(f"Successfully updated MongoDB for slug '{slug}'.")
+             logging.info(f"อัปเดตข้อมูลใน MongoDB สำหรับ Slug '{slug}' สำเร็จ")
              updated_location = await asyncio.to_thread(db.get_location_by_slug, slug)
         if not updated_location:
-             logging.error(f"Failed to retrieve location '{slug}' after potential update.")
+             logging.error(f"ไม่สามารถดึงข้อมูลสถานที่ '{slug}' หลังจากอัปเดตได้")
              raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                                  detail="Could not retrieve location after update.")
         
@@ -378,27 +384,31 @@ async def update_location_by_slug(
         updated_model = LocationInDB(**updated_location, preview_image_url=preview_url)
         
         mongo_id = str(updated_model.mongo_id)
+        # 🔄 [SYNC] MongoDB -> Qdrant (Update)
+        # ส่วนนี้คือการอัปเดตข้อมูล Vector ใน Qdrant เมื่อมีการแก้ไขข้อมูลใน MongoDB
+        # เช่น ถ้ามีการแก้ชื่อ หรือสรุปข้อมูล ก็ต้องอัปเดต Vector ใหม่ด้วย เพื่อให้ผลการค้นหายังคงถูกต้อง
         try:
             desc_title = updated_model.title or ''
             desc_topic = updated_model.topic or ''
             desc_summary = updated_model.summary or ''
+            # เตรียมข้อความใหม่สำหรับการทำ Embedding 
             description_for_vector = f"หัวข้อ: {desc_title}\nประเภท: {desc_topic}\nสรุป: {desc_summary}"
             await vector_db.upsert_location(mongo_id=mongo_id, description=description_for_vector)
-            logging.info(f"Successfully synced vector for mongo_id '{mongo_id}' (slug: '{slug}').")
+            logging.info(f"ซิงค์ Vector สำหรับ mongo_id '{mongo_id}' (slug: '{slug}') สำเร็จ")
         except Exception as vector_e:
-            logging.error(f"⚠️ WARNING: MongoDB updated for slug '{slug}', but failed to sync vector for {mongo_id}. Error: {vector_e}", exc_info=True)
+            logging.error(f"⚠️ คำเตือน: อัปเดต MongoDB สำหรับ slug '{slug}' แล้ว แต่ล้มเหลวในการซิงค์ Vector สำหรับ {mongo_id} ข้อผิดพลาด: {vector_e}", exc_info=True)
             
         return updated_model 
     except HTTPException as http_exc:
         raise http_exc
     except ValidationError as e:
-         logging.error(f"❌ Pydantic Validation Error after updating slug '{slug}': {e}", exc_info=True)
+         logging.error(f"❌ Pydantic Validation Error หลังจากอัปเดต Slug '{slug}': {e}", exc_info=True)
          raise HTTPException(
              status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
              detail=f"Data inconsistency error after update for location '{slug}'. Check server logs."
          )
     except Exception as e:
-        logging.error(f"❌ Unexpected error updating location '{slug}': {e}", exc_info=True)
+        logging.error(f"❌ เกิดข้อผิดพลาดที่ไม่คาดคิดในการอัปเดตสถานที่ '{slug}': {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An internal error occurred while updating location '{slug}'."
@@ -410,32 +420,38 @@ async def delete_location_by_slug(
     db: MongoDBManager = Depends(get_mongo_manager),
     vector_db: QdrantManager = Depends(get_qdrant_manager)
 ):
-    logging.info(f"Attempting to delete location with slug: {slug}")
+    logging.info(f"กำลังพยายามลบสถานที่ด้วย Slug: {slug}")
     mongo_id = None
     try:
         location_to_delete = await asyncio.to_thread(db.get_location_by_slug, slug)
         if not location_to_delete:
-            logging.warning(f"Deletion failed: Location not found for slug '{slug}'.")
+            logging.warning(f"ลบไม่สำเร็จ: ไม่พบสถานที่สำหรับ Slug '{slug}'")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail=f"Location with slug '{slug}' not found.")
         mongo_id = str(location_to_delete['_id'])
-        logging.debug(f"Found location to delete: slug='{slug}', mongo_id='{mongo_id}'")
+        logging.debug(f"พบสถานที่ที่จะลบ: slug='{slug}', mongo_id='{mongo_id}'")
+        
+        # ==========================================
+        # 🔄 [SYNC] MongoDB -> Qdrant (Delete)
+        # ส่วนนี้คือการลบข้อมูล Vector ใน Qdrant ออกเมื่อข้อมูลใน MongoDB ถูกลบ
+        # เพื่อไม่ให้ค้นหาเจอข้อมูลที่ไม่มีอยู่จริงแล้ว (Ghost Data)
+        # ==========================================
         try:
             vector_deleted = await vector_db.delete_vector(mongo_id)
             if not vector_deleted:
-                logging.warning(f"⚠️ Vector for {mongo_id} (slug: {slug}) not found or delete failed in Qdrant. Proceeding with MongoDB deletion.")
+                logging.warning(f"⚠️ ไม่พบ Vector สำหรับ {mongo_id} (slug: {slug}) หรือลบใน Qdrant ล้มเหลว ดำเนินการลบใน MongoDB ต่อไป")
         except Exception as vector_e:
-            logging.error(f"⚠️ WARNING: Error deleting vector for {mongo_id}. Error: {vector_e}. Proceeding with MongoDB deletion.", exc_info=True)
+            logging.error(f"⚠️ คำเตือน: เกิดข้อผิดพลาดในการลบ Vector สำหรับ {mongo_id} ข้อผิดพลาด: {vector_e} ดำเนินการลบใน MongoDB ต่อไป", exc_info=True)
         deleted_count = await asyncio.to_thread(db.delete_location_by_slug, slug)
         if deleted_count == 0:
-            logging.error(f"Deletion inconsistency: Location '{slug}' found but could not be deleted from MongoDB.")
+            logging.error(f"ความไม่สอดคล้องของการลบ: พบสถานที่ '{slug}' แต่ไม่สามารถลบออกจาก MongoDB ได้")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                                 detail=f"Location {slug} found but could not be deleted from MongoDB.")
-        logging.info(f"✅ Successfully deleted location {slug} (mongo_id: {mongo_id}) from MongoDB.")
+        logging.info(f"✅ ลบสถานที่ {slug} (mongo_id: {mongo_id}) ออกจาก MongoDB สำเร็จ")
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
-        logging.error(f"❌ Unexpected error deleting location '{slug}' (mongo_id: {mongo_id}): {e}", exc_info=True)
+        logging.error(f"❌ เกิดข้อผิดพลาดที่ไม่คาดคิดในการลบสถานที่ '{slug}' (mongo_id: {mongo_id}): {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An internal error occurred while deleting location '{slug}'."

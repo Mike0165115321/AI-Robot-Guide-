@@ -18,7 +18,7 @@ def _get_groq_client() -> AsyncGroq:
     if not api_key:
         raise RuntimeError("No Groq API keys available")
     masked = api_key[:8] + "..." + api_key[-4:]
-    logging.info(f"🔑 [Groq Handler] Using key: {masked}")
+    logging.info(f"🔑 [Groq Handler] กำลังใช้คีย์: {masked}")
     return AsyncGroq(api_key=api_key)
 
 
@@ -52,7 +52,7 @@ async def get_groq_response(
                 kwargs["response_format"] = {"type": "json_object"}
 
             response = await groq_client.chat.completions.create(**kwargs)
-            logging.info(f"✅ [Groq Handler] Response generated successfully")
+            logging.info(f"✅ [Groq Handler] สร้างคำตอบสำเร็จ")
             return response.choices[0].message.content
             
         except Exception as e:
@@ -64,13 +64,13 @@ async def get_groq_response(
             is_rate_limit = any(keyword in error_str for keyword in rate_limit_keywords)
             
             if is_rate_limit:
-                logging.warning(f"⚠️ [Groq Handler] Rate limit hit, rotating key... (attempt {attempt + 1}/{MAX_RETRIES})")
+                logging.warning(f"⚠️ [Groq Handler] ติด Rate limit, กำลังหมุนคีย์... (รอบที่ {attempt + 1}/{MAX_RETRIES})")
                 continue
             else:
-                logging.error(f"❌ [Groq Handler] Error: {e}")
+                logging.error(f"❌ [Groq Handler] เกิดข้อผิดพลาด: {e}")
                 break
     
-    logging.error(f"❌ [Groq Handler] All retries failed: {last_error}")
+    logging.error(f"❌ [Groq Handler] การลองใหม่ทั้งหมดล้มเหลว: {last_error}")
     return f"ขออภัยค่ะ ระบบ Groq ขัดข้องชั่วคราว ({str(last_error)[:50]})"
 
 
@@ -89,13 +89,13 @@ async def get_small_talk_response(user_query: str) -> str:
     persona = language_detector.get_prompt("persona_groq", detected_lang)
     
     print(f"💬 ═══════════════════════════════════════════")
-    print(f"💬 [SMALL TALK] Language: {detected_lang} ({lang_info['name']})")  
-    print(f"💬 [SMALL TALK] Will respond in: {lang_info['name']}")
+    print(f"💬 [SMALL TALK] ภาษา: {detected_lang} ({lang_info['name']})")  
+    print(f"💬 [SMALL TALK] จะตอบกลับเป็นภาษา: {lang_info['name']}")
     print(f"💬 ═══════════════════════════════════════════")
     
     system_prompt = f"""{persona}
 
-กฎเพิ่มเติมสำหรับ Small Talk:
+กฎสำหรับ Small Talk:
 1. ตอบสั้นๆ กระชับ (2-3 ประโยค)
 2. ถ้ามีคนบอกว่ามาจากที่ไหน ให้ต้อนรับอย่างอบอุ่น
 3. เป็นมิตร น่ารัก

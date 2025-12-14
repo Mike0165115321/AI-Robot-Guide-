@@ -33,7 +33,7 @@ class AIMapperService:
         try:
             new_key = gemini_key_manager.get_key()
             if not new_key:
-                print("❌ [AIMapperService] No API keys available!")
+                print("❌ [AIMapperService] ไม่มี API keys เหลืออยู่!")
                 return False
             
             self.current_key = new_key
@@ -42,11 +42,11 @@ class AIMapperService:
             
             # แสดง key ที่ใช้ (ซ่อนส่วนท้าย)
             masked_key = new_key[:8] + "..." + new_key[-4:]
-            print(f"🔑 [AIMapperService] Switched to key: {masked_key}")
+            print(f"🔑 [AIMapperService] สลับไปใช้ key: {masked_key}")
             return True
             
         except Exception as e:
-            print(f"❌ [AIMapperService] Failed to configure: {e}")
+            print(f"❌ [AIMapperService] การตั้งค่าล้มเหลว: {e}")
             return False
     
     def _build_prompt(self, raw_data: Dict[str, Any], target_fields: List[str]) -> str:
@@ -150,7 +150,7 @@ class AIMapperService:
                 return result
                 
             except json.JSONDecodeError as je:
-                print(f"❌ [AIMapperService] JSON parse error: {je}")
+                print(f"❌ [AIMapperService] ข้อผิดพลาดในการแปลง JSON: {je}")
                 return {field: "[Error: Invalid JSON response]" for field in target_fields}
                 
             except Exception as e:
@@ -158,20 +158,20 @@ class AIMapperService:
                 
                 # Check if it's a Quota Error (429)
                 if "429" in error_str or "quota" in error_str.lower() or "exceeded" in error_str.lower():
-                    print(f"⚠️ [AIMapperService] Quota exceeded (attempt {attempt + 1}/{self.MAX_RETRIES}), rotating key...")
+                    print(f"⚠️ [AIMapperService] Quota เต็ม (ความพยายามครั้งที่ {attempt + 1}/{self.MAX_RETRIES}), กำลังหมุนเวียน key...")
                     
                     # Rotate to next API key
                     if self._configure_with_next_key():
                         # Exponential backoff: 1s, 2s, 4s, 8s
                         wait_time = min(2 ** attempt, 8)
-                        print(f"⏳ Waiting {wait_time}s before retry...")
+                        print(f"⏳ รอ {wait_time} วินาทีก่อนลองใหม่...")
                         await asyncio.sleep(wait_time)
                         continue
                     else:
                         return {field: "[Error: All API keys exhausted]" for field in target_fields}
                 else:
                     # Other errors - don't retry
-                    print(f"❌ [AIMapperService] Error: {e}")
+                    print(f"❌ [AIMapperService] ข้อผิดพลาด: {e}")
                     return {field: f"[Error: {str(e)[:50]}]" for field in target_fields}
         
         # All retries exhausted
@@ -213,7 +213,7 @@ class AIMapperService:
                 result["_original_row"] = original_row
                 results.append(result)
             
-            print(f"✅ [AIMapperService] Processed batch {i//concurrency + 1}, total: {len(results)}/{len(rows)}")
+            print(f"✅ [AIMapperService] ประมวลผล batch {i//concurrency + 1}, ทั้งหมด: {len(results)}/{len(rows)}")
             
             # Increased delay between batches to avoid rate limiting
             if i + concurrency < len(rows):
@@ -291,7 +291,7 @@ class AIMapperService:
                 )
                 
                 response_text = response.text.strip()
-                print(f"🔍 [AIMapper] Raw AI response (first 500 chars): {response_text[:500]}")
+                print(f"🔍 [AIMapper] ผลลัพธ์ดิบจาก AI (500 ตัวอักษรแรก): {response_text[:500]}")
                 
                 # Clean markdown
                 if response_text.startswith("```json"):
@@ -302,7 +302,7 @@ class AIMapperService:
                     response_text = response_text[:-3]
                 response_text = response_text.strip()
                 
-                print(f"🔍 [AIMapper] Cleaned response (first 500 chars): {response_text[:500]}")
+                print(f"🔍 [AIMapper] ผลลัพธ์ที่ทำความสะอาดแล้ว (500 ตัวอักษรแรก): {response_text[:500]}")
                 
                 extracted = json.loads(response_text)
                 
@@ -310,34 +310,34 @@ class AIMapperService:
                 if isinstance(extracted, dict) and "locations" in extracted:
                     locations = extracted["locations"]
                     extracted = locations[0] if locations else {}
-                    print(f"⚠️ [AIMapper] Extracted from 'locations' array, {len(locations)} items")
+                    print(f"⚠️ [AIMapper] ดึงข้อมูลจากอาร์เรย์ 'locations', {len(locations)} รายการ")
                 elif isinstance(extracted, list):
-                    print(f"⚠️ [AIMapper] AI returned list with {len(extracted)} items, taking first")
+                    print(f"⚠️ [AIMapper] AI ส่งกลับรายการที่มี {len(extracted)} รายการ, เลือกรายการแรก")
                     extracted = extracted[0] if extracted else {}
                 
                 result = {}
                 for field in target_fields:
                     result[field] = extracted.get(field) if isinstance(extracted, dict) else None
                 
-                print(f"✅ [AIMapper] Document extraction completed with {len([v for v in result.values() if v])} fields")
+                print(f"✅ [AIMapper] การดึงข้อมูลจากเอกสารเสร็จสมบูรณ์ ได้ข้อมูล {len([v for v in result.values() if v])} ฟิลด์")
                 return result
                 
             except json.JSONDecodeError as je:
-                print(f"❌ [AIMapper] JSON parse error: {je}")
-                print(f"❌ [AIMapper] Failed to parse: {response_text[:300] if 'response_text' in dir() else 'N/A'}")
+                print(f"❌ [AIMapper] ข้อผิดพลาดในการแปลง JSON: {je}")
+                print(f"❌ [AIMapper] แปลงไม่สำเร็จ: {response_text[:300] if 'response_text' in dir() else 'N/A'}")
                 return {field: None for field in target_fields}
                 
             except Exception as e:
                 error_str = str(e)
                 if "429" in error_str or "quota" in error_str.lower():
-                    print(f"⚠️ [AIMapper] Quota exceeded, rotating key...")
+                    print(f"⚠️ [AIMapper] Quota เต็ม, กำลังหมุนเวียน key...")
                     if self._configure_with_next_key():
                         await asyncio.sleep(min(2 ** attempt, 8))
                         continue
                     else:
                         return {field: None for field in target_fields}
                 else:
-                    print(f"❌ [AIMapper] Error: {e}")
+                    print(f"❌ [AIMapper] ข้อผิดพลาด: {e}")
                     return {field: None for field in target_fields}
         
         return {field: None for field in target_fields}
@@ -426,25 +426,25 @@ class AIMapperService:
                 for field in target_fields:
                     result[field] = extracted.get(field)
                 
-                print(f"✅ [AIMapper] Web search extraction completed for: {search_query}")
+                print(f"✅ [AIMapper] การดึงข้อมูลจากการค้นหาเว็บเสร็จสมบูรณ์สำหรับ: {search_query}")
                 return result
                 
             except json.JSONDecodeError as je:
-                print(f"❌ [AIMapper] JSON parse error: {je}")
+                print(f"❌ [AIMapper] ข้อผิดพลาดในการแปลง JSON: {je}")
                 print(f"Response was: {response_text[:500] if 'response_text' in dir() else 'N/A'}")
                 return {field: None for field in target_fields}
                 
             except Exception as e:
                 error_str = str(e)
                 if "429" in error_str or "quota" in error_str.lower():
-                    print(f"⚠️ [AIMapper] Quota exceeded, rotating key...")
+                    print(f"⚠️ [AIMapper] Quota เต็ม, กำลังหมุนเวียน key...")
                     if self._configure_with_next_key():
                         await asyncio.sleep(min(2 ** attempt, 8))
                         continue
                     else:
                         return {field: None for field in target_fields}
                 else:
-                    print(f"❌ [AIMapper] Web search error: {e}")
+                    print(f"❌ [AIMapper] ข้อผิดพลาดการค้นหาเว็บ: {e}")
                     return {field: None for field in target_fields}
         
         return {field: None for field in target_fields}
@@ -520,24 +520,24 @@ class AIMapperService:
                 if not isinstance(entries, list):
                     entries = [entries]
                 
-                print(f"✅ [AIMapper] Detected {len(entries)} entries in document")
+                print(f"✅ [AIMapper] ตรวจพบ {len(entries)} รายการในเอกสาร")
                 return entries
                 
             except json.JSONDecodeError as je:
-                print(f"❌ [AIMapper] JSON parse error: {je}")
+                print(f"❌ [AIMapper] ข้อผิดพลาดในการแปลง JSON: {je}")
                 return []
                 
             except Exception as e:
                 error_str = str(e)
                 if "429" in error_str or "quota" in error_str.lower():
-                    print(f"⚠️ [AIMapper] Quota exceeded, rotating key...")
+                    print(f"⚠️ [AIMapper] Quota เต็ม, กำลังหมุนเวียน key...")
                     if self._configure_with_next_key():
                         await asyncio.sleep(min(2 ** attempt, 8))
                         continue
                     else:
                         return []
                 else:
-                    print(f"❌ [AIMapper] Error detecting entries: {e}")
+                    print(f"❌ [AIMapper] ข้อผิดพลาดในการตรวจจับรายการ: {e}")
                     return []
         
         return []
@@ -579,7 +579,7 @@ class AIMapperService:
             
             results.append(extracted)
         
-        print(f"✅ [AIMapper] Extracted data for {len(results)} entries")
+        print(f"✅ [AIMapper] ดึงข้อมูลสำหรับ {len(results)} รายการ")
         return results
 
 

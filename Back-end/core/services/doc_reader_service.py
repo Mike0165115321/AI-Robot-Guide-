@@ -32,7 +32,7 @@ class DocReaderService:
         elif ext in {'.doc', '.docx'}:
             return self._extract_from_docx(file_bytes)
         else:
-            raise ValueError(f"Unsupported file type: {ext}. Supported: {self.SUPPORTED_EXTENSIONS}")
+            raise ValueError(f"ไม่รองรับประเภทไฟล์: {ext} รองรับเฉพาะ: {self.SUPPORTED_EXTENSIONS}")
     
     def _extract_from_pdf(self, file_bytes: bytes) -> Tuple[str, int]:
         """Extract text from PDF using PyMuPDF"""
@@ -51,11 +51,11 @@ class DocReaderService:
             doc.close()
             
             full_text = "\n\n".join(text_parts)
-            print(f"✅ [DocReader] PDF: {page_count} pages, {len(full_text)} chars")
+            print(f"✅ [DocReader] PDF: {page_count} หน้า, {len(full_text)} ตัวอักษร")
             return full_text, page_count
             
         except Exception as e:
-            print(f"❌ [DocReader] PDF error: {e}")
+            print(f"❌ [DocReader] ข้อผิดพลาด PDF: {e}")
             raise ValueError(f"ไม่สามารถอ่าน PDF ได้: {e}")
     
     def _extract_from_docx(self, file_bytes: bytes) -> Tuple[str, int]:
@@ -85,11 +85,11 @@ class DocReaderService:
             word_count = len(full_text.split())
             page_count = max(1, word_count // 500)
             
-            print(f"✅ [DocReader] DOCX: ~{page_count} pages, {len(full_text)} chars")
+            print(f"✅ [DocReader] DOCX: ~{page_count} หน้า, {len(full_text)} ตัวอักษร")
             return full_text, page_count
             
         except Exception as e:
-            print(f"❌ [DocReader] DOCX error: {e}")
+            print(f"❌ [DocReader] ข้อผิดพลาด DOCX: {e}")
             raise ValueError(f"ไม่สามารถอ่าน DOC/DOCX ได้: {e}")
     
     def is_supported(self, filename: str) -> bool:
