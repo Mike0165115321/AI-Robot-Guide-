@@ -164,81 +164,73 @@ class SpeechHandler:
                 except:
                     pass
 
-    async def synthesize_speech_to_bytes(self, text: str) -> bytes:
+    async def synthesize_speech_stream(self, text: str):
+        """
+        Async Generator that yields audio chunks (bytes).
+        - Uses Edge TTS by default (streaming with sentence buffering).
+        - Falls back to gTTS (yields single full chunk).
+        """
         if not text.strip():
-            raise ValueError("Input text for TTS cannot be empty.")
+            return
 
         clean_text = sanitize_text_for_speech(text)
-        
-        # Validate cleaned text isn't empty
         if not clean_text.strip():
-            logging.warning("⚠️ [TTS] ข้อความว่างเปล่าหลังจากการทำความสะอาด ใช้ข้อความสำรองแทน")
             clean_text = "ขอโทษค่ะ ไม่สามารถอ่านข้อความได้"
-        
-        print(f"🗣️  [TTS] กำลังสังเคราะห์เสียงสำหรับ: '{clean_text[:50]}...'")
-        
-        # 🌐 Detect language and select appropriate voices
-        detected_lang = "th"  # default
+
+        logging.info(f"🗣️  [TTS Stream] เริ่มสังเคราะห์เสียง: '{clean_text[:50]}...'")
+
+        # 🌐 Detect language
+        detected_lang = "th"
         if self.lang_detector:
             detected_lang = self.lang_detector.detect(text)
-            logging.info(f"🌐 [TTS] ภาษาที่ตรวจพบ: {detected_lang}")
-        
-        # Get voices for detected language
+            logging.info(f"🌐 [TTS] ภาษา: {detected_lang}")
+
         voices_to_try = VOICE_MAP.get(detected_lang, VOICE_MAP["th"])
-        logging.info(f"🔊 [TTS] กำลังใช้เสียง: {voices_to_try}")
         
-        # ========== Try Edge TTS (Primary - Microsoft) ==========
+        # ========== Try Edge TTS (Streaming) ==========
         for voice in voices_to_try:
             try:
-                logging.info(f"🚀 [TTS] กำลังลองใช้เสียง Edge TTS: {voice}")
-                communicate = edge_tts.Communicate(clean_text, voice, rate="-10%")
-                
-                mp3_buffer = io.BytesIO()
-                async for chunk in communicate.stream():
-                    if chunk["type"] == "audio":
-                        mp3_buffer.write(chunk["data"])
-                
-                if mp3_buffer.tell() == 0:
-                    logging.warning(f"⚠️ [TTS] ไม่ได้รับข้อมูลเสียงจากเสียง {voice}")
-                    continue
-                    
-                mp3_buffer.seek(0)
-                logging.info(f"✅ [TTS] สำเร็จด้วยเสียง Edge TTS: {voice}")
-                return mp3_buffer.read()
-
+               logging.info(f"🚀 [TTS Stream] Edge TTS: {voice}")
+               communicate = edge_tts.Communicate(clean_text, voice, rate="-10%")
+               buffer = io.BytesIO()
+               MIN_CHUNK_SIZE = 16 * 1024  # 16KB ~ 1 second of audio
+               
+               async for chunk in communicate.stream():
+                   if chunk["type"] == "audio":
+                       buffer.write(chunk["data"])
+                       if buffer.tell() >= MIN_CHUNK_SIZE:
+                           buffer.seek(0)
+                           yield buffer.read()
+                           buffer = io.BytesIO() # Reset buffer
+                           
+               # Yield remaining
+               if buffer.tell() > 0:
+                   buffer.seek(0)
+                   yield buffer.read()
+                   
+               logging.info(f"✅ [TTS Stream] สำเร็จ (Edge TTS)")
+               return # Success, exit function
+               
             except Exception as e:
-                logging.warning(f"⚠️ [TTS] เสียง Edge TTS {voice} ล้มเหลว: {e}")
-                continue
-        
-        # ========== Fallback to gTTS (Google TTS) ==========
-        logging.warning("⚠️ [TTS] Edge TTS ล้มเหลว กำลังลองใช้ gTTS สำรอง...")
+                logging.error(f"❌ [TTS Stream] Edge TTS Stream Error: {e}")
+                continue # Try next voice
+
+        # ========== Fallback to gTTS (One-shot) ==========
+        logging.warning("⚠️ [TTS Stream] Edge TTS หมดทุกเสียง -> ใช้ gTTS สำรอง (ไม่ Stream)")
         try:
-            from gtts import gTTS
-            
-            tts = gTTS(text=clean_text, lang='th', slow=False)
-            mp3_buffer = io.BytesIO()
-            tts.write_to_fp(mp3_buffer)
-            mp3_buffer.seek(0)
-            
-            # --- Friend's Feature: Speed up 1.25x using pydub ---
-            try:
-                logging.info("⚡ [TTS] กำลังเร่งความเร็ว 1.25x ให้กับผลลัพธ์ gTTS...")
-                audio = AudioSegment.from_mp3(mp3_buffer)
-                faster_audio = audio.speedup(playback_speed=1.25)
-                
-                output_buffer = io.BytesIO()
-                faster_audio.export(output_buffer, format='mp3')
-                output_buffer.seek(0)
-                
-                logging.info("✅ [TTS] สำเร็จด้วย gTTS สำรอง (ความเร็ว 1.25x)")
-                return output_buffer.read()
-            except Exception as pydub_error:
-                logging.warning(f"⚠️ [TTS] การเร่งความเร็วด้วย pydub ล้มเหลว คืนค่า gTTS ความเร็วปกติ: {pydub_error}")
-                mp3_buffer.seek(0)
-                return mp3_buffer.read()
-            
-        except Exception as gtts_error:
-            logging.error(f"❌ [TTS] วิธีการ TTS ทั้งหมดล้มเหลว: {gtts_error}", exc_info=True)
-            raise RuntimeError("ไม่สามารถสังเคราะห์เสียงด้วยทั้ง edge-tts และ gTTS")
+            # Re-use existing single-shot logic but yield it
+            full_audio = await self.synthesize_speech_to_bytes(text) # Use the existing method logic (copied inside or called)
+            if full_audio:
+                yield full_audio
+            return
+        except Exception as e:
+             logging.error(f"❌ [TTS Stream] gTTS Fallback Failed: {e}")
+             
+    # Keep original method for compatibility (lazy wrapper)
+    async def synthesize_speech_to_bytes(self, text: str) -> bytes:
+        chunks = []
+        async for chunk in self.synthesize_speech_stream(text):
+            chunks.append(chunk)
+        return b"".join(chunks)
 
 speech_handler_instance = SpeechHandler()

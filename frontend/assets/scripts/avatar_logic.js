@@ -160,10 +160,44 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.avatarAnimator) window.avatarAnimator.stopSpeaking();
     }
 
-    // 🔊 ฟังก์ชันเล่นเสียงและ Sync ปาก Avatar (Lip Sync Logic)
-    async function playAudio(audioData) {
+    // 🔊 Audio Queue System for Streaming
+    let audioQueue = [];
+    let isPlayingAudio = false;
+
+    function clearAudioQueue() {
+        audioQueue = []; // Clear pending chunks
+        isPlayingAudio = false;
+        stopCurrentAudio(); // Stop currently playing sound
+    }
+
+    async function queueAudio(audioData) {
+        audioQueue.push(audioData);
+        processAudioQueue();
+    }
+
+    async function processAudioQueue() {
+        if (isPlayingAudio || audioQueue.length === 0) return;
+
+        isPlayingAudio = true;
+        const audioData = audioQueue.shift();
+
+        try {
+            await playAudioChunk(audioData);
+        } catch (e) {
+            console.error("Error playing chunk:", e);
+        } finally {
+            isPlayingAudio = false;
+            // Process next chunk immediately
+            processAudioQueue();
+        }
+    }
+
+    // 🔊 ฟังก์ชันเล่นเสียง Chunk เดียว (Internal)
+    async function playAudioChunk(audioData) {
         if (!mainAudioContext) return;
-        stopCurrentAudio();
+
+        // Note: Do NOT stopCurrentAudio here, as we are chaining chunks.
+        // stopCurrentAudio is called only when clearing the queue (new conversation).
 
         try {
             const buffer = await (audioData instanceof Blob ? audioData.arrayBuffer() : audioData);
@@ -172,15 +206,19 @@ document.addEventListener('DOMContentLoaded', () => {
             source.buffer = audioBuffer;
             source.connect(mainAudioContext.destination);
 
-            // 🟢 [Trigger] สั่งให้ Avatar เริ่มขยับปาก (Start Speaking Animation)
-            if (window.avatarAnimator) window.avatarAnimator.startSpeaking();
-            uiController.setEmotion('speaking'); // เปลี่ยนหน้าตาเป็น "กำลังพูด"
+            // 🟢 [Trigger] สั่งให้ Avatar เริ่มขยับปาก ถ้ายังไม่ได้ขยับ
+            if (window.avatarAnimator && !window.avatarAnimator.isSpeaking) {
+                window.avatarAnimator.startSpeaking();
+                uiController.setEmotion('speaking');
+            }
 
             return new Promise((resolve) => {
                 source.onended = () => {
-                    // 🔴 [Stop] สั่งให้ Avatar หยุดขยับปากเมื่อเสียงจบ (Stop Speaking Animation)
-                    if (window.avatarAnimator) window.avatarAnimator.stopSpeaking();
                     currentAudioSource = null;
+                    // Check if queue is empty to stop animation
+                    if (audioQueue.length === 0) {
+                        if (window.avatarAnimator) window.avatarAnimator.stopSpeaking();
+                    }
                     resolve();
                 };
                 source.start(0);
@@ -188,8 +226,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } catch (e) {
             console.error("Audio Play Error:", e);
-            if (conversationLoopActive) startConversationLoop();
+            // If error, just resolve to continue queue
+            return Promise.resolve();
         }
+    }
+
+    // Legacy wrapper (renamed/unused but kept for reference if needed, mapped to queue)
+    async function playAudio(audioData) {
+        clearAudioQueue(); // Force clear if calling legacy playAudio (assumed new sentence)
+        queueAudio(audioData);
     }
 
     async function initializeAudioSystem() {

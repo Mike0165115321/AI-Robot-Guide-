@@ -45,9 +45,10 @@ async def _handle_idle_prompt(websocket: WebSocket):
     }
     try:
         await websocket.send_text(json.dumps(payload))
-        audio_bytes = await speech_handler_instance.synthesize_speech_to_bytes(text_to_speak)
         if is_websocket_active(websocket):
-            await websocket.send_bytes(audio_bytes)
+            async for audio_chunk in speech_handler_instance.synthesize_speech_stream(text_to_speak):
+                if is_websocket_active(websocket):
+                    await websocket.send_bytes(audio_chunk)
     except Exception as e:
         logging.error(f"❌ เกิดข้อผิดพลาดในการส่งข้อมูล idle prompt: {e}", exc_info=True)
 
@@ -112,17 +113,19 @@ async def _handle_audio_input(websocket: WebSocket, audio_bytes: bytes, orchestr
         audio_task = None
         
         if text_to_speak and not is_music_action:
-            audio_task = asyncio.create_task(speech_handler_instance.synthesize_speech_to_bytes(text_to_speak))
+             # audio_task deprecated, now streaming directly
+             pass
         elif is_music_action:
             logging.info("🎵 [Avatar] ข้าม TTS สำหรับการกระทำดนตรี")
             
         sanitized_payload = sanitize_for_json(payload)
         await websocket.send_text(json.dumps(sanitized_payload))
         
-        if audio_task:
-            response_audio_bytes = await audio_task
+        if text_to_speak and not is_music_action:
             if is_websocket_active(websocket):
-                await websocket.send_bytes(response_audio_bytes)
+                 async for audio_chunk in speech_handler_instance.synthesize_speech_stream(text_to_speak):
+                     if is_websocket_active(websocket):
+                         await websocket.send_bytes(audio_chunk)
     except (WebSocketDisconnect, StarletteWebSocketDisconnect):
         # Client disconnected during response - this is normal, don't log as error
         logging.info("📴 [WebSocket] ไคลเอนต์ตัดการเชื่อมต่อระหว่างตอบกลับด้วยเสียง (พฤติกรรมปกติ)")
@@ -150,17 +153,19 @@ async def _handle_text_input(websocket: WebSocket, query_text: str, orchestrator
         audio_task = None
         
         if text_to_speak and not is_music_action:
-             audio_task = asyncio.create_task(speech_handler_instance.synthesize_speech_to_bytes(text_to_speak))
+             # Streaming mode
+             pass
         elif is_music_action:
             logging.info("🎵 [Avatar] ข้าม TTS สำหรับการกระทำดนตรี")
             
         sanitized_payload = sanitize_for_json(payload)
         await websocket.send_text(json.dumps(sanitized_payload))
         
-        if audio_task:
-            response_audio_bytes = await audio_task
+        if text_to_speak and not is_music_action:
             if is_websocket_active(websocket):
-                await websocket.send_bytes(response_audio_bytes)
+                async for audio_chunk in speech_handler_instance.synthesize_speech_stream(text_to_speak):
+                    if is_websocket_active(websocket):
+                        await websocket.send_bytes(audio_chunk)
     except (WebSocketDisconnect, StarletteWebSocketDisconnect):
         # Client disconnected during response - this is normal, don't log as error
         logging.info("📴 [WebSocket] ไคลเอนต์ตัดการเชื่อมต่อระหว่างตอบกลับข้อความ (พฤติกรรมปกติ)")

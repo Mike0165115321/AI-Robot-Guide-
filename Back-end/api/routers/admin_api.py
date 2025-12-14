@@ -333,11 +333,11 @@ async def get_location_by_slug(
         raise http_exc
     except ValidationError as e:
         logging.error(f"❌ เกิดข้อผิดพลาด Pydantic Validation สำหรับ Slug '{slug}': {e}", exc_info=True)
-         logging.error(f"ข้อมูลที่ทำให้เกิดข้อผิดพลาดในการตรวจสอบความถูกต้อง: {location_data}")
-         raise HTTPException(
-             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-             detail=f"Data inconsistency error for location '{slug}'. Check server logs."
-         )
+        logging.error(f"ข้อมูลที่ทำให้เกิดข้อผิดพลาดในการตรวจสอบความถูกต้อง: {location_data}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Data inconsistency error for location '{slug}'. Check server logs."
+        )
     except Exception as e:
         logging.error(f"❌ เกิดข้อผิดพลาดที่ไม่คาดคิดในการดึงข้อมูลสถานที่ '{slug}': {e}", exc_info=True)
         raise HTTPException(
