@@ -17,6 +17,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let voiceHandler = null;
     let wakeWordHandler = null; // 🎤 Wake Word Handler
 
+
+
+    function sendAudioToBackend(audioBlob) {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            console.log(`📤 Sending Audio: ${audioBlob.size} bytes`);
+            websocket.send(audioBlob);
+        } else {
+            console.error("❌ WebSocket not connected");
+            uiController.setStatus("ขาดการเชื่อมต่อ");
+        }
+    }
+
     async function waitForAnimator() {
         let attempts = 0;
         while (!window.avatarAnimator && attempts < 50) {
@@ -120,11 +132,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     }
 
+    function clearAudioQueue() {
+        audioQueue = []; // Clear pending chunks
+        isPlayingAudio = false;
+        isServerResponseComplete = false;
+        stopCurrentAudio(); // Stop currently playing sound
+    }
+
     function stopConversationLoop(forceStop = false) {
-        if (forceStop) conversationLoopActive = false;
+        if (forceStop) {
+            conversationLoopActive = false;
+            // 🛑 Clear queue immediately to prevent next chunk from playing
+            clearAudioQueue();
+        }
         stopCurrentAudio();
         if (voiceHandler) voiceHandler.stop(true);
         if (wakeWordHandler) wakeWordHandler.stop();
+
+        // Send Interrupted Signal to Backend (Optional but good practice)
+        // if (websocket && websocket.readyState === WebSocket.OPEN && forceStop) {
+        //    websocket.send(JSON.stringify({ action: "STOP" }));
+        // }
 
         uiController.setEmotion('normal');
         uiController.setStatus("พักผ่อน... (พิมพ์หรือกดเริ่มใหม่)");
@@ -163,14 +191,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 🔊 Audio Queue System for Streaming
     let audioQueue = [];
     let isPlayingAudio = false;
-
-    function clearAudioQueue() {
-        audioQueue = []; // Clear pending chunks
-        isPlayingAudio = false;
-        stopCurrentAudio(); // Stop currently playing sound
-    }
+    let isServerResponseComplete = false; // 🔴 Track Server EOS Status
 
     async function queueAudio(audioData) {
+        // 🛑 Drop chunks if we are stopped (User pressed Stop)
+        if (!conversationLoopActive && !isPlayingAudio) {
+            return;
+        }
         audioQueue.push(audioData);
         processAudioQueue();
     }
@@ -192,12 +219,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ฟังก์ชันจบการเล่นทั้งหมดและเปิดไมค์
+    function handlePlaybackFinished() {
+        console.log("[Stream] All done. Resuming mic.");
+
+        // Debounce เล็กน้อยกันเสียงท้ายประโยคตีกับไมค์
+        setTimeout(() => {
+            if (conversationLoopActive && !musicHandler.isPlaying()) {
+                startConversationLoop();
+            }
+            isServerResponseComplete = false; // Reset for next turn
+        }, 800);
+    }
+
     // 🔊 ฟังก์ชันเล่นเสียง Chunk เดียว (Internal)
     async function playAudioChunk(audioData) {
         if (!mainAudioContext) return;
-
-        // Note: Do NOT stopCurrentAudio here, as we are chaining chunks.
-        // stopCurrentAudio is called only when clearing the queue (new conversation).
 
         try {
             const buffer = await (audioData instanceof Blob ? audioData.arrayBuffer() : audioData);
@@ -215,9 +252,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return new Promise((resolve) => {
                 source.onended = () => {
                     currentAudioSource = null;
+
                     // Check if queue is empty to stop animation
                     if (audioQueue.length === 0) {
+                        // Stop speaking animation
                         if (window.avatarAnimator) window.avatarAnimator.stopSpeaking();
+
+                        // 🔍 CRITICAL CHECK: Have we received the "END" signal from server?
+                        if (isServerResponseComplete) {
+                            handlePlaybackFinished();
+                        } else {
+                            console.log("[Stream] Queue empty, waiting for more chunks (or END signal)...");
+                        }
                     }
                     resolve();
                 };
@@ -231,93 +277,104 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Legacy wrapper (renamed/unused but kept for reference if needed, mapped to queue)
+    // Legacy wrapper
     async function playAudio(audioData) {
-        clearAudioQueue(); // Force clear if calling legacy playAudio (assumed new sentence)
+        clearAudioQueue();
         queueAudio(audioData);
     }
 
+    // 🔊 Initialize Audio System (Complete)
     async function initializeAudioSystem() {
-        try {
-            if (!mainAudioContext) mainAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        console.log("🔊 Initializing Audio System...");
 
-            // 🎤 สร้าง Wake Word Handler
-            if (!wakeWordHandler) {
-                wakeWordHandler = new WakeWordHandler({
-                    onStatusUpdate: (text) => {
-                        uiController.setStatus(text);
-                    },
-                    onWakeWordDetected: () => {
-                        console.log('🎉 น้องน่านพร้อมรับคำสั่งแล้ว!');
-                        // เล่นเสียงแจ้งเตือน
-                        playNotificationSound();
-                        // เริ่มโหมดฟังต่อเนื่อง
-                        startConversationLoop();
-                    },
-                    onModeChange: (mode) => {
-                        console.log(`[WakeWord] Mode changed to: ${mode}`);
-                        if (mode === 'wake') {
-                            uiController.setEmotion('normal');
-                        } else if (mode === 'continuous') {
-                            uiController.setEmotion('listening');
-                        }
-                    }
-                });
-            }
+        if (!mainAudioContext) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            mainAudioContext = new AudioContext();
+        }
+        if (mainAudioContext.state === 'suspended') {
+            await mainAudioContext.resume();
+        }
 
-            if (!voiceHandler) {
-                voiceHandler = new VoiceHandler(mainAudioContext, {
-                    onStatusUpdate: (text) => {
-                        console.log('🎤 [VoiceHandler] Status:', text);
-                    },
-                    onSpeechEnd: (audioBlob) => {
-                        console.log('🎤 [VoiceHandler] Speech ended! Blob size:', audioBlob.size);
+        // Initialize Wake Word Handler
+        if (!wakeWordHandler && typeof WakeWordHandler !== 'undefined') {
+            wakeWordHandler = new WakeWordHandler({
+                onStatusUpdate: (msg) => { },
+                onWakeWordDetected: async () => {
+                    console.log("🎤 Wake Word Detected!");
+                    if (voiceHandler) voiceHandler.stop(true);
+                    startConversationLoop();
+                }
+            });
+        }
+
+        // Initialize Voice Handler (Speech-to-Text)
+        if (!voiceHandler && typeof VoiceHandler !== 'undefined') {
+            voiceHandler = new VoiceHandler(mainAudioContext, {
+                onStatusUpdate: (msg) => {
+                    if (!currentAudioSource && conversationLoopActive) uiController.setStatus(msg);
+                },
+                onSpeechEnd: (audioBlob) => {
+                    if (conversationLoopActive) {
+                        uiController.setStatus("กำลังประมวลผล...");
                         uiController.setEmotion('thinking');
-                        uiController.setStatus("กำลังคิด...");
-
-                        // [Fix] Stop listening immediately to prevent feedback loop
-                        if (voiceHandler) voiceHandler.stop(false);
-
-                        // Reset silence timer เพราะยังมีการโต้ตอบ
-                        if (wakeWordHandler) wakeWordHandler.resetSilenceTimer();
-
-                        if (websocket?.readyState === WebSocket.OPEN) {
-                            console.log('🎤 [VoiceHandler] Sending audio to server...');
-                            websocket.send(audioBlob);
-                        } else {
-                            console.log('🔴 [VoiceHandler] WebSocket not open!');
-                        }
+                        sendAudioToBackend(audioBlob);
                     }
-                });
-                console.log('🟢 [DEBUG] VoiceHandler created successfully');
-            }
-            if (!musicHandler) {
-                musicHandler = new AvatarMusicHandler(websocket, uiController, voiceHandler, null, {
-                    stopSpeechButton: stopSpeechButton,
-                    musicControls: musicControls,
-                    stopAISpeechAudio: stopCurrentAudio,
-                    resetToListeningState: () => { if (conversationLoopActive) startConversationLoop(); }
-                });
-            }
-        } catch (e) { console.error(e); }
+                }
+            });
+        }
+
+        // 🎵 Initialize Music Handler
+        if (!musicHandler && typeof AvatarMusicHandler !== 'undefined') {
+            const timerManager = {
+                clearPresentationTimeout: () => { },
+                startPresentationTimeout: () => { }
+            };
+
+            musicHandler = new AvatarMusicHandler(
+                websocket,
+                uiController,
+                voiceHandler,
+                timerManager,
+                {
+                    musicControls: document.getElementById('music-controls'),
+                    stopAISpeechAudio: () => stopCurrentAudio(),
+                    stopSpeechButton: document.getElementById('stop-speech-btn'),
+                    resetToListeningState: () => restartListening()
+                }
+            );
+            console.log("🎵 Avatar Music Handler Connected");
+        }
+
+        console.log("✅ Audio System Ready");
     }
 
-    // 🔔 เล่นเสียงแจ้งเตือนเมื่อตรวจพบ Wake Word
-    function playNotificationSound() {
-        try {
-            if (!mainAudioContext) return;
-            const oscillator = mainAudioContext.createOscillator();
-            const gainNode = mainAudioContext.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(mainAudioContext.destination);
-            oscillator.frequency.value = 800;
-            oscillator.type = 'sine';
-            gainNode.gain.setValueAtTime(0.3, mainAudioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, mainAudioContext.currentTime + 0.3);
-            oscillator.start(mainAudioContext.currentTime);
-            oscillator.stop(mainAudioContext.currentTime + 0.3);
-        } catch (e) {
-            console.log('Could not play notification sound');
+    // 📤 Send Query - RESET Audio Manager
+    function sendQuery(query, intent = null, additionalData = {}) {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            // 🧠 Reset Audio Manager on new Query
+            if (window.audioStreamManager) audioStreamManager.reset();
+
+            if (voiceHandler) voiceHandler.stop(false);
+
+            const mode = aiModeManager ? aiModeManager.getMode() : 'fast';
+
+            // Base Payload
+            const payload = {
+                "query": query,
+                "ai_mode": mode,
+                ...additionalData
+            };
+
+            // Add intent if available
+            if (intent) {
+                payload.intent = intent;
+            }
+
+            websocket.send(JSON.stringify(payload));
+
+            uiController.setEmotion('thinking');
+            uiController.setStatus("กำลังค้นหา...");
+            conversationLoopActive = true;
         }
     }
 
@@ -341,6 +398,13 @@ document.addEventListener('DOMContentLoaded', () => {
         websocket.onmessage = async (event) => {
             if (typeof event.data === 'string') {
                 const data = JSON.parse(event.data);
+                // 🔴 Handle EOS Signal
+                if (data.action === "AUDIO_STREAM_END") {
+                    console.log("[Stream] Server sent END signal.");
+                    isServerResponseComplete = true;
+                    return;
+                }
+
                 if (musicHandler && musicHandler.handleMessage(data)) {
                     conversationLoopActive = false;
                     return;
@@ -349,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const shouldEnterPresentation = hasVisual || (data.answer && data.answer.length > 0);
 
                 if (shouldEnterPresentation) {
-                    uiController.enterPresentation(data);// 👈 สั่งเปิดหน้าต่างรูปภาพ
+                    uiController.enterPresentation(data);
                 } else if (data.answer) {
                     uiController.setStatus(data.answer);
                 }
@@ -357,19 +421,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 uiController.setEmotion(data.emotion || 'talking');
 
             } else if (event.data instanceof ArrayBuffer) {
-                // รับไฟล์เสียงจาก Backend
-                if (voiceHandler) voiceHandler.stop(false);
-                await playAudio(event.data);
-                // Reset silence timer เพราะ AI ตอบมาแล้ว (ยังมีการโต้ตอบ)
-                if (wakeWordHandler) wakeWordHandler.resetSilenceTimer();
-                // delay ก่อนเริ่มฟังใหม่ - ป้องกัน AI พูดแทรก/จับเสียงสะท้อน
-                if (conversationLoopActive && !musicHandler.isPlaying()) {
-                    setTimeout(() => {
-                        if (conversationLoopActive) {
-                            startConversationLoop();
-                        }
-                    }, 1000); // รอ 1 วินาทีก่อนเริ่มฟังใหม่
+                // 🧠 Smart Audio Manager deals with chunks
+                if (window.audioStreamManager) {
+                    audioStreamManager.enqueue(event.data);
                 }
+
+                if (voiceHandler) voiceHandler.stop(false);
+                if (wakeWordHandler) wakeWordHandler.resetSilenceTimer();
             }
         };
 
@@ -427,6 +485,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const avatarMusicBtn = document.getElementById('avatar-music-btn');
     const avatarFaqBtn = document.getElementById('avatar-faq-btn');
     const avatarCalcBtn = document.getElementById('avatar-calc-btn');
+    const avatarNavBtn = document.getElementById('avatar-nav-btn');
+
+    // Note: FabManager at the bottom of the file handles binding click events for these buttons.
+
 
     // Definitions
     const aiModeBtn = document.getElementById('ai-mode-toggle');
@@ -438,33 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAIModeUI(aiModeManager.getMode());
     }
 
-    // 📤 ส่งข้อความไปหา Backend (Fast Mode / Detailed Mode)
-    function sendQuery(query, intent = null, additionalData = {}) {
-        if (websocket && websocket.readyState === WebSocket.OPEN) {
-            stopCurrentAudio();
-            if (voiceHandler) voiceHandler.stop(false);
 
-            const mode = aiModeManager ? aiModeManager.getMode() : 'fast';
-
-            // Base Payload
-            const payload = {
-                "query": query,
-                "ai_mode": mode,
-                ...additionalData
-            };
-
-            // Add intent if available
-            if (intent) {
-                payload.intent = intent;
-            }
-
-            websocket.send(JSON.stringify(payload));
-
-            uiController.setEmotion('thinking');
-            uiController.setStatus("กำลังค้นหา...");
-            conversationLoopActive = true;
-        }
-    }
 
     // AI Mode UI Handlers
     if (aiModeBtn && aiModeManager) {
@@ -515,17 +551,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Shared sendMessage implementation
                 sendMessage: (text, intent, additionalData) => sendQuery(text, intent, additionalData),
 
-                // Music: Custom logic for Avatar
+                // Music: Custom Avatar Logic
                 onMusicAction: () => {
-                    if (musicHandler) {
-                        musicHandler.handleMessage({ action: 'PROMPT_FOR_SONG_INPUT' });
-                    } else {
-                        console.error("MusicHandler not ready");
+                    const infoDisplay = document.getElementById('info-display');
+                    if (infoDisplay) {
+                        infoDisplay.innerHTML = '';
+                        const fabManager = window.NanApp?.fabManager || new FabManager({
+                            callbacks: { sendMessage: (t, i, d) => sendQuery(t, i, d) }
+                        });
+                        const widget = fabManager.createMusicWidget();
+                        infoDisplay.appendChild(widget);
+
+                        if (window.avatarAnimator) {
+                            window.avatarAnimator.enterPresentationMode({ html_is_pre_rendered: true });
+                        }
+                        uiController.setEmotion('listening');
+                        uiController.setStatus("🎵 ฟังเพลงอะไรดีคะ?");
                     }
                 },
 
-                // FAQ: Use default sendMessage (via callback)
-                // FabManager calls sendMessage("...", INTENTS.FAQ)
+                // FAQ: Custom Avatar Logic
+                onFaqAction: () => {
+                    const infoDisplay = document.getElementById('info-display');
+                    if (infoDisplay) {
+                        infoDisplay.innerHTML = '';
+                        const fabManager = window.NanApp?.fabManager || new FabManager({
+                            callbacks: { sendMessage: (t, i, d) => sendQuery(t, i, d) }
+                        });
+                        const widget = fabManager.createFAQWidget();
+                        infoDisplay.appendChild(widget);
+
+                        if (window.avatarAnimator) {
+                            window.avatarAnimator.enterPresentationMode({ html_is_pre_rendered: true });
+                        }
+                        uiController.setEmotion('listening');
+                        uiController.setStatus("❓ คำถามที่พบบ่อย");
+                    }
+                },
 
                 // Calc: Use default sendMessage (via callback)
                 // FabManager calls sendMessage("...", INTENTS.CALCULATOR)

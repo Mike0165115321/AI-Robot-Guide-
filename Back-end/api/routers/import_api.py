@@ -262,22 +262,31 @@ async def preview_raw_file(file: UploadFile = File(...)):
     
     อ่านไฟล์และแสดง preview ข้อมูลดิบก่อน AI transform
     """
-    # Validate file type
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="ไม่พบชื่อไฟล์")
+    # Validate file type using File Validator (Magic Number Check)
+    from ..utils.file_validator import verify_file_signature
+    import io
     
-    filename_lower = file.filename.lower()
-    valid_extensions = ['.xlsx', '.xls', '.csv']
-    
-    if not any(filename_lower.endswith(ext) for ext in valid_extensions):
+    if not await verify_file_signature(file):
         raise HTTPException(
             status_code=400, 
-            detail=f"ไม่รองรับไฟล์ประเภทนี้: {file.filename}. รองรับเฉพาะ Excel (.xlsx, .xls) และ CSV (.csv)"
+            detail=f"ไฟล์ไม่ถูกต้องหรือเสียหาย (Invalid signature for {file.filename})"
         )
     
     try:
-        # Read file content
-        file_content = await file.read()
+        # Read file with size limit (Anti-DoS)
+        MAX_FILE_SIZE = 50 * 1024 * 1024 # 50 MB
+        content = io.BytesIO()
+        size = 0
+        CHUNK_SIZE = 1024 * 1024 # 1MB
+        
+        while chunk := await file.read(CHUNK_SIZE):
+            size += len(chunk)
+            if size > MAX_FILE_SIZE:
+                raise HTTPException(status_code=413, detail=f"ไฟล์มีขนาดใหญ่เกินไป (Max {MAX_FILE_SIZE/1024/1024} MB)")
+            content.write(chunk)
+            
+        content.seek(0)
+        file_content = content.read() # Load verified content for parsing
         
         if not file_content:
             raise HTTPException(status_code=400, detail="ไฟล์ว่างเปล่า")

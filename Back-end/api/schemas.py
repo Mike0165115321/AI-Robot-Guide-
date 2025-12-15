@@ -46,7 +46,7 @@ class LocationAdminSummaryWithImage(LocationAdminSummary):
     preview_image_url: Optional[str] = None
 
 class ChatQuery(BaseModel):
-    query: Any = Field(..., example="วัดสวยๆ ในน่าน") 
+    query: str = Field(..., min_length=1, max_length=2000, example="วัดสวยๆ ในน่าน") 
     session_id: Optional[str] = None
 
 class ActionPayloadPrompt(BaseModel): placeholder: str

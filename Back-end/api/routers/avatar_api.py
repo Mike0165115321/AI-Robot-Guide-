@@ -10,6 +10,8 @@ from typing import Optional, List, Dict, Any
 from core.ai_models.rag_orchestrator import RAGOrchestrator
 from core.ai_models.speech_handler import speech_handler_instance
 from core.config import settings
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from ..dependencies import get_rag_orchestrator
 
 def sanitize_for_json(obj):
     if isinstance(obj, dict):
@@ -126,16 +128,16 @@ async def _handle_audio_input(websocket: WebSocket, audio_bytes: bytes, orchestr
                  async for audio_chunk in speech_handler_instance.synthesize_speech_stream(text_to_speak):
                      if is_websocket_active(websocket):
                          await websocket.send_bytes(audio_chunk)
-    except (WebSocketDisconnect, StarletteWebSocketDisconnect):
-        # Client disconnected during response - this is normal, don't log as error
-        logging.info("📴 [WebSocket] ไคลเอนต์ตัดการเชื่อมต่อระหว่างตอบกลับด้วยเสียง (พฤติกรรมปกติ)")
+    except (WebSocketDisconnect, StarletteWebSocketDisconnect, ConnectionResetError, BrokenPipeError):
+        # Client disconnected during response - this is normal
+        logging.info("📴 [WebSocket] Audio stream interrupted by client (Normal)")
     except Exception as e:
-        logging.error(f"❌ [WebSocket] ข้อผิดพลาดในการจัดการเสียง: {e}", exc_info=True)
+        logging.error(f"❌ [WebSocket] Error handling audio input: {e}", exc_info=True)
         if is_websocket_active(websocket):
             try:
                 await websocket.send_text(json.dumps({"emotion": "confused", "answer": "ขออภัยค่ะ มีข้อผิดพลาดภายใน โปรดลองอีกครั้ง"}))
             except:
-                pass  # Client already disconnected
+                pass
 
 async def _handle_text_input(websocket: WebSocket, query_text: str, orchestrator: RAGOrchestrator, ai_mode: str = 'fast'):
     if not is_websocket_active(websocket): return
@@ -150,12 +152,8 @@ async def _handle_text_input(websocket: WebSocket, query_text: str, orchestrator
         is_music_action = action and "MUSIC" in action
         
         text_to_speak = payload.get("answer")
-        audio_task = None
         
-        if text_to_speak and not is_music_action:
-             # Streaming mode
-             pass
-        elif is_music_action:
+        if is_music_action:
             logging.info("🎵 [Avatar] ข้าม TTS สำหรับการกระทำดนตรี")
             
         sanitized_payload = sanitize_for_json(payload)
@@ -163,60 +161,80 @@ async def _handle_text_input(websocket: WebSocket, query_text: str, orchestrator
         
         if text_to_speak and not is_music_action:
             if is_websocket_active(websocket):
-                async for audio_chunk in speech_handler_instance.synthesize_speech_stream(text_to_speak):
+                try:
+                    async for audio_chunk in speech_handler_instance.synthesize_speech_stream(text_to_speak):
+                        if is_websocket_active(websocket):
+                            await websocket.send_bytes(audio_chunk)
+                except (WebSocketDisconnect, StarletteWebSocketDisconnect, ConnectionResetError, BrokenPipeError):
+                    logging.info("📴 [WebSocket] Audio stream interrupted by client (Normal)")
+                except Exception as e:
+                    logging.error(f"❌ [Avatar WS] Error streaming audio: {e}")
+                finally:
+                    # [CRITICAL] Always send END signal
                     if is_websocket_active(websocket):
-                        await websocket.send_bytes(audio_chunk)
-    except (WebSocketDisconnect, StarletteWebSocketDisconnect):
-        # Client disconnected during response - this is normal, don't log as error
-        logging.info("📴 [WebSocket] ไคลเอนต์ตัดการเชื่อมต่อระหว่างตอบกลับข้อความ (พฤติกรรมปกติ)")
+                        await websocket.send_text(json.dumps({"action": "AUDIO_STREAM_END"}))
+                                        
+    except (WebSocketDisconnect, StarletteWebSocketDisconnect, ConnectionResetError, BrokenPipeError):
+        logging.info("📴 [WebSocket] Text response interrupted by client (Normal)")
     except Exception as e:
-        logging.error(f"❌ [WebSocket] ข้อผิดพลาดในการจัดการข้อความ: {e}", exc_info=True)
-        if is_websocket_active(websocket):
+         logging.error(f"ข้อผิดพลาดในการประมวลผลข้อความ: {e}", exc_info=True)
+         if is_websocket_active(websocket):
             try:
                 await websocket.send_text(json.dumps({"emotion": "confused", "answer": "ขออภัยค่ะ มีข้อผิดพลาดภายใน โปรดลองอีกครั้ง"}))
             except:
-                pass  # Client already disconnected
+                pass
 
 @router.websocket("/ws")
-async def handle_avatar_chat(websocket: WebSocket):
+async def handle_avatar_chat(websocket: WebSocket, orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator)):
     await websocket.accept()
-    logging.info("✅ [Avatar WebSocket] ไคลเอนต์เชื่อมต่อแล้ว")
-    try:
-        orchestrator: RAGOrchestrator = websocket.app.state.rag_orchestrator
-    except AttributeError:
-        await websocket.close(code=1011, reason="Server configuration error.")
-        return
-        
+    
     # 🆕 State tracking per connection
     current_ai_mode = 'fast' 
     
     try:
         while True:
-            message = await websocket.receive()
-            if message["type"] == "websocket.receive":
-                if text_data := message.get("text"):
-                    try:
-                        data = json.loads(text_data)
-                        
-                        # 🔄 Update state if provided
-                        if "ai_mode" in data:
-                            current_ai_mode = data["ai_mode"]
-                        
-                        if query := data.get("query"):
-                            await _handle_text_input(websocket, query, orchestrator, current_ai_mode)
-                        elif data.get("action") == "idle_prompt":
-                            await _handle_idle_prompt(websocket)
-                        elif data.get("action") == "SET_MODE":
-                            logging.info(f"🔄 [Avatar WS] อัปเดตโหมดเป็น: {current_ai_mode}")
+            try:
+                message = await websocket.receive()
+                
+                if message["type"] == "websocket.receive":
+                    if text_data := message.get("text"):
+                        try:
+                            data = json.loads(text_data)
                             
-                    except Exception as e:
-                         logging.error(f"ข้อผิดพลาดในการประมวลผลข้อความ: {e}", exc_info=True)
-                elif bytes_data := message.get("bytes"):
-                    # 🎤 Ensure audio uses the current mode
-                    await _handle_audio_input(websocket, bytes_data, orchestrator, ai_mode=current_ai_mode) 
-            elif message["type"] == "websocket.disconnect":
-                break 
+                            # 🔄 Update state if provided
+                            if "ai_mode" in data:
+                                current_ai_mode = data["ai_mode"]
+                            
+                            if query := data.get("query"):
+                                await _handle_text_input(websocket, query, orchestrator, current_ai_mode)
+                            elif data.get("action") == "idle_prompt":
+                                await _handle_idle_prompt(websocket)
+                            elif data.get("action") == "SET_MODE":
+                                logging.info(f"🔄 [Avatar WS] อัปเดตโหมดเป็น: {current_ai_mode}")
+                                
+                        except Exception as e:
+                             logging.error(f"ข้อผิดพลาดในการประมวลผลข้อความ: {e}", exc_info=True)
+                             if is_websocket_active(websocket):
+                                 try:
+                                     await websocket.send_text(json.dumps({"emotion": "confused", "answer": "ขออภัยค่ะ มีข้อผิดพลาดภายใน โปรดลองอีกครั้ง"}))
+                                 except:
+                                     pass
+
+                    elif bytes_data := message.get("bytes"):
+                        # 🎤 Ensure audio uses the current mode
+                        await _handle_audio_input(websocket, bytes_data, orchestrator, ai_mode=current_ai_mode) 
+                
+                elif message["type"] == "websocket.disconnect":
+                    break
+
+            except (WebSocketDisconnect, StarletteWebSocketDisconnect):
+                logging.info("📴 [WebSocket] Disconnected.")
+                break
+            except Exception as e:
+                logging.error(f"❌ [WebSocket Loop Error]: {e}", exc_info=True)
+                break
+
     except Exception as e:
-        logging.error(f"❌ [Avatar WebSocket] ข้อผิดพลาดร้ายแรงในลูป: {e}", exc_info=True)
+        logging.error(f"❌ [Avatar WebSocket] Fatal Error: {e}", exc_info=True)
     finally:
         logging.info("🛑 [Avatar WebSocket] ตัวจัดการการเชื่อมต่อทำงานเสร็จสิ้น")

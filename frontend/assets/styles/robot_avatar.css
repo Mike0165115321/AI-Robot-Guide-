@@ -975,3 +975,135 @@ body {
     flex-direction: column;
     gap: 20px;
 }
+
+/* --- Widget Fixes for Avatar Page --- */
+/* --- Widget Fixes for Avatar Page --- */
+#info-display .fab-widget-container {
+    /* Layout & Sizing */
+    width: 95% !important;
+    /* Use percentage to be responsive */
+    max-width: 600px !important;
+    /* Much wider as requested (was 420px) */
+    margin: 20px auto !important;
+    position: relative !important;
+    display: block !important;
+    flex-shrink: 0 !important;
+
+    /* Premium Look (Glassmorphism) */
+    background: rgba(15, 23, 42, 0.85) !important;
+    /* Slightly more opaque for readability */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    padding: 25px !important;
+    color: #f8fafc;
+}
+
+/* Ensure all text inside is readable and beautiful */
+#info-display .fab-widget-container .prose h3 {
+    color: #38bdf8 !important;
+    /* Sky blue header */
+    font-size: 1.2rem !important;
+    font-weight: 600;
+    margin-bottom: 8px !important;
+}
+
+#info-display .fab-widget-container .prose p {
+    color: #cbd5e1 !important;
+    font-size: 0.95rem !important;
+}
+
+/* Buttons (Nav, Genre, FAQ) - Override inline styles */
+#info-display .fab-widget-container button {
+    pointer-events: auto !important;
+    font-family: 'Kanit', sans-serif !important;
+    transition: all 0.2s ease;
+}
+
+/* Location / Genre Buttons */
+#info-display .nav-loc-btn,
+#info-display .genre-btn,
+#info-display .faq-btn {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #e2e8f0 !important;
+    padding: 10px 16px !important;
+    border-radius: 12px !important;
+    font-size: 0.9rem !important;
+    margin-bottom: 8px;
+    /* For FAQ list spacing */
+}
+
+#info-display .nav-loc-btn:hover,
+#info-display .genre-btn:hover,
+#info-display .faq-btn:hover {
+    background: rgba(56, 189, 248, 0.2) !important;
+    /* Blue tint hover */
+    border-color: rgba(56, 189, 248, 0.5) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Inputs */
+#info-display input[type="text"] {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#info-display input[type="text"]:focus {
+    border-color: #38bdf8 !important;
+}
+
+/* Search/Action Buttons can keep their gradient but refined */
+#info-display .nav-search-btn,
+#info-display .music-search-btn {
+    border-radius: 12px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+#info-display .nav-search-btn:hover,
+#info-display .music-search-btn:hover {
+    filter: brightness(1.1);
+    transform: scale(1.02);
+}
+
+/* Close Link/Button */
+#info-display .close-widget-btn {
+    color: #94a3b8 !important;
+    font-size: 0.85rem !important;
+    margin-top: 15px !important;
+    opacity: 0.8;
+}
+
+#info-display .close-widget-btn:hover {
+    color: #f1f5f9 !important;
+    opacity: 1;
+    text-decoration: underline;
+}
+
+/* Ensure presentation container keeps its original layout flow (block) */
+/* REMOVED destructive .presentation-container flex overrides */
+
+/* Music Control visibility fix */
+.music-controls {
+    /* Only ensure it CAN be displayed when active */
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+/* Note: Original CSS handles display:none/flex via JS or other rules. 
+   We just want to ensure it's not hidden if it should be visible. 
+   If JS uses .active/visible class: */
+.music-controls.active {
+    opacity: 1;
+    pointer-events: auto;
+    display: flex !important;
+}

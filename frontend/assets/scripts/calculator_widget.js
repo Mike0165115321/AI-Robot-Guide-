@@ -15,7 +15,7 @@ class CalculatorWidget {
                 <div style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <h3 style="margin: 0; font-size: 1rem; color: #10b981;">🔢 เครื่องคิดเลขคณิตศาสตร์</h3>
-                        <button class="close-widget-btn" style="background: none; border: none; color: #aaa; font-size: 1.2rem; cursor: pointer;">&times;</button>
+                        <button class="close-widget-btn-icon" style="background: none; border: none; color: #aaa; font-size: 1.2rem; cursor: pointer;">&times;</button>
                     </div>
                     
                     <!-- Display -->
@@ -316,7 +316,7 @@ class CalculatorWidget {
         });
 
         // Close button
-        container.querySelector('.close-widget-btn').addEventListener('click', () => container.remove());
+        container.querySelector('.close-widget-btn-icon').addEventListener('click', () => container.remove());
 
         return container;
     }
