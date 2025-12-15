@@ -174,20 +174,35 @@ class RAGOrchestrator:
     async def _handle_informational(
         self, corrected_query: str, entity: Optional[str], sub_queries: List[str], mode: str, 
         turn_count: int = 1, session_id: Optional[str] = None, ai_mode: str = "fast", **kwargs
-    ) -> dict:
-        search_queries = [corrected_query] + sub_queries
-        if entity:
-            search_queries.append(entity)
-            search_queries.append(f"ข้อมูลทั่วไป {entity}")
-            search_queries.append(f"{entity} จังหวัดน่าน")
+        interpretation = kwargs.get("interpretation", {})
         
-        unique_queries = list(set([q for q in search_queries if q.strip()]))
-        logging.info(f"🛰️ [RAG] กำลังค้นหาข้อมูล: {unique_queries}")
+        unique_queries = interpretation.get("sub_queries", [corrected_query])
+        entity = interpretation.get("entity")
         
+        # 🛡️ Construct Metadata Filter (Location + Category)
+        location_filter = interpretation.get("location_filter", {}) 
+        category = interpretation.get("category")
+        
+        metadata_filter = location_filter.copy()
+        if category:
+            metadata_filter["category"] = category
+            logging.info(f"🏷️ [Filter] Applying Category Filter: {category}")
+
+        # 2. ค้นหาข้อมูล (Retrieval)
+        # ใช้ Qdrant สำหรับค้นหาด้วยความหมาย (Semantic Search)
+        # เราจะค้นหาด้วยทุก sub-query เพื่อความครอบคลุม
         mongo_ids_from_search = []
         qdrant_results_combined = []
+        
+        logging.info(f"🔎 [RAG] กำลังค้นหาข้อมูล... (Queries: {unique_queries}, Filter: {metadata_filter})")
+
         for q in unique_queries:
-            qdrant_results = await self.qdrant_manager.search_similar(query_text=q, top_k=settings.QDRANT_TOP_K)
+            # Pass metadata_filter to search_similar
+            qdrant_results = await self.qdrant_manager.search_similar(
+                query_text=q, 
+                top_k=settings.QDRANT_TOP_K,
+                metadata_filter=metadata_filter # 🆕 Apply Merged Filter
+            )
             qdrant_results_combined.extend(qdrant_results)
             for res in qdrant_results:
                 if res.payload and res.payload.get("mongo_id"):
@@ -198,6 +213,8 @@ class RAGOrchestrator:
             logging.info("⚠️ [RAG] Qdrant ไม่พบผลลัพธ์ กำลังลองค้นหาด้วยข้อความใน MongoDB...")
             # ใช้ entity ถ้ามี มิฉะนั้นใช้ corrected_query
             search_term = entity if entity else corrected_query
+            
+            # TODO: Improve MongoDB Fallback to support filter (Optional for now)
             logging.info(f"⚠️ [RAG] Qdrant ไม่พบผลลัพธ์ กำลังลองค้นหาด้วยข้อความใน MongoDB ด้วยคำว่า: '{search_term}'")
             mongo_results = await asyncio.to_thread(self.mongo_manager.get_location_by_title, search_term)
             if mongo_results:
@@ -252,6 +269,19 @@ class RAGOrchestrator:
 
         # เลือกเฉพาะเอกสารที่มีคะแนนสูงสุด Top K อันดับแรก
         top_k = settings.TOP_K_RERANK_VOICE if mode == "voice" else settings.TOP_K_RERANK_TEXT
+        
+        # 🛡️ [Self-Correction] Confidence Check
+        is_low_confidence = False
+        if reranked_results:
+            top_score = reranked_results[0][0]
+            if top_score < settings.RAG_CONFIDENCE_THRESHOLD:
+                is_low_confidence = True
+                logging.warning(f"⚠️ [Low Confidence] คะแนนสูงสุด ({top_score:.4f}) ต่ำกว่าเกณฑ์ ({settings.RAG_CONFIDENCE_THRESHOLD})")
+                
+                # 📝 [Log Quality] บันทึกเหตุการณ์นี้เพื่อนำไปปรับปรุง (Active Learning)
+                # TODO: Implement proper feedback logging here
+                logging.info(f"📉 [Quality Log] Triggered Low Confidence for query: '{corrected_query}'")
+        
         final_docs = [doc for score, (doc, _) in reranked_results[:top_k]]
         
         context_str = ""
@@ -271,7 +301,8 @@ class RAGOrchestrator:
             user_query=corrected_query, 
             context=context_str, 
             history=history,
-            ai_mode=ai_mode  # 🆕 ส่ง mode ไปเลือก prompt ที่เหมาะสม
+            ai_mode=ai_mode,  # 🆕 ส่ง mode ไปเลือก prompt ที่เหมาะสม
+            is_low_confidence=is_low_confidence # 🛡️ [Self-Correction]
         )
         
         messages = [
@@ -385,14 +416,19 @@ class RAGOrchestrator:
                      return await self.handle_get_directions(entity_slug=target_entity)
 
             logging.info(f"🚀 [Intent] ใช้เจตนาจาก FRONTEND: {intent}")
+            interpretation = {"intent": intent, "corrected_query": query, "entity": entity, "is_complex": False, "sub_queries": [query], "location_filter": {}}
         else:
-            # fallback: ถ้าไม่มี frontend_intent ใช้ INFORMATIONAL เลย (ไม่ต้องเรียก LLM)
-            intent = "INFORMATIONAL"
-            corrected_query = query
-            entity = None
-            logging.info(f"📝 [Intent] ไม่มีเจตนาจาก Frontend ใช้ค่าเริ่มต้นเป็น: {intent}")
-        
-        logging.info(f"🚦 เจตนา: {intent} | คำค้น: {query} | เอนทิตี: {entity}")
+            # ใช้ LLM วิเคราะห์เจตนาและ Filter (Dynamic)
+            logging.info(f"🧠 [Router] เรียกใช้ Query Interpreter เพื่อวิเคราะห์เจตนาและหา Location Filter...")
+            interpretation = await self.query_interpreter.interpret_and_route(query)
+            intent = interpretation.get("intent", "INFORMATIONAL")
+            corrected_query = interpretation.get("corrected_query", query)
+            entity = interpretation.get("entity")
+            # Note: location_filter is inside interpretation and handled in _handle_informational via interpretation object if passed, 
+            # BUT _handle_informational signature expects separate args currently? 
+            # Wait, verify _handle_informational signature again.
+            
+            logging.info(f"🚦 เจตนา: {intent} | คำค้น: {corrected_query} | Location Filter: {interpretation.get('location_filter')}")
 
         navigation_keywords = ["นำทาง", "เส้นทาง", "พาไป", "ขอทาง", "ไปยัง", "ไปวัด", "ไปที่"]
         is_nav_request = any(kw in corrected_query for kw in navigation_keywords)
@@ -426,12 +462,14 @@ class RAGOrchestrator:
         response = await handler(
             corrected_query=corrected_query,
             entity=entity,
-            is_complex=False,  # ค่าเริ่มต้นเนื่องจากเราข้าม Query Interpreter
-            sub_queries=[],    # ค่าเริ่มต้นเนื่องจากเราข้าม Query Interpreter
+            is_complex=interpretation.get("is_complex", False),
+            sub_queries=interpretation.get("sub_queries", []),
             mode=mode,
             session_id=session_id,
             turn_count=current_turn,
             ai_mode=ai_mode,   # 🆕 ส่ง ai_mode ไปยัง handlers
+            interpretation=interpretation # 🆕 Send full interpretation object (with location_filter)
+        )
             **kwargs
         )
 

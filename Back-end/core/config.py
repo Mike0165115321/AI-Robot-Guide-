@@ -35,7 +35,9 @@ class Settings:
     SOURCE_CARD_IMAGE_LIMIT: int = 1
     FINAL_GALLERY_IMAGE_LIMIT: int = 3
     TOP_K_RERANK_VOICE = 5
+    TOP_K_RERANK_VOICE = 5
     TOP_K_RERANK_TEXT = 5
+    RAG_CONFIDENCE_THRESHOLD: float = 0.45 # คะแนนความมั่นใจขั้นต่ำ (0-1) ถ้าต่ำกว่านี้ถือว่าไม่มั่นใจ
 
     GEMINI_API_KEYS = [key.strip() for key in os.getenv("GEMINI_API_KEYS", "").split(',') if key.strip()]
     GROQ_API_KEYS = [key.strip() for key in os.getenv("GROQ_API_KEYS", "").split(',') if key.strip()]

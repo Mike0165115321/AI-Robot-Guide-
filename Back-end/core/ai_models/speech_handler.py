@@ -11,75 +11,85 @@ from pydub import AudioSegment  # สำหรับ speed up เสียง
 from core.config import settings
 from core.ai_models.key_manager import groq_key_manager
 
+# ==========================================
+# ⚡ Regex Optimization (Compiled once)
+# ==========================================
+RE_URL = re.compile(r'https?://\S+|www\.\S+')
+RE_MD_HEADER = re.compile(r'^\s*#+\s*', flags=re.MULTILINE)
+RE_MD_BOLD = re.compile(r'\*\*(.*?)\*\*')
+RE_MD_ITALIC = re.compile(r'\*(.*?)\*')
+RE_MD_UNDERLINE = re.compile(r'__(.*?)__')
+RE_MD_ITALIC_UND = re.compile(r'_(.*?)_')
+RE_MD_LINK = re.compile(r'\[([^\]]+)\]\([^)]+\)')
+RE_CODE_BLOCK = re.compile(r'```[\s\S]*?```')
+RE_INLINE_CODE = re.compile(r'`([^`]+)`')
+RE_IMAGE_TAG = re.compile(r'\{\{IMAGE:[^}]+\}\}')
+RE_EMOJI = re.compile(
+    "["
+    "\U0001F300-\U0001F9FF"  # Miscellaneous Symbols and Pictographs
+    "\U00002702-\U000027B0"  # Dingbats
+    "\U0001F600-\U0001F64F"  # Emoticons
+    "\U0001F680-\U0001F6FF"  # Transport and Map Symbols
+    "\U0001F1E0-\U0001F1FF"  # Flags
+    "\U00002500-\U00002BEF"  # Various symbols
+    "\U0001FA00-\U0001FAFF"  # Chess, Extended-A symbols
+    "\U00002600-\U000026FF"  # Miscellaneous symbols
+    "]+", 
+    flags=re.UNICODE
+)
+RE_SPECIAL_CHARS = re.compile(r'[#\*\[\]\(\)\{\}\|\\/<>@&$%^~`]')
+RE_WHITESPACE = re.compile(r'\s+')
+RE_EMPTY_LINES = re.compile(r'\n\s*\n')
+RE_DASH_BETWEEN_WORDS = re.compile(r'(?<=[a-zA-Zก-ฮ])-(?=[a-zA-Zก-ฮ])')
+
 def sanitize_text_for_speech(text: str) -> str:
-    import unicodedata
-    
     # 1. ลบ URL / Links
-    text = re.sub(r'https?://\S+', '', text)
-    text = re.sub(r'www\.\S+', '', text)
+    text = RE_URL.sub('', text)
     
     # 2. ลบ markdown headers (#)
-    text = re.sub(r'^\s*#+\s*', '', text, flags=re.MULTILINE)
+    text = RE_MD_HEADER.sub('', text)
     
     # 3. ลบ bold/italic markdown
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # **bold**
-    text = re.sub(r'\*(.*?)\*', r'\1', text)      # *italic*
-    text = re.sub(r'__(.*?)__', r'\1', text)      # __underline__
-    text = re.sub(r'_(.*?)_', r'\1', text)        # _italic_
+    text = RE_MD_BOLD.sub(r'\1', text)
+    text = RE_MD_ITALIC.sub(r'\1', text)
+    text = RE_MD_UNDERLINE.sub(r'\1', text)
+    text = RE_MD_ITALIC_UND.sub(r'\1', text)
     
     # 4. ลบ markdown links [text](url)
-    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+    text = RE_MD_LINK.sub(r'\1', text)
     
     # 5. ลบ code blocks และ inline code
-    text = re.sub(r'```[\s\S]*?```', '', text)    # code blocks
-    text = re.sub(r'`([^`]+)`', r'\1', text)      # inline code
+    text = RE_CODE_BLOCK.sub('', text)
+    text = RE_INLINE_CODE.sub(r'\1', text)
     
     # 6. ลบ {{IMAGE: xxx}} tags
-    text = re.sub(r'\{\{IMAGE:[^}]+\}\}', '', text)
+    text = RE_IMAGE_TAG.sub('', text)
     
-    # 7. ลบ emoji ทั้งหมด (Unicode emoji ranges)
-    emoji_pattern = re.compile(
-        "["
-        "\U0001F300-\U0001F9FF"  # Miscellaneous Symbols and Pictographs, Emoticons, etc.
-        "\U00002702-\U000027B0"  # Dingbats
-        "\U0001F600-\U0001F64F"  # Emoticons
-        "\U0001F680-\U0001F6FF"  # Transport and Map Symbols
-        "\U0001F1E0-\U0001F1FF"  # Flags
-        "\U00002500-\U00002BEF"  # Various symbols
-        "\U0001FA00-\U0001FAFF"  # Chess, Extended-A symbols
-        "\U00002600-\U000026FF"  # Miscellaneous symbols
-        "]+", 
-        flags=re.UNICODE
-    )
-    text = emoji_pattern.sub('', text)
+    # 7. ลบ emoji
+    text = RE_EMOJI.sub('', text)
     
-    # 8. ลบ bullets และสัญลักษณ์พิเศษ
-    text = text.replace('▹', '')
-    text = text.replace('•', '')
-    text = text.replace('→', '')
-    text = text.replace('←', '')
-    text = text.replace('↓', '')
-    text = text.replace('↑', '')
-    text = text.replace('...', '. ')
-    text = text.replace('…', '. ')
+    # 8. ลบ bullets และสัญลักษณ์พิเศษ (String replace เร็วกว่า Regex สำหรับคำง่ายๆ)
+    replacements = {
+        '▹': '', '•': '', '→': '', '←': '', '↓': '', '↑': '',
+        '...': '. ', '…': '. ', '_': ' '
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+
+    # 9. แปลง - ระหว่างคำ
+    text = RE_DASH_BETWEEN_WORDS.sub(' ', text)
     
-    # 9. แปลง _ และ - ให้เป็นช่องว่าง (ป้องกัน TTS ข้าม)
-    text = text.replace('_', ' ')
-    text = re.sub(r'(?<=[a-zA-Zก-ฮ])-(?=[a-zA-Zก-ฮ])', ' ', text)  # แปลง - ระหว่างคำ
-    
-    # 10. ลบอักขระพิเศษที่ TTS อ่านไม่ได้
-    text = re.sub(r'[#\*\[\]\(\)\{\}\|\\/<>@&$%^~`]', '', text)
+    # 10. ลบอักขระพิเศษ
+    text = RE_SPECIAL_CHARS.sub('', text)
     
     # 11. ลบ whitespace ซ้ำและ trim
-    text = re.sub(r'\s+', ' ', text).strip()
+    text = RE_WHITESPACE.sub(' ', text).strip()
     
     # 12. ลบบรรทัดว่าง
-    text = re.sub(r'\n\s*\n', '\n', text)
+    text = RE_EMPTY_LINES.sub('\n', text)
     
     return text
 
-
-local_whisper_model = None
 
 VOICE_MAP = {
     "th": ["th-TH-PremwadeeNeural", "th-TH-NiwatNeural"],
@@ -94,6 +104,11 @@ VOICE_MAP = {
 class SpeechHandler:
     def __init__(self):
         logging.info("🎤 [Speech] กำลังเริ่มต้น SpeechHandler (หลัก: Groq, สำรอง: Local)")
+        
+        # 🛡️ Instance-level model storage (No more global)
+        self.local_whisper_model = None
+        self._model_lock = asyncio.Lock() # For thread-safe model loading if needed closer to async context
+        
         try:
             from core.services.language_detector import language_detector
             self.lang_detector = language_detector
@@ -122,17 +137,20 @@ class SpeechHandler:
             )
         return transcription.text
 
-    def _transcribe_with_local(self, file_path: str) -> str:
-        global local_whisper_model
-        import whisper
-        
-        if local_whisper_model is None:
+    def _get_local_model(self):
+        """Lazy load local model in a thread-safe way (mostly called from thread executor)"""
+        # Note: Since this is often called inside asyncio.to_thread, standard locks apply
+        if self.local_whisper_model is None:
+            import whisper
             model_size = settings.WHISPER_MODEL_SIZE
             logging.info(f"🔄 [Speech] กำลังโหลด Local Whisper '{model_size}' (ระบบสำรอง)...")
-            local_whisper_model = whisper.load_model(model_size, device=settings.DEVICE)
-        
+            self.local_whisper_model = whisper.load_model(model_size, device=settings.DEVICE)
+        return self.local_whisper_model
+
+    def _transcribe_with_local(self, file_path: str) -> str:
+        model = self._get_local_model()
         logging.info("🐢 [Speech] กำลังแปลงเสียงเป็นข้อความด้วย Local Whisper...")
-        result = local_whisper_model.transcribe(file_path, language="th")
+        result = model.transcribe(file_path, language="th")
         return result.get('text', '').strip()
 
     async def transcribe_audio_bytes(self, audio_bytes: bytes) -> str:

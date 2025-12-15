@@ -5,10 +5,11 @@ class PromptEngine:
     def __init__(self):
         pass
 
-    def build_rag_prompt(self, user_query: str, context: str, history: List[dict], ai_mode: str = "fast") -> Dict[str, str]:
+    def build_rag_prompt(self, user_query: str, context: str, history: List[dict], ai_mode: str = "fast", is_low_confidence: bool = False) -> Dict[str, str]:
         """
         สร้าง Prompt สำหรับการตอบคำถามโดยใช้ข้อมูลอ้างอิง
         ai_mode: 'fast' = กระชับสำหรับ Llama, 'detailed' = ละเอียดสำหรับ Gemini
+        is_low_confidence: ถ้า True แสดงว่าระบบค้นหาไม่เจอข้อมูลที่ตรงเป๊ะ ให้ AI ตอบอย่างระมัดระวัง
         
         ทุกอย่างโหลดจากไฟล์ .txt ตามภาษาที่ตรวจจับ
         """
@@ -30,10 +31,22 @@ class PromptEngine:
         # 🌐 โหลด instruction จากไฟล์ตามภาษา
         instruction = language_detector.get_prompt("instruction_rag", detected_lang)
         
+        low_conf_warning = ""
+        if is_low_confidence:
+             # Warning text (Ideally should come from a file, but hardcoded for reliability first)
+             warnings = {
+                 "th": "\n**คำเตือนสำคัญ:** ข้อมูลใน Context อาจจะไม่ตรงกับคำถาม 100% (คะแนนความเหมือนต่ำ) กรุณาตอบอย่างระมัดระวัง แจ้งผู้ใช้ว่าไม่พบข้อมูลที่เจาะจง แต่ให้ข้อมูลที่ใกล้เคียงแทน หรือถามกลับเพื่อขอความชัดเจน",
+                 "en": "\n**IMPORTANT WARNING:** The provided Context might not exactly match the question (low similarity score). Please answer cautiously. State that specific information was not found, but provide related info or ask for clarification.",
+                 "zh": "\n**重要警告：** 提供的上下文可能与问题不完全匹配（相似度低）。请谨慎回答。说明未找到具体信息，但提供相关信息或要求澄清。",
+                 "ja": "\n**重要な警告:** 提供されたコンテキストは、質問と完全に一致しない可能性があります（類似度が低い）。慎重に回答してください。具体的な情報が見つからなかったことを伝え、関連情報を提供するか、明確化を求めてください。",
+             }
+             low_conf_warning = warnings.get(detected_lang, warnings["en"])
+
         print(f"📝 ═══════════════════════════════════════════")
         print(f"📝 [PROMPT ENGINE] Language: {detected_lang} ({lang_info['name']})")
         print(f"📝 [PROMPT ENGINE] Persona: {prompt_file}.txt")
         print(f"📝 [PROMPT ENGINE] Instruction: instruction_rag.txt")
+        print(f"📝 [PROMPT ENGINE] Low Confidence: {is_low_confidence}")
         print(f"📝 [PROMPT ENGINE] Model: {model_name}")
         print(f"📝 ═══════════════════════════════════════════")
         
@@ -55,7 +68,7 @@ class PromptEngine:
             label = history_labels.get(detected_lang, "Previous conversation")
             history_text = f"{label}:\n{formatted_history}"
 
-        # Build system prompt - persona + instruction + context
+        # Build system prompt - persona + instruction + context + warning
         system_prompt = f"""
 {persona}
 
@@ -63,6 +76,8 @@ class PromptEngine:
 
 # Context
 {context}
+
+{low_conf_warning}
 """
 
         # User prompt labels ตามภาษา

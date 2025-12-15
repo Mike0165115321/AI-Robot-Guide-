@@ -96,8 +96,14 @@ class QdrantManager:
         logging.info(f"✅ อัปเดต Vector (e5-prefixed) สำหรับ mongo_id '{mongo_id}' ลงใน Qdrant เรียบร้อยแล้ว") 
         return True
     
-    async def search_similar(self, query_text: str, top_k: int = settings.QDRANT_TOP_K): 
-        """ค้นหาข้อมูลที่ใกล้เคียงกับ query_text"""
+    async def search_similar(self, query_text: str, top_k: int = settings.QDRANT_TOP_K, metadata_filter: dict = None): 
+        """
+        ค้นหาข้อมูลที่ใกล้เคียงกับ query_text
+        Args:
+            query_text: ข้อความค้นหา
+            top_k: จำนวนผลลัพธ์
+            metadata_filter: Dict ระบุเงื่อนไขกรอง เช่น {"district": "ปัว", "sub_district": "ศิลาแลง"}
+        """
         logging.info(f"กำลังใช้ prefix 'query:' สำหรับการค้นหาด้วย e5-large...")
         
         # เติม prefix 'query: ' (ข้อกำหนดของโมเดล E5 เวลาค้นหา)
@@ -105,17 +111,48 @@ class QdrantManager:
         
         # แปลงคำค้นหาเป็น Vector
         query_vector = await self._create_vector(query_with_prefix) 
+        
+        # 🛡️ Construct Qdrant Filter
+        qdrant_filter = None
+        if metadata_filter:
+            conditions = []
+            if "district" in metadata_filter and metadata_filter["district"]:
+                conditions.append(models.FieldCondition(
+                    key="district", 
+                    match=models.MatchValue(value=metadata_filter["district"])
+                ))
+            if "sub_district" in metadata_filter and metadata_filter["sub_district"]:
+                conditions.append(models.FieldCondition(
+                    key="sub_district", 
+                    match=models.MatchValue(value=metadata_filter["sub_district"])
+                ))
+            # 🆕 Category Filter
+            if "category" in metadata_filter and metadata_filter["category"]:
+                # Note: This assumes 'category' field exists in payload. 
+                # If using LLM based category extraction, make sure data has this field or use it as a 'should' condition.
+                # For now, we use strict filtering as per Flexible RAG Design.
+                 conditions.append(models.FieldCondition(
+                    key="category", 
+                    match=models.MatchValue(value=metadata_filter["category"])
+                ))
+            
+            if conditions:
+                qdrant_filter = models.Filter(must=conditions)
+                logging.info(f"🛡️ [Qdrant] Applied Filter: {metadata_filter}")
 
         try:
             # ส่งคำสั่งค้นหาไปที่ Qdrant
             search_results = await self.client.search(
                 collection_name=self.collection_name,
                 query_vector=query_vector.tolist(),
+                query_filter=qdrant_filter, # Apply Filter here
                 limit=top_k,       # จำนวนผลลัพธ์สูงสุดที่ต้องการ
                 with_payload=True  # ขอข้อมูล payload (เนื้อหา) กลับมาด้วย
             )
             
             logging.info(f"✅ [Qdrant Raw Results] คำค้น '{query_text}' พบ {len(search_results)} ผลลัพธ์ (ก่อน Reranking):")
+            if not search_results and metadata_filter:
+                 logging.warning(f"⚠️ [Qdrant] ไม่พบผลลัพธ์ภายใต้ Filter: {metadata_filter}")
             
             # วนลูปแสดงผลลัพธ์ใน Log เพื่อตรวจสอบความถูกต้อง
             for i, result in enumerate(search_results):
