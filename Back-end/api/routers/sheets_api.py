@@ -123,7 +123,7 @@ async def connect_public_sheet(
     if not success:
         raise HTTPException(
             status_code=400, 
-            detail="เชื่อมต่อไม่สำเร็จ - ตรวจสอบว่า Sheet ถูก Share เป็น 'Anyone with the link' แล้ว"
+            detail="เชื่อมต่อไม่สำเร็จ - ตรวจสอบว่า Sheet ถูกแชร์เป็น 'ทุกคนที่มีลิงก์' แล้ว และ URL ถูกคัดลอกมาครบถ้วน"
         )
     
     # Save config
@@ -144,11 +144,13 @@ async def sync_now(
 ):
     """
     บังคับ sync ทันที (Polling mode manual trigger)
+    รองรับทั้ง Public Mode และ Service Account Mode
     """
     service = get_sheets_service(mongo)
     
-    if not service.spreadsheet:
-        raise HTTPException(status_code=400, detail="ยังไม่ได้เชื่อมต่อ Sheet")
+    # [FIX] Check sheet_id instead of spreadsheet - Public Mode uses sheet_id only
+    if not service.sheet_id:
+        raise HTTPException(status_code=400, detail="ยังไม่ได้เชื่อมต่อ Sheet กรุณาวางลิงก์และกดเชื่อมต่อก่อน")
     
     result = service.full_sync()
     
@@ -207,7 +209,7 @@ async def receive_webhook(
 
 @router.delete("/disconnect", response_model=Dict[str, Any])
 async def disconnect_sheet():
-    """ยกเลิกการเชื่อมต่อ Google Sheet"""
+    """ยกเลิกการเชื่อมต่อ Google Sheet (เก็บข้อมูลไว้)"""
     global _sheets_config
     _sheets_config = {
         "sheet_id": None,
@@ -222,4 +224,46 @@ async def disconnect_sheet():
     service.worksheet = None
     service.sheet_id = None
     
-    return {"success": True, "message": "ยกเลิกการเชื่อมต่อแล้ว"}
+    return {"success": True, "message": "ยกเลิกการเชื่อมต่อแล้ว (ข้อมูลยังคงอยู่)"}
+
+
+@router.delete("/disconnect-and-delete", response_model=Dict[str, Any])
+async def disconnect_and_delete_sheet_data(
+    mongo: MongoDBManager = Depends(get_mongo_manager)
+):
+    """
+    ยกเลิกการเชื่อมต่อ Google Sheet และลบข้อมูลทั้งหมดที่ sync มาจาก Sheet นี้
+    
+    ⚠️ คำเตือน: ข้อมูลที่ลบจะไม่สามารถกู้คืนได้
+    """
+    global _sheets_config
+    
+    service = get_sheets_service(mongo)
+    sheet_id = service.sheet_id
+    
+    if not sheet_id:
+        raise HTTPException(status_code=400, detail="ยังไม่ได้เชื่อมต่อ Sheet ใดๆ")
+    
+    # Delete all data from this sheet
+    deleted_count = mongo.delete_locations_by_sheet_id(sheet_id)
+    
+    # Reset connection
+    _sheets_config = {
+        "sheet_id": None,
+        "sheet_url": None,
+        "auto_sync_enabled": False,
+        "sync_interval_minutes": 5
+    }
+    
+    # Reset service
+    service.spreadsheet = None
+    service.worksheet = None
+    service.sheet_id = None
+    service.sheet_title = None
+    service.connection_mode = None
+    
+    return {
+        "success": True,
+        "message": f"ยกเลิกการเชื่อมต่อและลบข้อมูลทั้งหมด {deleted_count} รายการแล้ว",
+        "deleted_count": deleted_count
+    }

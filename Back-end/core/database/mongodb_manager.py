@@ -161,6 +161,33 @@ class MongoDBManager:
                 print(f"❌ เกิดข้อผิดพลาดในการลบเอกสารด้วย Slug '{slug}': {e}")
                 return 0
         return 0
+    
+    def delete_locations_by_sheet_id(self, sheet_id: str, collection_name: str = "nan_locations") -> int:
+        """
+        ลบข้อมูลทั้งหมดที่ sync มาจาก Sheet ที่ระบุ
+        ใช้สำหรับการยกเลิกการเชื่อมต่อและลบข้อมูลพร้อมกัน
+        
+        Args:
+            sheet_id: ID ของ Google Sheet
+            collection_name: ชื่อ collection
+            
+        Returns:
+            จำนวนเอกสารที่ลบ
+        """
+        collection = self.get_collection(collection_name)
+        if collection is not None:
+            try:
+                # Find documents with matching sheet_id in metadata
+                result = collection.delete_many({
+                    "metadata.sheet_id": sheet_id,
+                    "metadata.synced_from": "google_sheets"
+                })
+                print(f"✅ ลบข้อมูลจาก Sheet '{sheet_id}' จำนวน {result.deleted_count} รายการ")
+                return result.deleted_count
+            except Exception as e:
+                print(f"❌ เกิดข้อผิดพลาดในการลบข้อมูลจาก Sheet '{sheet_id}': {e}")
+                return 0
+        return 0
 
     def log_analytics_event(self, log_data: dict, collection_name: str = "analytics_logs"):
         collection = self.get_collection(collection_name)

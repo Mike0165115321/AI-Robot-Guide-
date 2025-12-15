@@ -10,6 +10,7 @@ import csv
 import json
 import logging
 import requests
+import threading
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from pathlib import Path
@@ -58,6 +59,10 @@ class GoogleSheetsService:
         self.sheet_title: Optional[str] = None  # For public mode where we can't get title
         self.last_sync: Optional[str] = None
         self.connection_mode: Optional[str] = None  # "public", "service_account", "oauth2"
+        
+        # [PRODUCTION] Sync lock to prevent concurrent syncs
+        self._sync_lock = threading.Lock()
+        self._is_syncing = False
         
         # Required columns mapping (Sheet column → DB field)
         self.column_mapping = {
@@ -277,11 +282,11 @@ class GoogleSheetsService:
         """
         เปรียบเทียบข้อมูลจาก Sheet กับ DB เพื่อหา changes
         
-        ⚠️ สำคัญ: จะลบเฉพาะข้อมูลที่ sync มาจาก Google Sheets นี้เท่านั้น
-        ข้อมูลจากแหล่งอื่น (manual entry, bulk import) จะไม่ถูกลบ
+        [PRODUCTION POLICY] ลบข้อมูลไม่ทำใน Sync - ถ้าต้องการลบต้องลบจาก Admin Panel เท่านั้น
+        เพื่อป้องกันการสูญหายของข้อมูลจากการ sync ที่ผิดพลาด
         
         Returns:
-            Dict with keys: to_create, to_update, to_delete
+            Dict with keys: to_create, to_update (no to_delete)
         """
         # Build lookup by slug
         db_by_slug = {doc.get("slug"): doc for doc in db_data if doc.get("slug")}
@@ -295,38 +300,33 @@ class GoogleSheetsService:
         changes = {
             "to_create": [],
             "to_update": [],
-            "to_delete": []
+            # [REMOVED] to_delete - Sync จะไม่ลบข้อมูลอีกต่อไป
         }
         
         # Find new and updated
         for slug, sheet_row in sheet_by_slug.items():
             if slug not in db_by_slug:
-                # New row
+                # New row - add metadata for tracking
+                sheet_row["metadata"] = {
+                    "synced_from": "google_sheets",
+                    "sheet_id": self.sheet_id,
+                    "synced_at": datetime.now().isoformat()
+                }
                 changes["to_create"].append(sheet_row)
             else:
                 # Check if updated (compare key fields)
                 db_row = db_by_slug[slug]
                 if self._has_changes(db_row, sheet_row):
                     sheet_row["_id"] = db_row.get("_id")
+                    # Update sync metadata
+                    sheet_row["metadata"] = db_row.get("metadata", {})
+                    sheet_row["metadata"]["last_synced_at"] = datetime.now().isoformat()
                     changes["to_update"].append(sheet_row)
         
-        # Find deleted - ONLY for records that were synced from THIS Google Sheet
-        # ⚠️ ไม่ลบข้อมูลจากแหล่งอื่น (manual entry, bulk import, etc.)
-        for slug, db_row in db_by_slug.items():
-            if slug not in sheet_by_slug:
-                # Check if this record came from Google Sheets sync
-                metadata = db_row.get("metadata", {})
-                synced_from = metadata.get("synced_from", "")
-                synced_sheet_id = metadata.get("sheet_id", "")
-                
-                # Only delete if it was synced from THIS specific sheet
-                if synced_from == "google_sheets" and synced_sheet_id == self.sheet_id:
-                    changes["to_delete"].append(db_row)
-                    logging.info(f"🗑️ จะลบ (ซิงค์มาจาก sheet นี้): {slug}")
-                else:
-                    logging.debug(f"⏭️ ข้ามการลบ (ไม่ได้มาจาก sheet นี้): {slug}")
+        # [REMOVED] Delete logic - Sync will NEVER delete data
+        # If user wants to delete, they must do it manually from Admin Panel
         
-        logging.info(f"📊 ตรวจพบการเปลี่ยนแปลง - สร้าง: {len(changes['to_create'])}, อัปเดต: {len(changes['to_update'])}, ลบ: {len(changes['to_delete'])}")
+        logging.info(f"📊 ตรวจพบการเปลี่ยนแปลง - สร้างใหม่: {len(changes['to_create'])}, อัปเดต: {len(changes['to_update'])} (ไม่มีการลบ)")
         return changes
     
     def _has_changes(self, db_row: Dict, sheet_row: Dict) -> bool:
@@ -368,53 +368,64 @@ class GoogleSheetsService:
             try:
                 slug = row.get("slug")
                 if slug:
-                    self.mongo.update_location(slug, row)
+                    # [FIX] Use update_location_by_slug instead of update_location
+                    # update_location expects ObjectId, but we have slug from the sheet
+                    self.mongo.update_location_by_slug(slug, row)
                     result.updated += 1
             except Exception as e:
                 result.errors.append(f"Update failed for {row.get('slug')}: {e}")
         
-        # Delete removed
-        for row in changes.get("to_delete", []):
-            try:
-                slug = row.get("slug")
-                if slug:
-                    self.mongo.delete_location_by_slug(slug)
-                    result.deleted += 1
-            except Exception as e:
-                result.errors.append(f"Delete failed for {row.get('slug')}: {e}")
+        # [PRODUCTION] Delete logic REMOVED
+        # Sync will never delete data - users must delete manually from Admin Panel
         
         self.last_sync = result.timestamp
-        logging.info(f"✅ การซิงค์เสร็จสมบูรณ์: {result.to_dict()}")
+        logging.info(f"✅ การซิงค์เสร็จสมบูรณ์: สร้าง {result.created}, อัปเดต {result.updated} (ไม่มีการลบ)")
         return result
     
     def full_sync(self) -> SyncResult:
         """
         ทำ full sync (fetch → detect → apply)
         รองรับทั้ง public และ service_account mode
+        
+        [PRODUCTION] มี sync lock ป้องกันการ sync ซ้อนกัน
         """
-        # Check if connected (either mode)
-        if not self.sheet_id:
+        # [PRODUCTION] Check if sync already in progress
+        if self._is_syncing:
             result = SyncResult()
-            result.errors.append("Not connected to any sheet")
+            result.errors.append("กำลังซิงค์อยู่แล้ว กรุณารอสักครู่")
             return result
         
-        # For service_account mode, also check worksheet
-        if self.connection_mode == "service_account" and not self.worksheet:
-            result = SyncResult()
-            result.errors.append("Not connected to any sheet")
-            return result
-        
-        # Fetch from sheet
-        sheet_data = self.fetch_all_rows()
-        
-        # Fetch from DB
-        db_data = self.mongo.get_all_locations() if self.mongo else []
-        
-        # Detect changes
-        changes = self.detect_changes(sheet_data, db_data)
-        
-        # Apply changes
-        return self.sync_to_mongodb(changes)
+        # Acquire lock
+        with self._sync_lock:
+            self._is_syncing = True
+            try:
+                # Check if connected (either mode)
+                if not self.sheet_id:
+                    result = SyncResult()
+                    result.errors.append("ยังไม่ได้เชื่อมต่อ Sheet")
+                    return result
+                
+                # For service_account mode, also check worksheet
+                if self.connection_mode == "service_account" and not self.worksheet:
+                    result = SyncResult()
+                    result.errors.append("ยังไม่ได้เชื่อมต่อ Sheet")
+                    return result
+                
+                logging.info("🔄 เริ่มการซิงค์ข้อมูล...")
+                
+                # Fetch from sheet
+                sheet_data = self.fetch_all_rows()
+                
+                # Fetch from DB
+                db_data = self.mongo.get_all_locations() if self.mongo else []
+                
+                # Detect changes
+                changes = self.detect_changes(sheet_data, db_data)
+                
+                # Apply changes
+                return self.sync_to_mongodb(changes)
+            finally:
+                self._is_syncing = False
     
     def get_status(self) -> Dict[str, Any]:
         """ดึงสถานะการเชื่อมต่อ"""

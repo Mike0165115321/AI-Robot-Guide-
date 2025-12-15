@@ -25,110 +25,102 @@ function clearSheetsConfig() {
     localStorage.removeItem(SHEETS_STORAGE_KEY);
 }
 
-async function checkSheetsStatus() {
+async function initGoogleSheetsModule() {
+    console.log('📊 Initializing Google Sheets Module...');
+
     try {
         // [V5.5] Also check server capabilities (do we have credentials?)
         checkServerCapabilities();
 
-        const response = await fetch(`${API_BASE_URL}/api/admin/sheets/status`);
-
-        if (!response.ok) {
-            // If checking status fails, assume disconnected and ENABLE inputs
-            console.warn('Sheets status check returned:', response.status);
-            updateSheetsUI({ connected: false });
-            return;
+        // ============================================================
+        // [FIX] STEP 1: Always restore URL from localStorage FIRST!
+        // This ensures URL is never lost, even if API fails
+        // ============================================================
+        const savedConfig = loadSheetsConfig();
+        if (savedConfig && savedConfig.sheet_url) {
+            const urlInput = document.getElementById('sheets-url-input');
+            if (urlInput) {
+                urlInput.value = savedConfig.sheet_url;
+                console.log('📋 Restored URL from localStorage:', savedConfig.sheet_url.substring(0, 50) + '...');
+            }
         }
 
-        const data = await response.json();
+        // ============================================================
+        // STEP 2: Check if backend has active connection
+        // ============================================================
+        const response = await fetch(`${API_BASE_URL}/api/admin/sheets/status`);
 
-        // If connected, update UI
-        if (data.connection && data.connection.connected) {
-            updateSheetsUI(data.connection);
+        if (response.ok) {
+            const data = await response.json();
 
-            // Restore saved mode if exists
-            const savedMode = localStorage.getItem('sheets_sync_mode');
-            if (savedMode) {
-                selectSyncMode(savedMode);
-            }
+            if (data.connection && data.connection.connected) {
+                // Backend says connected - great!
+                console.log('✅ Already connected to backend');
+                updateSheetsUI(data.connection);
 
-        } else {
-            // Not connected - try to auto-reconnect ONLY if we have a saved mode
-            updateSheetsUI({ connected: false });
-
-            const savedConfig = loadSheetsConfig();
-            const savedMode = localStorage.getItem('sheets_sync_mode');
-
-            if (savedConfig && savedConfig.sheet_url && savedMode) {
-                console.log('🔄 Auto-reconnecting to saved Google Sheet (Mode: ' + savedMode + ')...');
-                await autoReconnectSheet(savedConfig.sheet_url);
-                // Also restore the mode UI selection
-                selectSyncMode(savedMode);
-            } else {
-                // User logic: "If not selected mode, withdraw URL"
-                // If we have a saved URL but no Mode, we should probably clear it to avoid "half-state".
-                if (savedConfig && savedConfig.sheet_url) {
-                    console.log('⚠️ No sync mode selected. Clearing saved configuration.');
-                    clearSheetsConfig();
-
-                    // Clear UI input
-                    const urlInput = document.getElementById('sheets-url-input');
-                    if (urlInput) urlInput.value = '';
+                // Restore auto-polling if it was running
+                const wasPollingEnabled = localStorage.getItem('sheets_auto_polling_enabled') === 'true';
+                if (wasPollingEnabled) {
+                    console.log('🔄 Auto-restoring polling state...');
+                    setTimeout(() => startAutoPolling(), 1000);
                 }
+                return; // Done!
             }
+        }
+
+        // ============================================================
+        // STEP 3: Not connected to backend - try auto-reconnect
+        // ============================================================
+        console.log('⚠️ Not connected to backend, attempting auto-reconnect...');
+        updateSheetsUI({ connected: false });
+
+        if (savedConfig && savedConfig.sheet_url) {
+            // Set default mode
+            localStorage.setItem('sheets_sync_mode', 'polling');
+
+            // Try to reconnect
+            await autoReconnectSheet(savedConfig.sheet_url);
+
+            // Restore auto-polling if it was running
+            const wasPollingEnabled = localStorage.getItem('sheets_auto_polling_enabled') === 'true';
+            if (wasPollingEnabled) {
+                console.log('🔄 Auto-restoring polling after reconnect...');
+                setTimeout(() => startAutoPolling(), 2000);
+            }
+        } else {
+            console.log('💡 No saved URL - waiting for user to enter URL');
         }
 
     } catch (error) {
-        console.error('Check sheets status error:', error);
+        console.error('Init error:', error);
         updateSheetsUI({ connected: false });
+
+        // Still restore URL even if there's an error!
+        const savedConfig = loadSheetsConfig();
+        if (savedConfig && savedConfig.sheet_url) {
+            const urlInput = document.getElementById('sheets-url-input');
+            if (urlInput) urlInput.value = savedConfig.sheet_url;
+        }
     }
 }
 
 async function checkServerCapabilities() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/sheets/check-availability`);
-        if (response.ok) {
-            const data = await response.json();
-            const sheetsInfoBlock = document.querySelector('.sheets-sync-card'); // Parent card
-
-            // Remove existing alert if any
-            const existingAlert = document.getElementById('sheets-capability-alert');
-            if (existingAlert) existingAlert.remove();
-
-            if (!data.has_credentials) {
-                // Show warning that we are in Public Mode only
-                const alertDiv = document.createElement('div');
-                alertDiv.id = 'sheets-capability-alert';
-                alertDiv.style.cssText = `
-                    background: rgba(251, 191, 36, 0.1); 
-                    border: 1px solid rgba(251, 191, 36, 0.5); 
-                    color: #fbbf24; 
-                    padding: 10px; 
-                    border-radius: 6px; 
-                    margin-bottom: 15px; 
-                    font-size: 0.9em;
-                `;
-                alertDiv.innerHTML = `
-                    <strong>⚠️ Server Running in Public Mode</strong><br>
-                    Server ไม่พบไฟล์ Credentials (API Key).<br>
-                    ระบบจะทำงานใน <strong>Public Mode</strong> เท่านั้น (รองรับเฉพาะ Sheet ที่ Share แบบ "Anyone with the link")
-                `;
-
-                // Insert after the header
-                const header = sheetsInfoBlock.querySelector('h3');
-                if (header) {
-                    header.parentNode.insertBefore(alertDiv, header.nextSibling);
-                }
-            }
-        }
-    } catch (e) {
-        console.warn('Failed to check capabilities:', e);
-    }
+    // [REMOVED] Developer warning removed - not needed for regular users
+    // ผู้ใช้ทั่วไปไม่จำเป็นต้องเห็น warning เรื่อง Public Mode
+    console.log('🔍 ตรวจสอบ: ระบบทำงานในโหมด Public (ไม่ต้องใช้ credentials)');
 }
 
 // Auto-reconnect without alert
 async function autoReconnectSheet(sheetUrl) {
+    // [FIX] Always restore URL to input field first - don't lose it!
+    const urlInput = document.getElementById('sheets-url-input');
+    if (urlInput) urlInput.value = sheetUrl;
+
     try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/sheets/connect`, {
+        console.log('🔄 Attempting auto-reconnect to:', sheetUrl);
+
+        // [FIX] Use connect-public endpoint for Public Mode
+        const response = await fetch(`${API_BASE_URL}/api/admin/sheets/connect-public`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sheet_url: sheetUrl })
@@ -139,13 +131,17 @@ async function autoReconnectSheet(sheetUrl) {
         if (response.ok && data.success) {
             console.log('✅ Auto-reconnected to:', data.status.sheet_title);
             updateSheetsUI(data.status);
-            document.getElementById('sheets-url-input').value = sheetUrl;
         } else {
-            console.log('❌ Auto-reconnect failed, clearing saved config');
-            clearSheetsConfig();
+            // [FIX] Don't clear config on failure - keep URL so user can retry
+            console.warn('⚠️ Auto-reconnect failed:', data.detail || 'Unknown error');
+            console.log('💡 URL preserved in input field - user can click "เชื่อมต่อ" to retry');
+            // Just update UI to show disconnected, but keep URL in input
+            updateSheetsUI({ connected: false });
         }
     } catch (error) {
-        console.log('Auto-reconnect error:', error);
+        console.error('Auto-reconnect error:', error.message);
+        // [FIX] Still show URL so user knows what we tried
+        updateSheetsUI({ connected: false });
     }
 }
 
@@ -183,6 +179,13 @@ function updateSheetsUI(status) {
         disconnectBtn.style.display = 'inline-block';
         disconnectBtn.disabled = false;
 
+        // Show delete button when connected
+        const deleteBtn = document.getElementById('sheets-disconnect-delete-btn');
+        if (deleteBtn) {
+            deleteBtn.style.display = 'inline-block';
+            deleteBtn.disabled = false;
+        }
+
         // Disable URL input
         urlInput.disabled = true;
         connectBtn.disabled = true;
@@ -196,18 +199,28 @@ function updateSheetsUI(status) {
         statusText.textContent = 'ยังไม่ได้เชื่อมต่อ';
         sheetsInfo.style.display = 'none';
 
-        // Hide sync/disconnect buttons when not connected
+        // Hide sync/disconnect/delete buttons when not connected
         syncBtn.style.display = 'none';
         disconnectBtn.style.display = 'none';
 
-        // Enable URL input
-        urlInput.disabled = false;
-        connectBtn.disabled = false;
-        connectBtn.style.display = 'inline-block'; // Show connect button
-        connectBtn.textContent = '🔌 เชื่อมต่อ';
+        // Hide delete button when disconnected
+        const deleteBtn = document.getElementById('sheets-disconnect-delete-btn');
+        if (deleteBtn) {
+            deleteBtn.style.display = 'none';
+        }
 
-        // Also hide mode selection when disconnected
-        if (modeSelection) modeSelection.style.display = 'none';
+        // Enable URL input and show connect button
+        if (urlInput) urlInput.disabled = false;
+        if (connectBtn) {
+            connectBtn.disabled = false;
+            connectBtn.style.display = 'inline-block'; // Show connect button
+            connectBtn.textContent = '🔗 เชื่อมต่อ';
+        }
+
+        // Mode selection is no longer shown - we only use polling mode
+        // Keep modeSelection for JS compatibility but it's hidden in HTML
+
+        // URL section should always be visible (no mode selection step needed)
     }
 }
 
@@ -225,7 +238,9 @@ async function connectGoogleSheet() {
     connectBtn.textContent = '⏳ กำลังเชื่อมต่อ...';
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/sheets/connect`, {
+        // [FIX] Use connect-public endpoint directly for Public Mode Polling
+        // This avoids Service Account fallback errors and works without credentials
+        const response = await fetch(`${API_BASE_URL}/api/admin/sheets/connect-public`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sheet_url: url })
@@ -237,19 +252,25 @@ async function connectGoogleSheet() {
             // Save config to localStorage for persistence
             saveSheetsConfig({ sheet_url: url, sheet_id: data.status.sheet_id });
 
-            alert('✅ ' + data.message);
+            // [SIMPLIFIED] Auto-set polling mode (no more mode selection UI)
+            selectedSyncMode = 'polling';
+            localStorage.setItem('sheets_sync_mode', 'polling');
+
+            alert('✅ เชื่อมต่อสำเร็จ! ระบบจะซิงค์ข้อมูลทุก 5 นาทีโดยอัตโนมัติ');
             updateSheetsUI(data.status);
 
-            // Show mode selection after FIRST connect (manual connect)
-            showModeSelection();
+            // Auto-start polling after connect
+            setTimeout(() => {
+                startAutoPolling();
+            }, 500);
         } else {
-            alert('❌ ' + (data.detail || 'เชื่อมต่อไม่สำเร็จ'));
+            alert('❌ เชื่อมต่อไม่สำเร็จ!\n\n' + (data.detail || 'ตรวจสอบว่า:\n1. Sheet ถูกแชร์เป็น "ทุกคนที่มีลิงก์" แล้ว\n2. URL ถูกคัดลอกมาครบถ้วน'));
         }
     } catch (error) {
         alert('❌ เกิดข้อผิดพลาด: ' + error.message);
     } finally {
         connectBtn.disabled = false;
-        connectBtn.textContent = '🔌 เชื่อมต่อ';
+        connectBtn.textContent = '🔗 เชื่อมต่อ';
     }
 }
 
@@ -303,7 +324,7 @@ async function syncGoogleSheet() {
 }
 
 async function disconnectGoogleSheet() {
-    if (!confirm('ยืนยันยกเลิกการเชื่อมต่อ Google Sheet?')) return;
+    if (!confirm('ยืนยันยกเลิกการเชื่อมต่อ Google Sheet?\n\n(ข้อมูลที่ซิงค์มาจะยังคงอยู่ในฐานข้อมูล)')) return;
 
     stopAutoPolling();
 
@@ -316,11 +337,45 @@ async function disconnectGoogleSheet() {
             // Clear saved config from localStorage
             clearSheetsConfig();
 
-            alert('✅ ยกเลิกการเชื่อมต่อแล้ว');
+            alert('✅ ยกเลิกการเชื่อมต่อแล้ว (ข้อมูลยังคงอยู่)');
             updateSheetsUI({ connected: false });
             document.getElementById('sheets-url-input').value = '';
             document.getElementById('sheets-sync-result').style.display = 'none';
-            document.getElementById('sheets-mode-selection').style.display = 'none';
+        }
+    } catch (error) {
+        alert('❌ เกิดข้อผิดพลาด: ' + error.message);
+    }
+}
+
+async function disconnectAndDeleteGoogleSheet() {
+    // Double confirmation for destructive action
+    if (!confirm('⚠️ คำเตือน: การดำเนินการนี้จะลบข้อมูลทั้งหมดที่ซิงค์มาจาก Sheet นี้!\n\nคุณแน่ใจหรือไม่?')) return;
+    if (!confirm('⚠️ ยืนยันอีกครั้ง: ข้อมูลที่ลบจะไม่สามารถกู้คืนได้!\n\nกด OK เพื่อยืนยันการลบ')) return;
+
+    stopAutoPolling();
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/sheets/disconnect-and-delete`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // Clear saved config from localStorage
+            clearSheetsConfig();
+
+            alert(`✅ ${data.message}`);
+            updateSheetsUI({ connected: false });
+            document.getElementById('sheets-url-input').value = '';
+            document.getElementById('sheets-sync-result').style.display = 'none';
+
+            // Refresh the location list
+            if (typeof fetchAndDisplayLocations === 'function') {
+                fetchAndDisplayLocations();
+            }
+        } else {
+            alert('❌ ' + (data.detail || 'เกิดข้อผิดพลาด'));
         }
     } catch (error) {
         alert('❌ เกิดข้อผิดพลาด: ' + error.message);
@@ -355,12 +410,24 @@ function selectSyncMode(mode) {
     const startPollingBtn = document.getElementById('sheets-start-polling-btn');
     const stopPollingBtn = document.getElementById('sheets-stop-polling-btn');
     const sheetsMode = document.getElementById('sheets-mode');
+    const urlSection = document.getElementById('sheets-url-section');
+    const connectBtn = document.getElementById('sheets-connect-btn');
 
     // Reset styles
     pollingCard.style.borderWidth = '2px';
     webhookCard.style.borderWidth = '2px';
     pollingCard.style.transform = 'scale(1)';
     webhookCard.style.transform = 'scale(1)';
+
+    // Show URL section after selecting mode
+    if (urlSection) {
+        urlSection.style.display = 'block';
+    }
+
+    // Reset connect button text
+    if (connectBtn) {
+        connectBtn.textContent = '🔗 เชื่อมต่อ';
+    }
 
     if (mode === 'polling') {
         pollingCard.style.borderWidth = '3px';
@@ -373,23 +440,24 @@ function selectSyncMode(mode) {
 
         instructionsDiv.style.display = 'block';
         instructionsDiv.innerHTML = `
-            <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">✅ เตรียมความพร้อมสำหรับ Auto Polling</div>
+            <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">✅ พร้อมใช้งาน Auto Polling แล้ว!</div>
             <div style="font-size: 0.85rem; color: var(--text-light); line-height: 1.6;">
-                <p style="margin-bottom: 5px;"><strong>ขั้นตอนที่ 1: ตั้งค่าการแชร์ (สำคัญ!)</strong></p>
+                <p style="margin-bottom: 5px;"><strong>📋 เช็คก่อนเริ่ม:</strong></p>
                 <ul style="margin-top: 0; padding-left: 20px; color: #ccc;">
-                    <li>เปิด Google Sheet ของคุณ</li>
-                    <li>กดปุ่ม <strong>Share (แชร์)</strong> มุมขวาบน</li>
-                    <li>เลือก <strong>General access</strong> เป็น <strong>"Anyone with the link"</strong></li>
-                    <li>(ถ้าเกิดไม่เจอ)</li>
-                    <li>เลือก <strong>การเข้าถึงทั่วไป</strong> เป็น <strong>"เอดิเตอร์"</strong></li>
-                    <li>(หรือถ้าใช้ Service Account ให้แชร์ email ให้เรียบร้อย)</li>
+                    <li>✅ ตรวจสอบว่า Sheet ถูกแชร์เป็น <strong>"ทุกคนที่มีลิงก์"</strong> แล้ว</li>
+                    <li>✅ คัดลอก URL <strong>ทั้งหมด</strong> จาก Address Bar ของเบราว์เซอร์</li>
+                    <li>✅ URL ต้องมีลักษณะแบบนี้: <code>https://docs.google.com/spreadsheets/d/...</code></li>
                 </ul>
 
-                <p style="margin-bottom: 5px; margin-top: 10px;"><strong>ขั้นตอนที่ 2: เริ่มการทำงาน</strong></p>
+                <p style="margin-bottom: 5px; margin-top: 10px;"><strong>▶️ วิธีเริ่มใช้งาน:</strong></p>
                 <ul style="margin-top: 0; padding-left: 20px; color: #ccc;">
                      <li>กดปุ่ม <strong>"▶️ เริ่ม Auto Sync"</strong> ด้านล่าง</li>
-                     <li>ระบบจะดึงข้อมูลใหม่ทุกๆ <strong>5 นาที</strong> โดยอัตโนมัติ</li>
+                     <li>ระบบจะดึงข้อมูลใหม่จาก Sheet <strong>ทุกๆ 5 นาที</strong> โดยอัตโนมัติ</li>
                 </ul>
+                
+                <div style="background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); padding: 8px; border-radius: 4px; margin-top: 10px; color: #fbbf24; font-size: 0.8rem;">
+                    ⚠️ <strong>ถ้าเชื่อมต่อไม่ได้:</strong> ลองคัดลอก URL ใหม่อีกครั้ง และตรวจสอบว่า URL ไม่ถูกตัดทอน
+                </div>
             </div>
         `;
     } else if (mode === 'webhook') {
@@ -508,6 +576,9 @@ function startAutoPolling() {
     stopBtn.disabled = false;
     sheetsMode.textContent = '🔄 Auto Polling (กำลังทำงาน...)';
 
+    // [NEW] Save polling state to localStorage for persistence across refresh
+    localStorage.setItem('sheets_auto_polling_enabled', 'true');
+
     // Sync immediately
     syncGoogleSheet();
 
@@ -531,7 +602,10 @@ function stopAutoPolling() {
 
         if (startBtn) startBtn.style.display = 'inline-block';
         if (stopBtn) stopBtn.style.display = 'none';
-        if (sheetsMode) sheetsMode.textContent = ' Auto Polling (หยุดแล้ว)';
+        if (sheetsMode) sheetsMode.textContent = '🔄 Auto Polling (หยุดแล้ว)';
+
+        // [NEW] Clear polling state from localStorage
+        localStorage.removeItem('sheets_auto_polling_enabled');
 
         console.log('⏹️ Auto polling stopped');
     }

@@ -47,11 +47,11 @@
         </div>
 
         <!-- Google Sheets Sync Section -->
-        <div class="form-container"
+        <div class="form-container sheets-sync-card"
             style="margin-top: 2rem; background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(16,185,129,0.05)); border: 1px solid rgba(34,197,94,0.3);">
-            <h2 style="color: #22c55e;"><i class="fa-solid fa-table"></i> 🔗 Google Sheets Sync</h2>
+            <h3 style="color: #22c55e; margin-bottom: 0.5rem;">🔗 Google Sheets Sync</h3>
             <p style="margin-bottom: 1rem; color: var(--text-light);">
-                Sync ข้อมูลจาก Google Sheets เข้าสู่ฐานข้อมูลน้องน่านอัตโนมัติ
+                ซิงค์ข้อมูลจาก Google Sheets เข้าสู่ฐานข้อมูลน้องน่านอัตโนมัติ
             </p>
 
             <!-- Connection Status -->
@@ -65,75 +65,35 @@
                 </div>
                 <div id="sheets-info" style="font-size: 0.85rem; color: #888; display: none;">
                     <div>📊 Sheet: <span id="sheets-title">-</span></div>
-                    <div>🕐 Sync ล่าสุด: <span id="sheets-last-sync">-</span></div>
+                    <div>🕐 ซิงค์ล่าสุด: <span id="sheets-last-sync">-</span></div>
                     <div>⚙️ โหมด: <span id="sheets-mode">-</span></div>
                 </div>
             </div>
 
-            <!-- Connect Section -->
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <input type="text" id="sheets-url-input" placeholder="วาง Google Sheets URL ที่นี่..."
-                    style="flex: 1; min-width: 300px; padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: white;">
-                <button id="sheets-connect-btn" class="btn btn-cta" onclick="connectGoogleSheet()"
-                    style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #22c55e, #16a34a);">
-                    🔌 เชื่อมต่อ
-                </button>
-            </div>
-
-            <!-- Sync Mode Selection -->
-            <div id="sheets-mode-selection" style="margin-top: 1.5rem; display: none;">
-                <h3 style="color: var(--text-light); margin-bottom: 1rem;">⚙️ เลือกโหมด Sync</h3>
-
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
-                    <!-- Polling Mode Card -->
-                    <div id="mode-polling-card" onclick="selectSyncMode('polling')"
-                        style="padding: 1.25rem; background: rgba(102,126,234,0.1); border: 2px solid rgba(102,126,234,0.3); border-radius: 12px; cursor: pointer; transition: all 0.3s;">
-                        <div
-                            style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem; flex-wrap: wrap;">
-                            <span style="font-size: 1.5rem;">🔄</span>
-                            <strong style="color: #667eea;">Auto Polling</strong>
-                            <span
-                                style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem;">แนะนำ</span>
-                            <span
-                                style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem;">ทำง่าย</span>
-                        </div>
-                        <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 0.75rem;">
-                            ระบบจะตรวจสอบ Google Sheet <strong>ทุก 5 นาที</strong> และ sync อัตโนมัติ
-                        </p>
-                        <div style="font-size: 0.8rem; color: #888;">
-                            ✅ ง่าย ไม่ต้อง setup เพิ่ม<br>
-                            ✅ ทำงานได้แม้เป็น localhost<br>
-                            ⏱️ อาจมี delay สูงสุด 5 นาที
-                        </div>
-                    </div>
-
-                    <!-- Webhook Mode Card -->
-                    <div id="mode-webhook-card" onclick="selectSyncMode('webhook')"
-                        style="padding: 1.25rem; background: rgba(251,191,36,0.1); border: 2px solid rgba(251,191,36,0.3); border-radius: 12px; cursor: pointer; transition: all 0.3s;">
-                        <div
-                            style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem; flex-wrap: wrap;">
-                            <span style="font-size: 1.5rem;">⚡</span>
-                            <strong style="color: #fbbf24;">Webhook (Real-time)</strong>
-                            <span
-                                style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem;">ซับซ้อน
-                                ไม่เหมาะกับผู้ใช้ทั่วไป</span>
-                        </div>
-                        <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 0.75rem;">
-                            แก้ไขใน Google Sheet → อัพเดทใน DB <strong>ทันที</strong>
-                        </p>
-                        <div style="font-size: 0.8rem; color: #888;">
-                            ⚡ Real-time ไม่มี delay<br>
-                            ⚠️ ต้อง deploy หรือใช้ ngrok<br>
-                            ⚠️ ต้อง setup Google Apps Script
-                        </div>
-                    </div>
+            <!-- Simplified: Direct URL Input (No mode selection needed) -->
+            <div id="sheets-url-section" style="margin-top: 1rem;">
+                <h4 style="color: var(--text-light); margin-bottom: 0.75rem;">📋 วางลิงก์ Google Sheet ของคุณ</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <input type="text" id="sheets-url-input"
+                        placeholder="วางลิงก์ที่นี่... (จาก Address Bar ของ Browser)"
+                        style="flex: 1; min-width: 300px; padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: white;">
+                    <button id="sheets-connect-btn" class="btn btn-cta" onclick="connectGoogleSheet()"
+                        style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #22c55e, #16a34a);">
+                        🔗 เชื่อมต่อ
+                    </button>
                 </div>
-
-                <!-- Mode Instructions -->
-                <div id="mode-instructions"
-                    style="display: none; margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                <div
+                    style="margin-top: 0.75rem; font-size: 0.8rem; color: #888; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                    <strong>📌 วิธีใช้:</strong><br>
+                    1. เปิด Google Sheet ของคุณ และกด <strong>Share → ทุกคนที่มีลิงก์</strong><br>
+                    2. คัดลอก URL จาก <strong>Address Bar</strong> ของ Browser (ไม่ใช่จากปุ่ม "คัดลอกลิงก์")<br>
+                    3. วาง URL ในช่องด้านบน แล้วกด <strong>เชื่อมต่อ</strong>
                 </div>
             </div>
+
+            <!-- Hidden: Mode selection (no longer shown, only polling mode is used) -->
+            <div id="sheets-mode-selection" style="display: none;"></div>
+            <div id="mode-instructions" style="display: none;"></div>
 
             <!-- Action Buttons -->
             <div style="margin-top: 1rem; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -151,8 +111,15 @@
                     ⏹️ หยุด Auto Sync
                 </button>
                 <button id="sheets-disconnect-btn" class="btn" onclick="disconnectGoogleSheet()" disabled
-                    style="padding: 0.75rem 1.5rem; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); color: #ef4444;">
+                    style="padding: 0.75rem 1.5rem; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); color: #ef4444;"
+                    title="ยกเลิกเชื่อมต่อ แต่เก็บข้อมูลไว้">
                     ❌ ยกเลิกเชื่อมต่อ
+                </button>
+                <button id="sheets-disconnect-delete-btn" class="btn" onclick="disconnectAndDeleteGoogleSheet()"
+                    disabled
+                    style="display: none; padding: 0.75rem 1.5rem; background: rgba(220,38,38,0.3); border: 1px solid rgba(220,38,38,0.7); color: #dc2626;"
+                    title="⚠️ ยกเลิกและลบข้อมูลทั้งหมดที่ซิงค์มา">
+                    🗑️ ลบข้อมูลทั้งหมด
                 </button>
             </div>
 

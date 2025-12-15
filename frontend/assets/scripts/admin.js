@@ -718,7 +718,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Check Google Sheets status on load
-    checkSheetsStatus();
+    initGoogleSheetsModule();
 });
 
 // ==========================================================
