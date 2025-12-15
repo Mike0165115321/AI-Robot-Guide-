@@ -1,6 +1,6 @@
 /**
  * Shared Utils for AI Guide Nan
- * v1.0.0
+ * v2.0.0 - Simplified with API-driven image URLs
  */
 
 // Global constant for placeholder image
@@ -9,70 +9,48 @@ const PLACEHOLDER_IMG = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2210
 const DYNAMIC_PLACEHOLDER_BASE = 'https://placehold.co/600x400/1e293b/94a3b8?text=';
 
 /**
- * Robustly determines the primary and secondary image URLs for a location item.
- * Mirrors the logic used in Admin Panel.
+ * ดึง URL รูปภาพสำหรับ location item
+ * v2.0 - ใช้ image_urls จาก API เป็นหลัก (Exact Match จาก Backend)
  * 
- * @param {Object} item - The location object (from API).
- * @param {string} apiBaseUrl - Base URL of the API (optional, defaults to empty or global API_BASE_URL if available).
- * @returns {Object} { primaryUrl, secondaryUrl, imgOnError }
+ * @param {Object} item - Location object จาก API
+ * @param {string} apiBaseUrl - Base URL ของ API
+ * @returns {Object} { primaryUrl, placeholder, imgOnError }
  */
 function getLocationImages(item, apiBaseUrl = '') {
-    // If apiBaseUrl is not passed, try to use global variable if it exists
+    // ใช้ global API_BASE_URL ถ้าไม่ได้ส่งมา
     if (!apiBaseUrl && typeof API_BASE_URL !== 'undefined') {
         apiBaseUrl = API_BASE_URL;
     }
 
-    // Default Placeholder
+    // สร้าง placeholder พร้อมชื่อสถานที่
     let placeholder = PLACEHOLDER_IMG;
     if (item.title) {
         placeholder = DYNAMIC_PLACEHOLDER_BASE + encodeURIComponent(item.title);
     }
 
     let primaryUrl = placeholder;
-    let secondaryUrl = null;
 
-    // 0. Priority: Preview Image URL (if exists)
+    // 1. ลำดับแรก: preview_image_url (จาก Admin API)
     if (item.preview_image_url) {
-        primaryUrl = `${apiBaseUrl}${item.preview_image_url}`;
+        primaryUrl = item.preview_image_url.startsWith('/')
+            ? `${apiBaseUrl}${item.preview_image_url}`
+            : item.preview_image_url;
     }
-    // 0. Priority: Backend Provided Image URLs (Array)
+    // 2. ลำดับสอง: image_urls[] จาก API (Exact Match จาก Backend)
     else if (item.image_urls && item.image_urls.length > 0) {
         primaryUrl = item.image_urls[0];
-        // Ensure relative paths from backend are prefixed
         if (primaryUrl.startsWith('/')) {
             primaryUrl = `${apiBaseUrl}${primaryUrl}`;
         }
     }
-    else {
-        // 1. Try Image Prefix Metadata
-        if (item.metadata && item.metadata.image_prefix) {
-            let prefixName = item.metadata.image_prefix.trim().replace(/\s+/g, '-').replace(/-+$/, '');
-            primaryUrl = `${apiBaseUrl}/static/images/${prefixName}-01.jpg`;
-        }
+    // 3. ไม่มีรูป → แสดง placeholder (ไม่เดา URL อีกต่อไป)
 
-        // 2. Prepare Slug Fallback
-        if (item.slug) {
-            let slugName = item.slug.trim().replace(/\s+/g, '-').replace(/-+$/, '');
-            let slugUrl = `${apiBaseUrl}/static/images/${slugName}-01.jpg`;
-
-            if (primaryUrl === placeholder) {
-                primaryUrl = slugUrl; // No prefix found, so slug is primary
-            } else if (primaryUrl !== slugUrl) {
-                secondaryUrl = slugUrl; // Prefix exists, so slug is secondary fallback
-            }
-        }
-    }
-
-    let imgOnError = `this.onerror=null; this.src='${placeholder}';`;
-
-    if (secondaryUrl) {
-        imgOnError = `if (!this.dataset.triedSlug) { this.dataset.triedSlug=true; this.src='${secondaryUrl}'; } else { this.src='${placeholder}'; }`;
-    }
+    // onError handler: ถ้าโหลดไม่ได้ ให้แสดง placeholder
+    const imgOnError = `this.onerror=null; this.src='${placeholder}';`;
 
     return {
         primaryUrl,
-        secondaryUrl, // Useful if consumer wants to know
         placeholder,
-        imgOnError // Ready-to-use string for onError attribute
+        imgOnError
     };
 }

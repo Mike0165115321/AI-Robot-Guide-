@@ -15,6 +15,7 @@ from core.database.qdrant_manager import QdrantManager
 from core.document_processor import DocumentProcessor
 from ..dependencies import get_mongo_manager, get_qdrant_manager, get_analytics_service
 from core.services.analytics_service import AnalyticsService
+from core.services.image_sync_service import ImageSyncService
 
 router = APIRouter(tags=["Admin"])
 
@@ -76,6 +77,32 @@ async def upload_location_image(
     except Exception as e:
         logging.error(f"❌ เกิดข้อผิดพลาดในการอัปโหลดรูปภาพสำหรับ prefix '{image_prefix}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Could not upload image: {e}")
+
+
+@router.post("/sync-images", tags=["Admin :: Image Sync"])
+async def sync_images(
+    db: MongoDBManager = Depends(get_mongo_manager)
+):
+    """
+    🔄 สแกนไฟล์รูปภาพจาก /static/images/ และซิงค์ข้อมูลลง MongoDB
+    
+    ใช้เมื่อ:
+    - เพิ่มรูปภาพใหม่ลงโฟลเดอร์
+    - ต้องการ refresh cache
+    - ตรวจสอบว่ารูปภาพทั้งหมดถูกบันทึกในฐานข้อมูล
+    
+    Returns:
+        สรุปผลการ sync (จำนวนรูป prefix ที่พบ และบันทึก)
+    """
+    try:
+        sync_service = ImageSyncService(db)
+        result = await asyncio.to_thread(sync_service.sync_images)
+        logging.info(f"✅ [API] Image Sync สำเร็จ: {result}")
+        return result
+    except Exception as e:
+        logging.error(f"❌ เกิดข้อผิดพลาดในการซิงค์รูปภาพ: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Image sync failed: {e}")
+
 
 @router.get("/analytics/dashboard", tags=["Admin :: Analytics"])
 async def get_analytics_dashboard(

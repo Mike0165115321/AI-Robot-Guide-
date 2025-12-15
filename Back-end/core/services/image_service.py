@@ -1,3 +1,7 @@
+"""
+Image Sync Service - สแกนไฟล์รูปภาพจาก static/images/ และบันทึกลง MongoDB
+ใช้ Exact Match เท่านั้น เพื่อป้องกันการแสดงภาพผิด
+"""
 import logging
 import random
 import re
@@ -6,6 +10,7 @@ from typing import List, Dict, Optional
 from core.database.mongodb_manager import MongoDBManager
 from core.config import settings
 from core.tools.image_search_tool import image_search_tool_instance
+from core.services.image_sync_service import ImageSyncService
 
 class ImageService:
     def __init__(self, mongo_manager: MongoDBManager):
@@ -14,8 +19,20 @@ class ImageService:
         self.prefixed_image_map: Dict[str, List[str]] = {}
         self.all_image_files: List[str] = []
         
-        # Load cache on init
+        # Initialize sync service and run sync at startup
+        self.sync_service = ImageSyncService(mongo_manager)
+        self._run_initial_sync()
+        
+        # Load cache after sync
         self.refresh_cache()
+
+    def _run_initial_sync(self):
+        """สแกนและซิงค์รูปภาพตอน startup"""
+        try:
+            result = self.sync_service.sync_images()
+            logging.info(f"✅ [ImageService] Startup sync สำเร็จ: {result['total_images']} รูป")
+        except Exception as e:
+            logging.warning(f"⚠️ [ImageService] Startup sync ล้มเหลว: {e}")
 
     def refresh_cache(self):
         """Loads all image metadata from MongoDB into memory."""
@@ -43,74 +60,59 @@ class ImageService:
             logging.error(f"❌ ImageService: เกิดข้อผิดพลาดในการรีเฟรช cache: {e}")
 
     def find_all_images_by_prefix(self, prefix: str) -> List[str]:
-        if not prefix: return []
-        # Try cache first
+        """ค้นหารูปภาพตาม prefix (Exact Match เท่านั้น)"""
+        if not prefix: 
+            return []
+        
+        # Exact match from cache
         cached_files = self.prefixed_image_map.get(prefix, [])
         if cached_files:
             matching_files = list(cached_files)
-            random.shuffle(matching_files)
+            matching_files.sort()  # Sort instead of shuffle for consistency
             return matching_files
         
-        # Fallback to DB query if not in cache (though cache should have everything)
-        # This might happen if new images are added without refresh
-        try:
-            docs = list(self.collection.find({"prefix": prefix}))
-            urls = [d["url"] for d in docs if "url" in d]
-            random.shuffle(urls)
-            return urls
-        except Exception:
-            return []
+        return []
 
     def get_location_images(self, doc: Dict[str, any]) -> List[str]:
         """
-        Determines the best image URLs for a location document.
-        Mirrors logic in frontend utils.js (Prefix -> Slug)
-        With fuzzy matching for partial prefix matches.
+        Exact Match เท่านั้น - ไม่ใช้ fuzzy matching
+        ลำดับการค้นหา:
+        1. image_prefix จาก metadata
+        2. slug + "-" เป็น prefix
+        ถ้าไม่เจอ คืนค่า [] (แสดง placeholder)
         """
-        # 1. Try Image Prefix (exact match)
+        # 1. Try Image Prefix from metadata (exact match)
         prefix = doc.get("metadata", {}).get("image_prefix")
-        imgs = self.find_all_images_by_prefix(prefix)
-        if imgs:
-            return imgs
+        if prefix:
+            imgs = self.find_all_images_by_prefix(prefix)
+            if imgs:
+                return imgs
             
-        # 2. Fallback: Try using slug as prefix
+        # 2. Try slug as prefix (exact match)
         slug = doc.get("slug")
         if slug:
             slug_prefix = slug + "-"
             imgs = self.find_all_images_by_prefix(slug_prefix)
             if imgs:
                 return imgs
-            
-            # 3. Fuzzy match: look for any prefix STARTING with slug
-            for cached_prefix in self.prefixed_image_map.keys():
-                if cached_prefix.startswith(slug + "-"):
-                    return self.prefixed_image_map[cached_prefix]
-            
-            # 4. ✅ NEW: Static file fallback - check if physical file exists
-            import os
-            static_path = os.path.join(os.path.dirname(__file__), "..", "..", "static", "images")
-            static_path = os.path.abspath(static_path)
-            
-            for i in range(1, 6):  # Check up to 5 images
-                filename = f"{slug}-0{i}.jpg"
-                full_path = os.path.join(static_path, filename)
-                if os.path.exists(full_path):
-                    # Return static URL if file exists
-                    return [f"/static/images/{filename}"]
-                    
+        
+        # ไม่พบรูป - คืนค่าว่างให้ frontend แสดง placeholder
         return []
 
     def find_random_image(self) -> str | None:
-        if not self.all_image_files: return None
+        if not self.all_image_files: 
+            return None
         return random.choice(self.all_image_files)
 
     def construct_full_image_url(self, image_path: str | None) -> str | None:
-        if not image_path: return None
+        if not image_path: 
+            return None
         if image_path.startswith(('http://', 'https://')):
             return image_path
         if image_path.startswith('/'):
             return f"http://{settings.API_HOST}:{settings.API_PORT}{image_path}"
         return image_path
+
 
     async def inject_images_into_text(self, text: str) -> str:
         if not text: return ""
