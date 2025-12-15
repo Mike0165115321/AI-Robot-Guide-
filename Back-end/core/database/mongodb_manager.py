@@ -277,16 +277,39 @@ class MongoDBManager:
 
             # 6. นับจำนวนข้อความทั้งหมดในช่วงเวลา (นับจาก analytics_logs)
             total_count = collection.count_documents({"timestamp": {"$gte": cutoff_date}})
-
-            # Execute Pipelines (สั่งประมวลผล)
-            origins = list(collection.aggregate(origin_pipeline))
-            provinces = list(collection.aggregate(province_pipeline))
-            interests = list(collection.aggregate(interest_pipeline))
-            locations = list(collection.aggregate(location_pipeline))
+            # 5. [NEW] Pipeline for Feedback (Like/Dislike)
+            feedback_pipeline = [
+                match_stage,
+                {"$group": {"_id": "$feedback_type", "count": {"$sum": 1}}}
+            ]
+            
+            # Execute Pipelines in Parallel (conceptually, sequential here)
+            origin_stats = list(collection.aggregate(origin_pipeline))
+            province_stats = list(collection.aggregate(province_pipeline))
+            interest_stats = list(collection.aggregate(interest_pipeline))
+            
+            # Location Stats (Top questioned locations) - ใช้ pipeline เดียวกับ interest แต่เปลี่ยน field
+            location_pipeline = [
+                match_stage,
+                {"$match": {"location_title": {"$ne": None}}},
+                {"$group": {"_id": "$location_title", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}},
+                {"$limit": 10}
+            ]
+            location_stats = list(collection.aggregate(location_pipeline))
+            
+            # Count total
+            total_conversations = collection.count_documents(match_stage["$match"])
+            
+            # Execute Feedback Pipeline
+            feedback_collection = self.get_collection("feedback_logs")
+            feedback_stats = []
+            if feedback_collection is not None:
+                feedback_stats = list(feedback_collection.aggregate(feedback_pipeline))
             
             # Default sample data for province if empty (ยังไม่มีการเก็บข้อมูล)
-            if not provinces:
-                provinces = [
+            if not province_stats:
+                province_stats = [
                     {"_id": "กรุงเทพมหานคร", "count": 0},
                     {"_id": "เชียงใหม่", "count": 0},
                     {"_id": "น่าน", "count": 0},
@@ -295,13 +318,14 @@ class MongoDBManager:
                 ]
 
             return {
-                "origin_stats": origins,
-                "province_stats": provinces,
-                "interest_stats": interests,
-                "location_stats": locations,  # 🆕 สถานที่ยอดฮิต
-                "total_conversations": total_count
+                "origin_stats": origin_stats,
+                "province_stats": province_stats,
+                "interest_stats": interest_stats,
+                "location_stats": location_stats,
+                "total_conversations": total_conversations,
+                "feedback_stats": feedback_stats  # Returns list like: [{"_id": "like", "count": 10}, ...]
             }
 
         except Exception as e:
             print(f"❌ เกิดข้อผิดพลาดในการรวบรวมข้อมูล Analytics: {e}")
-            return {"origin_stats": [], "province_stats": [], "interest_stats": [], "location_stats": [], "total_conversations": 0}
+            return {"origin_stats": [], "province_stats": [], "interest_stats": [], "location_stats": [], "total_conversations": 0, "feedback_stats": []}

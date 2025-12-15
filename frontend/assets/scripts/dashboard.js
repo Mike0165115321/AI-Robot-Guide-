@@ -40,9 +40,52 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const topLocation = data.location_stats[0];
                 topLocationEl.textContent = topLocation._id || "ไม่มีข้อมูล";
                 topLocationCountEl.innerHTML = `<i class="fa-solid fa-fire"></i> ถูกถามถึง ${topLocation.count} ครั้ง`;
-            } else {
-                topLocationEl.textContent = "ยังไม่มีข้อมูล";
                 topLocationCountEl.innerHTML = `<i class="fa-solid fa-info-circle"></i> ลองถามน้องน่านเกี่ยวกับสถานที่ต่างๆ`;
+            }
+
+            // 🧹 [Cleanup] Removed temporary Satisfaction Meter logic
+
+            // 🆕 Satisfaction Score (5-Star System)
+            if (data.feedback_stats) {
+                const likeCount = (data.feedback_stats.find(i => i._id === 'like') || {}).count || 0;
+                const dislikeCount = (data.feedback_stats.find(i => i._id === 'dislike') || {}).count || 0;
+                const totalFeedback = likeCount + dislikeCount;
+
+                let score = 5.0; // Default
+                let label = "ยอดเยี่ยม";
+                let colorClass = "text-emerald-400"; // Tailwind class assumption or style
+
+                if (totalFeedback > 0) {
+                    score = (likeCount / totalFeedback) * 5.0;
+                }
+
+                // Determine Label & Color
+                if (score >= 4.5) {
+                    label = "ยอดเยี่ยม";
+                    colorClass = "#4ade80"; // Bright Green
+                } else if (score >= 3.0) {
+                    label = "ดี";
+                    colorClass = "#fbbf24"; // Amber/Yellow
+                } else {
+                    label = "ต้องปรับปรุง";
+                    colorClass = "#f87171"; // Red
+                }
+
+                // Update UI elements
+                const scoreEl = document.getElementById('satisfaction-score');
+                const labelEl = document.getElementById('satisfaction-label');
+                const containerEl = document.getElementById('satisfaction-container');
+
+                if (scoreEl) {
+                    scoreEl.textContent = score.toFixed(1);
+                    // Animate if it's the first load (optional, but nice)
+                }
+
+                if (labelEl) labelEl.textContent = label;
+
+                if (containerEl) {
+                    containerEl.style.color = colorClass;
+                }
             }
 
             // Origin Chart (Doughnut)

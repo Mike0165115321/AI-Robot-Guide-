@@ -43,11 +43,14 @@ class AnalyticsService:
             }
             
             # Using insert_one directly (could be batched in high-load systems)
-            self.collection.insert_one(log_entry)
-            logging.debug(f"📊 Analytics บันทึกแล้ว: {topic} | {location_title} | {user_origin}")
+            # Use asyncio.to_thread to avoid blocking the main event loop
+            import asyncio
+            await asyncio.to_thread(self.collection.insert_one, log_entry)
+            
+            logging.info(f"📊 [Analytics] บันทึกสำเร็จ: '{user_query[:30]}...' -> Topic: {topic}")
 
         except Exception as e:
-            logging.error(f"❌ บันทึก analytics ล้มเหลว: {e}")
+            logging.error(f"❌ [Analytics] บันทึก analytics ล้มเหลว: {e}", exc_info=True)
 
     async def get_dashboard_summary(self, days: int = 30):
         """
