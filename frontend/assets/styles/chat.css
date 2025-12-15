@@ -1060,3 +1060,50 @@ textarea {
         max-width: 100%;
     }
 }
+
+/* Feedback Buttons */
+.feedback-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.feedback-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.feedback-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+}
+
+.feedback-btn.active {
+    background: var(--accent-light);
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px rgba(79, 172, 254, 0.3);
+}
+
+.feedback-btn.like-btn.active {
+    color: #4ade80;
+    /* Green */
+    border-color: #4ade80;
+    background: rgba(74, 222, 128, 0.1);
+}
+
+.feedback-btn.dislike-btn.active {
+    color: #f87171;
+    /* Red */
+    border-color: #f87171;
+    background: rgba(248, 113, 113, 0.1);
+}

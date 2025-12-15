@@ -60,17 +60,30 @@ class AnalyticsService:
         summary = self.mongo_manager.get_analytics_summary(days)
         return summary
     
-    # Kept method for future use if needed, but not called in summary anymore
-    async def get_recent_logs(self, limit: int = 50):
-        """Fetches the most recent chat logs."""
-        if self.collection is None: return []
+
+
+    async def log_feedback(self, session_id: str, query: str, response: str, feedback_type: str, reason: str = None):
+        """
+        Logs user feedback (Like/Dislike).
+        """
         try:
-            cursor = self.collection.find({}).sort("timestamp", -1).limit(limit)
-            logs = list(cursor)
-            # Convert ObjectId to str for JSON serialization
-            for log in logs:
-                if "_id" in log: log["_id"] = str(log["_id"])
-            return logs
+            feedback_collection = self.mongo_manager.get_collection("feedback_logs")
+            if feedback_collection is None:
+                logging.warning("ไม่พบคอลเลกชัน feedback_logs ข้ามการบันทึก feedback")
+                return
+
+            log_entry = {
+                "session_id": session_id,
+                "timestamp": datetime.now(timezone.utc),
+                "user_query": query,
+                "ai_response": response,
+                "feedback_type": feedback_type, # "like" or "dislike"
+                "reason": reason
+            }
+            feedback_collection.insert_one(log_entry)
+            logging.info(f"👍👎 [Feedback] Recorded: {feedback_type} for Session: {session_id}")
+            
+            # TODO: If dislike, trigger Self-Correction logic here (Future Phase)
+            
         except Exception as e:
-            logging.error(f"❌ เกิดข้อผิดพลาดในการดึง logs การมีส่วนร่วม: {e}")
-            return []
+            logging.error(f"❌ บันทึก feedback ล้มเหลว: {e}")

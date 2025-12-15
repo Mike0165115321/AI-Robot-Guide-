@@ -363,7 +363,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.ThinkingIndicator.hide();
                 }
 
-                displayMessage(data.answer || "ขออภัยค่ะ ไม่เข้าใจคำถาม", 'ai', data.image_url, data.image_gallery, data.emotion, data.sources, data.action, data.action_payload);
+                // 5. Display AI Message
+                displayMessage(data.answer || "ขออภัยค่ะ ไม่เข้าใจคำถาม", 'ai', data.action, data.action_payload, data.image_url, data.image_gallery, messageCounter, data.processing_time, data.suggested_questions);
+
+                // 6. Handle Auto-Audio
+                // This part of the instruction seems to be from a different context or intended for a different function.
+                // The current `websocket.onmessage` already handles audio via `event.data instanceof ArrayBuffer`.
+                // If `data.audio_url` is meant for a separate audio playback, it would need a new implementation.
+                // For now, I'm keeping the existing audio handling and only modifying the displayMessage call.
 
                 // 🔔 Trigger toast notification after AI responds
                 if (window.ToastManager) {
@@ -457,7 +464,9 @@ document.addEventListener('DOMContentLoaded', () => {
         messageArea.scrollTop = messageArea.scrollHeight;
     }
 
-    function displayMessage(text, sender, imageUrl = null, imageGallery = [], emotion = 'normal', sources = [], action = null, actionPayload = null, suggestedQuestions = []) {
+    function displayMessage(text, sender, action = null, actionPayload = null, imageUrl = null, imageGallery = null, messageId = null, processingTime = null, suggestedQuestions = []) {
+        const messageArea = document.getElementById('message-area');
+        if (!messageArea) return;
         messageCounter++;
         const messageRow = document.createElement('div');
         messageRow.classList.add('message-row', sender);
@@ -529,48 +538,75 @@ document.addEventListener('DOMContentLoaded', () => {
             bubbleContainer.style.gap = '5px';
             bubbleContainer.style.maxWidth = '80%';
 
-            bubbleContainer.appendChild(bubble);
+            // Like/Dislike Buttons
+            const feedbackContainer = document.createElement('div');
+            feedbackContainer.className = 'feedback-actions';
+            feedbackContainer.style.display = 'flex';
+            feedbackContainer.style.gap = '8px';
+            feedbackContainer.style.marginTop = '4px';
+            feedbackContainer.style.alignItems = 'center'; // Align items vertically
 
-            // Only show Copy/Print buttons for informational messages (not interactive ones)
+            // ⏱️ Processing Time Indicator
+            if (typeof processingTime !== 'undefined' && processingTime !== null) {
+                const timeLabel = document.createElement('span');
+                timeLabel.className = 'processing-time';
+                timeLabel.style.fontSize = '0.75rem';
+                timeLabel.style.color = 'rgba(255, 255, 255, 0.5)';
+                timeLabel.style.marginLeft = '10px';
+                timeLabel.innerHTML = `<i class="fa-solid fa-stopwatch"></i> AI Time: ${processingTime}s`;
+                timeLabel.title = "Server Processing Time (Network latency excluded)";
+                feedbackContainer.appendChild(timeLabel);
+            }
+
+            const userQuery = document.querySelector('.message-row.user:last-child .bubble')?.innerText || "";
+
+            // Like Button
+            const likeBtn = document.createElement('button');
+            likeBtn.className = 'feedback-btn like-btn';
+            likeBtn.innerHTML = '<i class="fa-regular fa-thumbs-up"></i>';
+            likeBtn.onclick = () => submitFeedback('like', messageCounter, userQuery, text, likeBtn, dislikeBtn);
+
+            // Dislike Button
+            const dislikeBtn = document.createElement('button');
+            dislikeBtn.className = 'feedback-btn dislike-btn';
+            dislikeBtn.innerHTML = '<i class="fa-regular fa-thumbs-down"></i>';
+            dislikeBtn.onclick = () => submitFeedback('dislike', messageCounter, userQuery, text, likeBtn, dislikeBtn);
+
+            feedbackContainer.appendChild(likeBtn);
+            feedbackContainer.appendChild(dislikeBtn);
+
+            // Append Feedback container to Bubble Container
+            bubbleContainer.appendChild(bubble);
+            bubbleContainer.appendChild(feedbackContainer);
+
+            // Print & Copy Actions
             const interactiveActions = ['SHOW_MAP_EMBED', 'SHOW_SONG_CHOICES', 'PROMPT_FOR_SONG_INPUT'];
             if (!interactiveActions.includes(action)) {
-                // Print Button
+
                 const actionsBar = document.createElement('div');
                 actionsBar.style.display = 'flex';
                 actionsBar.style.justifyContent = 'flex-end';
-                actionsBar.style.paddingRight = '10px';
+                actionsBar.style.gap = '5px';
+                actionsBar.style.marginTop = '5px';
 
                 const printBtn = document.createElement('button');
                 printBtn.className = 'btn-icon';
-                printBtn.style.width = '30px';
-                printBtn.style.height = '30px';
-                printBtn.style.fontSize = '0.9rem';
-                printBtn.title = 'พิมพ์หน้านี้';
                 printBtn.innerHTML = '<i class="fa-solid fa-print"></i>';
                 printBtn.onclick = () => printMessage(text, imageUrl, imageGallery);
 
-                // Copy Button
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'btn-icon';
-                copyBtn.style.width = '30px';
-                copyBtn.style.height = '30px';
-                copyBtn.style.fontSize = '0.9rem';
-                copyBtn.title = 'คัดลอกข้อความ';
                 copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
                 copyBtn.onclick = () => {
                     navigator.clipboard.writeText(text).then(() => {
-                        copyBtn.innerHTML = '<i class="fa-solid fa-check" style="color: var(--success-color);"></i>';
-                        setTimeout(() => {
-                            copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
-                        }, 2000);
-                    }).catch(err => {
-                        console.error('Failed to copy: ', err);
+                        copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                        setTimeout(() => copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>', 2000);
                     });
                 };
 
                 actionsBar.appendChild(copyBtn);
                 actionsBar.appendChild(printBtn);
-                bubbleContainer.appendChild(actionsBar);
+                bubbleContainer.appendChild(actionsBar); // Footer Actions
             }
 
             wrapper.appendChild(bubbleContainer);
@@ -591,7 +627,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (action === 'SHOW_SONG_CHOICES' && actionPayload) {
             showSongChoices(actionPayload);
         }
-        // ลบ PROMPT_FOR_SONG_INPUT handler ออก - ใช้ displayMusicPrompt() จาก UI อย่างเดียว
     }
 
     function showSongInput(placeholder) {
@@ -1069,7 +1104,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Navigation Logic (Task 3 Fix) ---
     // Tab switching logic removed as Travel Mode is now a standalone page.
+    // Feedback Submission Logic
+    async function submitFeedback(type, messageId, query, response, likeBtn, dislikeBtn) {
+        const sessionId = sessionStorage.getItem('session_id') || 'anonymous';
 
+        // UI Feedback
+        if (type === 'like') {
+            likeBtn.innerHTML = '<i class="fa-solid fa-thumbs-up"></i>';
+            likeBtn.classList.add('active');
+            dislikeBtn.classList.remove('active');
+            dislikeBtn.innerHTML = '<i class="fa-regular fa-thumbs-down"></i>';
+        } else {
+            dislikeBtn.innerHTML = '<i class="fa-solid fa-thumbs-down"></i>';
+            dislikeBtn.classList.add('active');
+            likeBtn.classList.remove('active');
+            likeBtn.innerHTML = '<i class="fa-regular fa-thumbs-up"></i>';
+        }
+
+        try {
+            const payload = {
+                session_id: sessionId,
+                query: query || "unknown_query",
+                response: response.substring(0, 500), // Limit length
+                feedback_type: type
+            };
+
+            const res = await fetch('/api/analytics/submit_feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                console.log(`✅ Feedback submitted: ${type}`);
+                // Disable buttons after success to prevent spam
+                likeBtn.disabled = true;
+                dislikeBtn.disabled = true;
+                likeBtn.style.opacity = '0.5';
+                dislikeBtn.style.opacity = '0.5';
+            } else {
+                console.error('Failed to submit feedback');
+            }
+        } catch (e) {
+            console.error('Feedback error:', e);
+        }
+    }
     // --- Initialization ---
     connectChatWebSocket();
 });

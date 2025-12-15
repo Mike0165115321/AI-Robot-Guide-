@@ -5,7 +5,8 @@ import random
 import re
 import math
 import urllib.parse
-import json 
+import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -174,6 +175,7 @@ class RAGOrchestrator:
     async def _handle_informational(
         self, corrected_query: str, entity: Optional[str], sub_queries: List[str], mode: str, 
         turn_count: int = 1, session_id: Optional[str] = None, ai_mode: str = "fast", **kwargs
+    ) -> dict:
         interpretation = kwargs.get("interpretation", {})
         
         unique_queries = interpretation.get("sub_queries", [corrected_query])
@@ -399,6 +401,8 @@ class RAGOrchestrator:
             self.session_manager.collection.update_one({"session_id": session_id}, {"$unset": {"awaiting": ""}})
             return await self.analytics_handler.handle_analytics_response(query, session_id, mode)
 
+        start_time = time.perf_counter() # ⏱️ Start Timer
+
         logging.info(f"🔄 [Session] ID: {session_id} | รอบที่: {current_turn} | โหมด AI: {ai_mode} | เจตนาจาก Frontend: {frontend_intent}")
 
         # 🆕 ใช้ frontend_intent โดยตรง - ไม่ต้องเรียก LLM วิเคราะห์เจตนา
@@ -468,10 +472,16 @@ class RAGOrchestrator:
             session_id=session_id,
             turn_count=current_turn,
             ai_mode=ai_mode,   # 🆕 ส่ง ai_mode ไปยัง handlers
-            interpretation=interpretation # 🆕 Send full interpretation object (with location_filter)
-        )
+            interpretation=interpretation, # 🆕 Send full interpretation object (with location_filter)
             **kwargs
         )
+
+        end_time = time.perf_counter()
+        processing_time = round(end_time - start_time, 2)
+        response["processing_time"] = processing_time
+        
+        logging.info(f"⏱️ [Performance] Total Processing Time: {processing_time}s")
+
 
         if session_id:
             primary_topic = response.pop("_primary_topic", None) 

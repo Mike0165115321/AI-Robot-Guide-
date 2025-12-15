@@ -28,6 +28,8 @@ class ThinkingIndicator {
         this.emojiInterval = null;
         this.currentIndex = 0;
         this.isActive = false;
+        this.timerInterval = null; // ⏱️ Timer variable
+        this.startTime = 0;        // ⏱️ Start timestamp
     }
 
     /**
@@ -44,19 +46,25 @@ class ThinkingIndicator {
                     <span class="thinking-emoji">🤔</span>
                 </div>
                 <div class="thinking-content">
-                    <div class="thinking-dots">
-                        <span></span><span></span><span></span>
+                    <div class="thinking-row" style="display: flex; align-items: center; gap: 8px;">
+                        <div class="thinking-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <span class="thinking-timer">0.0s</span> <!-- ⏱️ Timer Element -->
                     </div>
                     <p class="thinking-message">${this.messages[0]}</p>
                 </div>
             </div>
         `;
 
-        // Add styles
-        if (!document.getElementById('thinking-indicator-styles')) {
-            const style = document.createElement('style');
+        // Add styles (Force update to ensure new CSS classes are applied)
+        let style = document.getElementById('thinking-indicator-styles');
+        if (!style) {
+            style = document.createElement('style');
             style.id = 'thinking-indicator-styles';
-            style.textContent = `
+            document.head.appendChild(style);
+        }
+        style.textContent = `
                 .thinking-indicator-container {
                     display: flex;
                     justify-content: flex-start;
@@ -180,9 +188,17 @@ class ThinkingIndicator {
                         transform: translateY(10px);
                     }
                 }
+
+                .thinking-timer {
+                    font-size: 0.75rem;
+                    color: #94a3b8;
+                    font-family: 'Courier New', monospace;
+                    background: rgba(0, 0, 0, 0.1);
+                    padding: 2px 6px;
+                    border-radius: 8px;
+                    font-weight: bold;
+                }
             `;
-            document.head.appendChild(style);
-        }
 
         return container;
     }
@@ -214,6 +230,18 @@ class ThinkingIndicator {
         this.emojiInterval = setInterval(() => {
             this._updateEmoji();
         }, 1500);
+
+        // ⏱️ Start Real-time Timer
+        this.startTime = Date.now();
+        this.timerInterval = setInterval(() => {
+            if (this.element) {
+                const elapsed = (Date.now() - this.startTime) / 1000;
+                const timerEl = this.element.querySelector('.thinking-timer');
+                if (timerEl) {
+                    timerEl.textContent = `${elapsed.toFixed(1)}s`;
+                }
+            }
+        }, 100);
     }
 
     /**
@@ -266,6 +294,10 @@ class ThinkingIndicator {
         if (this.emojiInterval) {
             clearInterval(this.emojiInterval);
             this.emojiInterval = null;
+        }
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
         }
 
         // Animation ออก
