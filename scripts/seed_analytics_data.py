@@ -12,11 +12,10 @@ from core.database.mongodb_manager import MongoDBManager
 
 # Mock Data Pools
 TOPICS = ["Culture", "Food", "Nature", "Accommodation", "Travel", "History", "Activities"]
-LOCATIONS = [
-    "วัดภูมินทร์", "ดอยเสมอดาว", "บ่อเกลือสินเธาว์", "พิพิธภัณฑสถานแห่งชาติน่าน", 
-    "วัดพระธาตุแช่แห้ง", "ถนนคนเดินน่าน", "อุทยานแห่งชาติขุนสถาน", "เสาดินนาน้อย",
-    "ร้านกาแฟบ้านไทลื้อ", "วัดมิ่งเมือง"
-]
+
+# Will be populated from DB
+LOCATIONS = [] 
+
 PROVINCES = ["กรุงเทพมหานคร", "เชียงใหม่", "น่าน", "ชลบุรี", "ขอนแก่น", "ภูเก็ต", "นครราชสีมา", "สงขลา"]
 ORIGINS = ["Thailand", "Thailand", "Thailand", "Thailand", "China", "United States", "Japan", "France", "United Kingdom"]
 QUERIES = [
@@ -42,8 +41,32 @@ async def seed_data():
     NUM_FEEDBACK = 80 # Total feedback logs
     DAYS_BACK = 30
 
+    # Fetch real locations from DB to ensure correlation
+    nan_col = mongo.get_collection("nan_locations")
+    if nan_col is not None:
+        print("   🔍 Fetching real location titles from DB...")
+        # Use aggregation to pick 20 random titles
+        real_locs = list(nan_col.aggregate([
+            {"$match": {"title": {"$exists": True, "$ne": ""}}},
+            {"$sample": {"size": 20}}, 
+            {"$project": {"title": 1, "_id": 0}}
+        ]))
+        for l in real_locs:
+            if l.get('title'):
+                LOCATIONS.append(l.get('title'))
+        print(f"   ✅ Loaded {len(LOCATIONS)} real locations.")
+    
+    if not LOCATIONS:
+        print("   ⚠️ No locations found in DB. Using mock data.")
+        LOCATIONS.extend(["Mock Location A", "Mock Location B", "Mock Location C"])
+
     new_analytics = []
     new_feedback = []
+
+    # Clear old data for clean test state
+    print("   🧹 Clearing old analytics data...")
+    analytics_col.delete_many({})
+    feedback_col.delete_many({})
 
     # Generate Analytics Logs
     for i in range(NUM_LOGS):

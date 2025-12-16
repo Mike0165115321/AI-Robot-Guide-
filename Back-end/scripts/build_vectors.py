@@ -91,7 +91,15 @@ class VectorBuilder:
                         )
                         
                         if mongo_id:
-                            await self.qdrant_manager.upsert_location(mongo_id, embedding_text)
+                            # 🆕 Extract metadata for Qdrant payload
+                            qdrant_metadata = {
+                                "title": data_item.get("title"),
+                                "slug": data_item.get("slug"),
+                                "category": data_item.get("category"),
+                                "district": (data_item.get("location_data") or {}).get("district"),
+                                "sub_district": (data_item.get("location_data") or {}).get("sub_district")
+                            }
+                            await self.qdrant_manager.upsert_location(mongo_id, embedding_text, metadata=qdrant_metadata)
                             print(f" - Successfully processed and inserted '{item_slug}'.")
                         
                     except json.JSONDecodeError:

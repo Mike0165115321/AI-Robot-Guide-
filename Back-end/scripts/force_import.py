@@ -64,7 +64,14 @@ async def force_import():
             
             if mongo_id:
                 # Insert into Qdrant
-                await qdrant.upsert_location(mongo_id, embedding_text)
+                qdrant_metadata = {
+                    "title": item.get("title"),
+                    "slug": item.get("slug"),
+                    "category": item.get("category"),
+                    "district": (item.get("location_data") or {}).get("district"),
+                    "sub_district": (item.get("location_data") or {}).get("sub_district")
+                }
+                await qdrant.upsert_location(mongo_id, embedding_text, metadata=qdrant_metadata)
                 success_count += 1
                 if (i + 1) % 10 == 0:
                     print(f"  ✅ Processed {i + 1}/{len(data)} records...")

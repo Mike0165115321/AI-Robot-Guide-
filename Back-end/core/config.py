@@ -29,7 +29,7 @@ class Settings:
     QDRANT_PORT = int(os.getenv("QDRANT_PORT", 6333))
     QDRANT_COLLECTION_NAME = "nan_locations"
 
-    QDRANT_TOP_K: int = 8
+    QDRANT_TOP_K: int = 5 # 🚀 [Optimized] Reduced from 8 to 5 to speed up Reranker
     IMAGE_FALLBACK_THRESHOLD: int = 2
     GOOGLE_IMAGE_MAX_RESULTS: int = 3
     SOURCE_CARD_IMAGE_LIMIT: int = 1

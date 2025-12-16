@@ -63,6 +63,20 @@ class AnalyticsService:
         summary = self.mongo_manager.get_analytics_summary(days)
         return summary
     
+    async def get_trending_locations(self, limit: int = 5) -> list:
+        """
+        Retrieves top trending locations from analytics logs.
+        Used by RAG to enhance broad queries.
+        """
+        try:
+            # Use asyncio.to_thread for database I/O
+            import asyncio
+            trending = await asyncio.to_thread(self.mongo_manager.get_top_locations, limit=limit, days=30)
+            return [t["_id"] for t in trending] # Return list of names only e.g. ["วัดภูมินทร์", "วัดพระธาตุแช่แห้ง"]
+        except Exception as e:
+            logging.error(f"❌ [Analytics] Failed to get trending locations: {e}")
+            return []
+    
 
 
     async def log_feedback(self, session_id: str, query: str, response: str, feedback_type: str, reason: str = None):

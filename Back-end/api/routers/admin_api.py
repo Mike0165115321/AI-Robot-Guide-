@@ -248,7 +248,21 @@ async def create_location(
         description_for_vector = f"หัวข้อ: {desc_title}\nประเภท: {desc_topic}\nสรุป: {desc_summary}"
         
         # สั่งให้ QdrantManager ทำการสร้าง Vector และบันทึกลงฐานข้อมูล Qdrant
-        await vector_db.upsert_location(mongo_id=mongo_id_str, description=description_for_vector)
+        
+        # 🆕 เตรียม Metadata สำหรับ Payload (Fix for Filter Bug)
+        qdrant_metadata = {
+            "title": location_data.title,
+            "slug": location_data.slug,
+            "category": location_data.category,  # สำคัญ!
+            "district": (location_data.location_data or {}).get("district"),
+            "sub_district": (location_data.location_data or {}).get("sub_district")
+        }
+        
+        await vector_db.upsert_location(
+            mongo_id=mongo_id_str, 
+            description=description_for_vector,
+            metadata=qdrant_metadata # 👈 ส่ง Metadata ไปด้วย
+        )
         logging.info(f"สร้าง Vector สำหรับ mongo_id '{mongo_id_str}' สำเร็จ")
     except Exception as vector_e:
         logging.error(f"⚠️ คำเตือน: สร้างข้อมูลใน MongoDB สำหรับ slug '{location_data.slug}' สำเร็จ แต่ล้มเหลวในการสร้าง Vector สำหรับ {mongo_id_str} ข้อผิดพลาด: {vector_e}", exc_info=True)
@@ -419,8 +433,23 @@ async def update_location_by_slug(
             desc_topic = updated_model.topic or ''
             desc_summary = updated_model.summary or ''
             # เตรียมข้อความใหม่สำหรับการทำ Embedding 
+            # เตรียมข้อความใหม่สำหรับการทำ Embedding 
             description_for_vector = f"หัวข้อ: {desc_title}\nประเภท: {desc_topic}\nสรุป: {desc_summary}"
-            await vector_db.upsert_location(mongo_id=mongo_id, description=description_for_vector)
+            
+            # 🆕 เตรียม Metadata สำหรับ Payload (Fix for Filter Bug)
+            qdrant_metadata = {
+                "title": updated_model.title,
+                "slug": updated_model.slug,
+                "category": updated_model.category,
+                "district": (updated_model.location_data or {}).get("district"),
+                "sub_district": (updated_model.location_data or {}).get("sub_district")
+            }
+
+            await vector_db.upsert_location(
+                mongo_id=mongo_id, 
+                description=description_for_vector,
+                metadata=qdrant_metadata # 👈 ส่ง Metadata ไปด้วย
+            )
             logging.info(f"ซิงค์ Vector สำหรับ mongo_id '{mongo_id}' (slug: '{slug}') สำเร็จ")
         except Exception as vector_e:
             logging.error(f"⚠️ คำเตือน: อัปเดต MongoDB สำหรับ slug '{slug}' แล้ว แต่ล้มเหลวในการซิงค์ Vector สำหรับ {mongo_id} ข้อผิดพลาด: {vector_e}", exc_info=True)

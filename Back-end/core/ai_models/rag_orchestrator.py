@@ -174,15 +174,29 @@ class RAGOrchestrator:
 
     async def _handle_informational(
         self, corrected_query: str, entity: Optional[str], sub_queries: List[str], mode: str, 
-        turn_count: int = 1, session_id: Optional[str] = None, ai_mode: str = "fast", **kwargs
+        turn_count: int = 1, session_id: Optional[str] = None, ai_mode: str = "fast", 
+        original_query: str = None,
+        interpretation: Dict[str, Any] = None,
+        **kwargs
     ) -> dict:
-        interpretation = kwargs.get("interpretation", {})
+        interpretation = interpretation or kwargs.get("interpretation", {})
         
         unique_queries = interpretation.get("sub_queries", [corrected_query])
         entity = interpretation.get("entity")
         
+        print(f"DEBUG PRINT: _handle_informational CALLED. Entity=[{entity}]")
+        logging.info(f"🔎 [DEBUG] _handle_informational Called. Args Entity: {entity}, Kwargs Interpretation Keys: {interpretation.keys()}")
+        if entity:
+             logging.info(f"🔎 [DEBUG] Entity is present: '{entity}'")
+        else:
+             logging.info(f"🔎 [DEBUG] Entity is NONE or EMPTY.")
+        
+        
         # 🛡️ Construct Metadata Filter (Location + Category)
-        location_filter = interpretation.get("location_filter", {}) 
+        # 2024-12-16: User requested to DISABLE location/district filtering for simplicity.
+        # location_filter = interpretation.get("location_filter", {}) 
+        location_filter = {} # Force empty to disable
+        
         category = interpretation.get("category")
         
         metadata_filter = location_filter.copy()
@@ -197,6 +211,70 @@ class RAGOrchestrator:
         qdrant_results_combined = []
         
         logging.info(f"🔎 [RAG] กำลังค้นหาข้อมูล... (Queries: {unique_queries}, Filter: {metadata_filter})")
+
+        # 1.5 SMART FEATURE: Direct Entity Search
+        # If Interpreter detected an entity, try to find it directly in DB (Accuracy Boost)
+        # This bypasses Semantic Search limitations for specific names.
+        found_direct_entity = False
+        if entity:
+             logging.info(f"🎯 [RAG] Specific Entity Detected: '{entity}' - Attempting Direct DB Lookup...")
+             direct_doc = await asyncio.to_thread(self.mongo_manager.get_location_by_title, entity)
+             
+             if direct_doc:
+                 logging.info(f"✅ [RAG] Found Direct Match: {direct_doc.get('title')}")
+                 found_direct_entity = True
+                 mock_result = {
+                    "payload": {
+                        "mongo_id": str(direct_doc.get("_id")),
+                        "title": direct_doc.get("title"),
+                        "summary": direct_doc.get("summary"),
+                        "category": direct_doc.get("category"),
+                        "slug": direct_doc.get("slug"),
+                        "location_data": direct_doc.get("location_data"),
+                        "image_urls": direct_doc.get("image_urls", []),
+                        "metadata": direct_doc.get("metadata", {}),
+                        "is_direct_match": True # Mark as direct match
+                    },
+                    "score": 1.5 # Boost score above everything else (Typical vector score < 1.0)
+                 }
+                 qdrant_results_combined.append(mock_result)
+
+        # 🔥 SMART FEATURE: Trending Recommendations for Broad Queries
+        # If no specific entity is requested AND no specific filters (except maybe general category),
+        # we consider it a "Broad Query" and inject trending locations.
+        is_broad_query = (not found_direct_entity) and (entity is None) and (not location_filter)
+        
+        if is_broad_query:
+            logging.info("🔥 [RAG] Broad Query Detected! Fetching Trending Locations...")
+            try:
+                # Lazy import to avoid circular dependency if any
+                from core.services.analytics_service import AnalyticsService
+                analytics_service = AnalyticsService(self.mongo_manager)
+                trending_titles = await analytics_service.get_trending_locations(limit=5)
+                
+                if trending_titles:
+                    logging.info(f"🔥 [Trending] Found: {trending_titles}")
+                    trending_docs = await asyncio.to_thread(self.mongo_manager.get_locations_by_titles, trending_titles)
+                    
+                    for doc in trending_docs:
+                        mock_result = {
+                            "payload": {
+                                "mongo_id": str(doc.get("_id")),
+                                "title": doc.get("title"),
+                                "summary": doc.get("summary"),
+                                "category": doc.get("category"),
+                                "slug": doc.get("slug"),
+                                "location_data": doc.get("location_data"),
+                                "image_urls": doc.get("image_urls", []),
+                                "metadata": doc.get("metadata", {}),
+                                "is_trending": True # Mark as trending
+                            },
+                            "score": 0.85 # Good score but let semantic match win if very specific
+                        }
+                        qdrant_results_combined.append(mock_result)
+                        # mongo_ids_from_search.append(str(doc.get("_id"))) # Optional: Add to search IDs if we want them de-duped later
+            except Exception as e:
+                logging.error(f"❌ [RAG] Error fetching trending locations: {e}")
 
         for q in unique_queries:
             # Pass metadata_filter to search_similar
@@ -240,14 +318,48 @@ class RAGOrchestrator:
                 mongo_ids_from_search.append(str(mongo_results.get("_id")))
                 logging.info(f"✅ [RAG] พบผลลัพธ์สำรองใน MongoDB: {mongo_results.get('title')}")
 
+
         unique_ids = list(dict.fromkeys(mongo_ids_from_search))
+        
+        # Capture Trending IDs to re-apply metadata later
+        # FIX: Check if res is object (ScoredPoint) or dict
+        def get_payload(res):
+            if hasattr(res, 'payload'): return res.payload
+            if isinstance(res, dict): return res.get('payload', {})
+            return {}
+
+        trending_ids = {get_payload(res).get('mongo_id') for res in qdrant_results_combined 
+                        if get_payload(res).get('is_trending')}
+                        
+        direct_match_ids = {get_payload(res).get('mongo_id') for res in qdrant_results_combined 
+                            if get_payload(res).get('is_direct_match')}
+
+        # Re-populate unique_ids from ALL results including trending
+        all_mongo_ids = [get_payload(res).get('mongo_id') for res in qdrant_results_combined 
+                         if get_payload(res).get('mongo_id')]
+        unique_ids = list(dict.fromkeys(all_mongo_ids))
+
         if not unique_ids:
             return {"answer": "ขออภัยค่ะ ไม่พบข้อมูลที่เกี่ยวข้องในระบบ", "action": None, "sources": [], "image_url": None, "image_gallery": []}
 
         retrieved_docs = await asyncio.to_thread(self.mongo_manager.get_locations_by_ids, unique_ids)
         if not retrieved_docs:
             return {"answer": "พบข้อมูลแต่ดึงรายละเอียดไม่ได้ค่ะ", "action": None, "sources": [], "image_url": None, "image_gallery": []}
-
+            
+        # 🆕 Re-inject Trending & Score Info
+        # Note: We can't rely on Qdrant scores for trending items (they are mock scores)
+        # We just mark them.
+        for doc in retrieved_docs:
+            doc_id = str(doc.get('_id'))
+            if doc_id in trending_ids:
+                doc['is_trending'] = True
+                doc['title'] = f"🔥 {doc.get('title')}" # Hack: Add fire to title for Reranker context too
+            if doc_id in direct_match_ids:
+                doc['is_direct_match'] = True
+                doc['title'] = f"🎯 {doc.get('title')}" # Hack: Add target to title
+        
+        # TODO: Consider synthetic doc creation - we might need to update it
+        # from core.ai_models.utils.summarizer import create_synthetic_document # Removed as it's imported globally now
         docs_with_synthetic = await asyncio.to_thread(lambda docs: [(doc, create_synthetic_document(doc)) for doc in docs], retrieved_docs)
         # 🔄 [RERANKING] ขั้นตอนการจัดลำดับใหม่
         # จับคู่ (User Query, Document) เพื่อให้โมเดล Reranker ให้คะแนนความเกี่ยวข้อง 
@@ -256,13 +368,24 @@ class RAGOrchestrator:
         # ให้คะแนนความเหมือน (Score) ยิ่งเยอะยิ่งเกี่ยวข้องกันมาก
         scores = await asyncio.to_thread(self.reranker.predict, sentence_pairs, show_progress_bar=False)
         
-        # 🔍 [Debug Log] แสดงคะแนน Reranking ของแต่ละเอกสาร
-        logging.info(f"📊 [Reranking] กำลังจัดลำดับเอกสาร {len(scores)} รายการ...")
-        for i, (score, (doc, _)) in enumerate(zip(scores, docs_with_synthetic)):
-            logging.info(f"   🔹 เอกสาร: {doc.get('title')} | คะแนน: {score:.4f}")
+        # �️ [Score Boosting] ดันคะแนน Trending/Direct ให้ชนะ Semantic เสมอ
+        final_scores = []
+        for score, (doc, _) in zip(scores, docs_with_synthetic):
+            boosted_score = float(score)
+            if doc.get('is_direct_match'):
+                boosted_score = max(boosted_score, 0.99) # Direct Match = Almost 1.0
+            elif doc.get('is_trending'):
+                # Trending items get a floor, but can go higher if relevant
+                boosted_score = max(boosted_score, 0.85) 
+            final_scores.append(boosted_score)
+        
+        # �🔍 [Debug Log] แสดงคะแนน Reranking ของแต่ละเอกสาร
+        logging.info(f"📊 [Reranking] กำลังจัดลำดับเอกสาร {len(final_scores)} รายการ...")
+        for i, (score, (doc, _)) in enumerate(zip(final_scores, docs_with_synthetic)):
+            logging.info(f"   🔹 เอกสาร: {doc.get('title')} | คะแนน: {score:.4f} | Trending: {doc.get('is_trending', False)} | Direct: {doc.get('is_direct_match', False)}")
 
-        # เรียงลำดับใหม่ตามคะแนน (มากไปน้อย)
-        reranked_results = sorted(zip(scores, docs_with_synthetic), key=lambda x: x[0], reverse=True)
+        # เรียงลำดับใหม่ตามคะแนน Boosted (มากไปน้อย)
+        reranked_results = sorted(zip(final_scores, docs_with_synthetic), key=lambda x: x[0], reverse=True)
         
         # 🔍 [Debug Log] ผลลัพธ์หลังจัดลำดับ (Top 3)
         logging.info(f"🏆 [Reranking] 3 อันดับแรกหลังจัดลำดับใหม่:")
@@ -276,12 +399,16 @@ class RAGOrchestrator:
         is_low_confidence = False
         if reranked_results:
             top_score = reranked_results[0][0]
-            if top_score < settings.RAG_CONFIDENCE_THRESHOLD:
+            # Trust Trending AND Direct Matches
+            has_trusted_source = any(d.get('is_trending') or d.get('is_direct_match') for _, (d, _) in reranked_results[:top_k])
+            
+            if top_score < settings.RAG_CONFIDENCE_THRESHOLD and not has_trusted_source:
+                # Only flag low confidence if NO trusted items are in top K
+                # (Trending/Direct items are high value regardless of semantic score)
                 is_low_confidence = True
                 logging.warning(f"⚠️ [Low Confidence] คะแนนสูงสุด ({top_score:.4f}) ต่ำกว่าเกณฑ์ ({settings.RAG_CONFIDENCE_THRESHOLD})")
                 
                 # 📝 [Log Quality] บันทึกเหตุการณ์นี้เพื่อนำไปปรับปรุง (Active Learning)
-                # TODO: Implement proper feedback logging here
                 logging.info(f"📉 [Quality Log] Triggered Low Confidence for query: '{corrected_query}'")
         
         final_docs = [doc for score, (doc, _) in reranked_results[:top_k]]
@@ -291,6 +418,8 @@ class RAGOrchestrator:
             context_parts = []
             for i, doc in enumerate(final_docs, 1):
                 doc_text = create_synthetic_document(doc)
+                if doc.get('is_trending'):
+                    doc_text = f"🔥 [POPULAR/TRENDING] นี่ยอดนิยมในช่วงนี้: {doc_text}"
                 context_parts.append(f"[Document {i}]\nTitle: {doc.get('title')}\nInfo: {doc_text}")
             context_str = "\n\n----------------\n\n".join(context_parts)
 
@@ -300,7 +429,7 @@ class RAGOrchestrator:
             history = session.get("history", [])
 
         prompt_dict = self.prompt_engine.build_rag_prompt(
-            user_query=corrected_query, 
+            user_query=original_query or corrected_query, # 🆕 ใช้คำถามเริ่มต้นของผู้ใช้เพื่อตรวจจับภาษาได้ถูกต้อง 
             context=context_str, 
             history=history,
             ai_mode=ai_mode,  # 🆕 ส่ง mode ไปเลือก prompt ที่เหมาะสม
@@ -339,7 +468,7 @@ class RAGOrchestrator:
         
         final_answer_with_images = await self.image_service.inject_images_into_text(raw_answer)
         
-        docs_to_show = final_docs[:3]
+        docs_to_show = final_docs[:5]
         prepared_data = self._prepare_source_and_image_data(docs_to_show)
         static_gallery = prepared_data["image_gallery"]
         
@@ -433,7 +562,9 @@ class RAGOrchestrator:
             # Wait, verify _handle_informational signature again.
             
             logging.info(f"🚦 เจตนา: {intent} | คำค้น: {corrected_query} | Location Filter: {interpretation.get('location_filter')}")
-
+        
+        import sys
+        
         navigation_keywords = ["นำทาง", "เส้นทาง", "พาไป", "ขอทาง", "ไปยัง", "ไปวัด", "ไปที่"]
         is_nav_request = any(kw in corrected_query for kw in navigation_keywords)
         
@@ -473,6 +604,7 @@ class RAGOrchestrator:
             turn_count=current_turn,
             ai_mode=ai_mode,   # 🆕 ส่ง ai_mode ไปยัง handlers
             interpretation=interpretation, # 🆕 Send full interpretation object (with location_filter)
+            original_query=query, # 🆕 ส่งคำถามต้นฉบับไปด้วย
             **kwargs
         )
 

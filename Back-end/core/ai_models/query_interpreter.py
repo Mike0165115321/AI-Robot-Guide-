@@ -124,10 +124,17 @@ class QueryInterpreter:
     - พยายามระบุเป็นคำภาษาอังกฤษตัวเล็ก (lowercase) เช่น: "accommodation" (ที่พัก/โรงแรม), "food" (อาหาร/เครื่องดื่ม), "attraction" (สถานที่ท่องเที่ยว), "souvenir" (ของฝาก), "culture" (วัฒนธรรม/ประเพณี)
     - ไม่ต้องยึดติดกับคำเหล่านี้ ถ้าเจอหมวดหมู่อื่นที่ชัดเจน ให้ระบุได้เลย (เช่น "cafe", "temple", "nature")
     - ถ้าไม่แน่ใจ หรือเป็นคำถามทั่วไป ให้ส่งค่า null
+    - **สำคัญมาก:** กรณี "อำเภอ":
+        - หากผู้ใช้ระบุ "ในน่าน" หรือ "จังหวัดน่าน" (หมายถึงภาพรวม) -> ให้ส่ง "district": null
+        - หากผู้ใช้ระบุ "ในตัวเมือง", "อำเภอเมือง", "ในเมืองน่าน" หรือชื่อสถานที่ในตัวเมือง -> ให้ส่ง "district": "เมืองน่าน" (อย่าส่งว่า "น่าน" เฉยๆ)
+        - ต้องตัดคำว่า "อำเภอ", "อ.", "เขต" ออกเสมอ (เช่น "อ.ปัว" -> "ปัว")
 
 **ตัวอย่าง:**
 * Input: "วัด พูมิน ไปไง"
-Output: {{"corrected_query": "วัดภูมินทร์ไปยังไง", "intent": "INFORMATIONAL", "entity": "วัดภูมินทร์", "is_complex": false, "sub_queries": ["วัดภูมินทร์ไปยังไง"], "location_filter": {{}}, "category": "attraction"}}
+Output: {{"corrected_query": "วัดภูมินทร์ไปยังไง", "intent": "INFORMATIONAL", "entity": "วัดภูมินทร์", "is_complex": false, "sub_queries": ["วัดภูมินทร์ไปยังไง"], "location_filter": {{"district": "เมืองน่าน"}}, "category": "attraction"}}
+
+* Input: "ร้านกาแฟ ในน่าน"
+Output: {{"corrected_query": "ร้านกาแฟในจังหวัดน่านแนะนำ", "intent": "INFORMATIONAL", "entity": null, "is_complex": false, "sub_queries": ["ร้านกาแฟ น่าน"], "location_filter": {{}}, "category": "cafe"}}
 
 * Input: "ร้านกาแฟ แถวสันติสุข มีไรบ้าง"
 Output: {{"corrected_query": "ร้านกาแฟแถวอำเภอสันติสุขมีที่ไหนบ้าง", "intent": "INFORMATIONAL", "entity": null, "is_complex": false, "sub_queries": ["ร้านกาแฟ อำเภอสันติสุข"], "location_filter": {{"district": "สันติสุข"}}, "category": "cafe"}}

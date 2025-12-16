@@ -110,7 +110,10 @@ class ImageService:
         if image_path.startswith(('http://', 'https://')):
             return image_path
         if image_path.startswith('/'):
-            return f"http://{settings.API_HOST}:{settings.API_PORT}{image_path}"
+            host = settings.API_HOST
+            if host == "0.0.0.0":
+                host = "127.0.0.1" # Browser cannot connect to 0.0.0.0
+            return f"http://{host}:{settings.API_PORT}{image_path}"
         return image_path
 
 
@@ -123,14 +126,49 @@ class ImageService:
             image_url = None
             safe_keyword = keyword.replace(" ", "-").lower()
             
-            # Search in cache
+            # 1. Search in cache (Exact or Partial match on keys)
+            image_found = False
             for prefix, paths in self.prefixed_image_map.items():
                 if (safe_keyword in prefix.lower() or prefix.lower().replace("-", " ") in keyword.lower()) and paths:
                     image_url = random.choice(paths)
+                    image_found = True
                     break
             
-            # Fallback to Google Search
-            if not image_url:
+            # 2. If not found, try to look up in MongoDB (Title -> DB Image URLs -> Slug -> Local Image)
+            if not image_found:
+                try:
+                    # Try to find location by title (Thai name)
+                    doc = await asyncio.to_thread(self.mongo_manager.get_location_by_title, keyword)
+                    if doc:
+                        # 🆕 PRIORITY: Check if DB document has explicit 'image_urls' (Admin overrides)
+                        db_image_urls = doc.get("image_urls", [])
+                        if db_image_urls and isinstance(db_image_urls, list) and len(db_image_urls) > 0:
+                             raw_url = random.choice(db_image_urls)
+                             image_url = self.construct_full_image_url(str(raw_url))
+                             image_found = True
+                             logging.info(f"✅ [ImageService] Found explicit DB URL for '{keyword}': {image_url}")
+
+                        if not image_found:
+                            # If no explicit URLs, try to find images using its slug
+                            slug = doc.get("slug")
+                            image_prefix = doc.get("metadata", {}).get("image_prefix")
+                            
+                            target_prefix = image_prefix or (f"{slug}-" if slug else None)
+                            
+                            if target_prefix:
+                                # Try to find in cache using the looked-up prefix
+                                for prefix, paths in self.prefixed_image_map.items():
+                                    if prefix.startswith(target_prefix) or target_prefix.startswith(prefix):
+                                         if paths:
+                                             image_url = random.choice(paths)
+                                             image_found = True
+                                             logging.info(f"✅ [ImageService] Mapped '{keyword}' -> Slug/Prefix '{target_prefix}' -> Found Local Image")
+                                             break
+                except Exception as e:
+                    logging.warning(f"⚠️ [ImageService] DB Lookup failed for '{keyword}': {e}")
+
+            # 3. Fallback to Google Search
+            if not image_url and not image_found:
                 try:
                     search_q = f"{keyword} จังหวัดน่าน"
                     google_urls = await image_search_tool_instance.get_image_urls(search_q, max_results=1)

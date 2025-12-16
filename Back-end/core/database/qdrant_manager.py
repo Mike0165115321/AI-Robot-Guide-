@@ -65,8 +65,8 @@ class QdrantManager:
         """ฟังก์ชันภายใน: แปลงข้อความเป็น Vector แบบ Asynchronous เพื่อไม่ให้บล็อก Event Loop"""
         return await asyncio.to_thread(self._create_vector_sync, text)
 
-    async def upsert_location(self, mongo_id: str, description: str):
-        """เพิ่มหรืออัปเดตข้อมูลลงใน Qdrant"""
+    async def upsert_location(self, mongo_id: str, description: str, metadata: dict = None):
+        """เพิ่มหรืออัปเดตข้อมูลลงใน Qdrant พร้อม Metadata"""
         logging.info(f"กำลังใช้ prefix 'passage:' สำหรับการจัดทำดัชนีด้วย e5-large...")
         
         # เติม prefix 'passage: ' (เป็นข้อกำหนดของโมเดล E5 เวลา index ข้อมูล)
@@ -78,6 +78,23 @@ class QdrantManager:
         # สร้าง ID ที่ไม่ซ้ำกันสำหรับ Qdrant โดยอิงจาก mongo_id (เพื่อให้ id เดิมได้ผลลัพธ์เดิมเสมอ)
         point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, mongo_id))
 
+        # เตรียม Payload พื้นฐาน
+        payload = {
+            "mongo_id": mongo_id,
+            "text_content": description
+        }
+        
+        # 🆕 ผสาน Metadata ลงใน Payload (เช่น district, sub_district, category)
+        if metadata:
+            # กรองเอาเฉพาะข้อมูลที่จำเป็นเพื่อไม่ให้ Payload ใหญ่เกินไป
+            allowed_keys = ["district", "sub_district", "category", "title", "slug"]
+            for k in allowed_keys:
+                if k in metadata and metadata[k]:
+                    payload[k] = metadata[k]
+            # หรือจะใส่ทั้งหมดก็ได้ถ้าไม่เยอะ
+            # payload.update(metadata)
+            logging.info(f"➕ [Qdrant] Adding Metadata to Payload: {payload.keys()}")
+
         # สั่ง Upsert (Update หรือ Insert) ลง Qdrant
         await self.client.upsert(
             collection_name=self.collection_name,
@@ -85,10 +102,7 @@ class QdrantManager:
                 models.PointStruct(
                     id=point_id,
                     vector=vector.tolist(), # แปลง numpy array เป็น list ปกติเพื่อส่งไป Qdrant
-                    payload={
-                        "mongo_id": mongo_id,      # เก็บ ID ของ MongoDB ไว้ใช้อ้างอิงกลับ
-                        "text_content": description # เก็บเนื้อหาข้อความไว้ดูประกอบ (payload)
-                    }
+                    payload=payload
                 )
             ],
             wait=True # รอจนกว่าจะเขียนเสร็จจริง

@@ -1,9 +1,14 @@
+
 from pymongo import MongoClient
 from bson import ObjectId
 from bson.errors import InvalidId
+import logging
+import asyncio
 import re
+import difflib
 from core.config import settings
-from typing import List # 🚀 [เพิ่ม]
+from typing import List, Dict, Any, Optional
+from datetime import datetime # 🚀 [เพิ่ม]
 
 class MongoDBManager:
     def __init__(self):
@@ -27,24 +32,32 @@ class MongoDBManager:
             return self.db[collection_name]
         return None
 
-    def get_locations_by_ids(self, mongo_ids: list[str], collection_name: str = "nan_locations") -> list[dict]:
-        collection = self.get_collection(collection_name)
-        if collection is None or not mongo_ids: return []
+    def get_locations_by_ids(self, ids: list) -> list:
+        collection = self.get_collection("nan_locations")
+        if collection is None:
+            return []
+        
         try:
-            valid_object_ids = []
-            for mid in mongo_ids:
-                try: valid_object_ids.append(ObjectId(mid))
-                except InvalidId: print(f"⚠️ คำเตือน: รหัส MongoDB ไม่ถูกต้องถูกละเลย: {mid}")
-            if not valid_object_ids: return []
-            cursor = collection.find({"_id": {"$in": valid_object_ids}})
-            docs_map = {str(doc["_id"]): doc for doc in cursor}
-            ordered_docs = []
-            for mid in mongo_ids:
-                doc = docs_map.get(mid)
-                if doc: ordered_docs.append(doc)
-            return ordered_docs
+            from bson.objectid import ObjectId
+            object_ids = [ObjectId(i) for i in ids if ObjectId.is_valid(i)]
+            return list(collection.find({"_id": {"$in": object_ids}}))
         except Exception as e:
-            print(f"❌ เกิดข้อผิดพลาดในการดึงข้อมูลหลายสถานที่ด้วยรหัส: {e}")
+            print(f"❌ Error fetching locations by IDs: {e}")
+            return []
+
+    def get_locations_by_titles(self, titles: list) -> list:
+        """
+        ดึงข้อมูลสถานที่หลายแห่งพร้อมกันโดยใช้ชื่อ (title)
+        """
+        collection = self.get_collection("nan_locations")
+        if collection is None:
+            return []
+        
+        try:
+            # ใช้ $in operator เพื่อค้นหาทีเดียว
+            return list(collection.find({"title": {"$in": titles}}))
+        except Exception as e:
+            print(f"❌ Error fetching locations by titles: {e}")
             return []
         
     def add_location(self, location_data: dict, collection_name: str = "nan_locations"):
@@ -84,11 +97,49 @@ class MongoDBManager:
         collection = self.get_collection(collection_name)
         if collection is not None:
             try:
+                # 1. Try Exact Regex Match first
                 query = {"title": {"$regex": re.escape(title), "$options": "i"}} 
-                return collection.find_one(query)
+                result = collection.find_one(query)
+                if result: return result
+                
+                # 2. Try Fuzzy Match (fallback for typos)
+                return self._get_location_by_fuzzy_title(title, collection)
             except Exception as e:
                 print(f"❌ เกิดข้อผิดพลาดในการค้นหาเอกสารด้วยชื่อเรื่อง '{title}': {e}")
                 return None
+        return None
+
+    def _get_location_by_fuzzy_title(self, query_title: str, collection):
+        """
+        Helper for fuzzy matching titles using Prefix Logic to handle long titles with suffixes.
+        """
+        try:
+            # Fetch all titles (optimized projection)
+            all_docs = list(collection.find({}, {"title": 1}))
+            
+            best_match = None
+            best_ratio = 0.0
+            cutoff = 0.6 if len(query_title) > 5 else 0.8
+            
+            for doc in all_docs:
+                title = doc.get("title", "")
+                # Compare against prefix of title (with some slack e.g. +2 chars)
+                # This helps when Target is "Name (Description)" and Query is "Name" (or typo of Name)
+                compare_len = len(query_title) + 2
+                title_prefix = title[:compare_len]
+                
+                ratio = difflib.SequenceMatcher(None, query_title, title_prefix).ratio()
+                
+                if ratio > best_ratio and ratio > cutoff:
+                    best_ratio = ratio
+                    best_match = title
+
+            if best_match:
+                print(f"🎯 [Fuzzy Match] '{query_title}' matched with '{best_match}' (Ratio: {best_ratio:.2f})")
+                return collection.find_one({"title": best_match})
+                
+        except Exception as e:
+             print(f"⚠️ [Fuzzy] Error during fuzzy search: {e}")
         return None
 
     def get_all_locations(self, collection_name: str = "nan_locations"):
@@ -329,3 +380,29 @@ class MongoDBManager:
         except Exception as e:
             print(f"❌ เกิดข้อผิดพลาดในการรวบรวมข้อมูล Analytics: {e}")
             return {"origin_stats": [], "province_stats": [], "interest_stats": [], "location_stats": [], "total_conversations": 0, "feedback_stats": []}
+
+    def get_top_locations(self, limit: int = 5, days: int = 30) -> list:
+        """
+        ดึงรายชื่อสถานที่ยอดฮิต (Top Locations) จาก Analytics Logs
+        คืนค่าเป็น list of dict: [{"_id": "วัดภูมินทร์", "count": 10}, ...]
+        """
+        collection = self.get_collection("analytics_logs")
+        if collection is None:
+            return []
+            
+        try:
+            from datetime import datetime, timedelta, timezone
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            
+            pipeline = [
+                {"$match": {"timestamp": {"$gte": cutoff_date}, "location_title": {"$ne": None}}},
+                {"$group": {"_id": "$location_title", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}},
+                {"$limit": limit}
+            ]
+            
+            results = list(collection.aggregate(pipeline))
+            return results
+        except Exception as e:
+            print(f"❌ Error getting top locations: {e}")
+            return []
