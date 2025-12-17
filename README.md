@@ -4,8 +4,6 @@
 >
 > *Project Version: 1.2 (Hybrid Architecture)*
 
-![Project Banner](https://images.unsplash.com/photo-1528181304800-259b08848526?q=80&w=2070&auto=format&fit=crop)
-
 ---
 
 ## 📖 เกี่ยวกับโปรเจกต์ (Overview)

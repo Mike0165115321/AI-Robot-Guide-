@@ -1,20 +1,4 @@
 services:
-  # === NEW: Go API Gateway ===
-  go-gateway:
-    build: ./go-gateway
-    container_name: go_gateway
-    ports:
-      - "8080:8080"
-    environment:
-      - GIN_MODE=release
-      - PYTHON_BACKEND=python-backend:9090
-      - CPP_AUDIO_ENGINE=cpp-audio:50051
-    depends_on:
-      - python-backend
-      - cpp-audio
-    restart: always
-
-  # === Python Backend (FastAPI) ===
   python-backend:
     build: ./Back-end
     container_name: python_backend
@@ -29,15 +13,6 @@ services:
       - qdrant
     restart: always
 
-  # === NEW: C++ Audio Engine ===
-  cpp-audio:
-    build: ./cpp-audio-engine
-    container_name: cpp_audio_engine
-    ports:
-      - "50051:50051"
-    restart: always
-
-  # === Databases ===
   mongodb:
     image: mongo:7
     container_name: mongodb_db
