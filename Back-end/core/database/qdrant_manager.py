@@ -150,8 +150,21 @@ class QdrantManager:
                     match=models.MatchValue(value=metadata_filter["category"])
                 ))
             
-            if conditions:
-                qdrant_filter = models.Filter(must=conditions)
+            # 🆕 [SMART] Category Exclusion Filter - ไม่รวม "ข้อมูลอำเภอ" ในผลลัพธ์
+            # สำหรับ Broad Query จะช่วยให้ไม่แนะนำอำเภอ
+            must_not_conditions = []
+            if metadata_filter.get("exclude_categories"):
+                for cat in metadata_filter["exclude_categories"]:
+                    must_not_conditions.append(models.FieldCondition(
+                        key="category",
+                        match=models.MatchValue(value=cat)
+                    ))
+            
+            if conditions or must_not_conditions:
+                qdrant_filter = models.Filter(
+                    must=conditions if conditions else None,
+                    must_not=must_not_conditions if must_not_conditions else None
+                )
                 logging.info(f"🛡️ [Qdrant] Applied Filter: {metadata_filter}")
 
         try:

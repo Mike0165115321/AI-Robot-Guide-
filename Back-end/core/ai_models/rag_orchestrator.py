@@ -198,6 +198,16 @@ class RAGOrchestrator:
         if category:
             metadata_filter["category"] = category
             logging.info(f"🏷️ [Filter] Applying Category Filter: {category}")
+        
+        # 🆕 [SMART] Always exclude district/province data from search results
+        # ไม่แนะนำ "ข้อมูลอำเภอ" หรือ "ข้อมูลภาพรวมจังหวัด" ในผลลัพธ์
+        EXCLUDED_CATEGORIES = [
+            "ข้อมูลอำเภอ",
+            "ข้อมูลภาพรวมจังหวัด",
+            "ข้อมูลเศรษฐกิจ"
+        ]
+        metadata_filter["exclude_categories"] = EXCLUDED_CATEGORIES
+        logging.info(f"🚫 [Filter] Excluding categories: {EXCLUDED_CATEGORIES}")
 
         # 2. ค้นหาข้อมูล (Retrieval)
         # ใช้ Qdrant สำหรับค้นหาด้วยความหมาย (Semantic Search)
