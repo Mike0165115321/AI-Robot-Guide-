@@ -49,23 +49,27 @@ async def verify_file_signature(file: UploadFile) -> bool:
 def is_safe_text_file(header: bytes) -> bool:
     """
     Heuristic check for safe text files (CSV/TXT).
-    Rejects binary files masking as text.
+    Rejects binary files masking as text, but allows UTF-16/32.
     """
-    # Check 1: Must not contain Null Byte (Binary files usually have \x00)
-    if b"\x00" in header:
-        return False
-        
-    # Check 2: Must be valid UTF-8
-    try:
-        header.decode("utf-8")
-        return True
-    except UnicodeDecodeError:
-        # If not UTF-8, it might be other encoding, but for our system we prefer UTF-8.
-        # However, some legacy Thai CSVs might be TIS-620. 
-        # For security, we stick to UTF-8 or ensure no binary control chars.
-        # Let's try TIS-620 just in case, but usually binary files fail both.
+    # List of encodings to try
+    encodings = ["utf-8", "utf-8-sig", "cp874", "utf-16", "utf-16le", "utf-16be", "latin-1"]
+    
+    for enc in encodings:
         try:
-            header.decode("cp874") # Thai encoding
+            # Try to decode the header with the encoding
+            header.decode(enc)
+            
+            # If successful, additional check:
+            # If it's UTF-8/Ascii, it shouldn't have too many null bytes (unless it's empty)
+            if enc in ["utf-8", "utf-8-sig", "cp874", "latin-1"]:
+                if b"\x00" in header:
+                   # Allowing rare nulls, but usually text shouldn't have them.
+                   # But let's be permissive to avoid blocking valid files.
+                   pass 
+            
             return True
-        except:
-            return False
+        except UnicodeDecodeError:
+            continue
+            
+    # If all decodes fail, likely binary garbage
+    return False

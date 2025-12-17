@@ -406,3 +406,41 @@ class MongoDBManager:
         except Exception as e:
             print(f"❌ Error getting top locations: {e}")
             return []
+
+    def get_recommended_attractions(self, limit: int = 5) -> list:
+        """
+        🆕 ดึงสถานที่ท่องเที่ยวแนะนำสำหรับ Broad Query
+        กรองเฉพาะ category ที่เป็นสถานที่ท่องเที่ยว ไม่รวมอำเภอ
+        Returns: list of documents
+        """
+        collection = self.get_collection("nan_locations")
+        if collection is None:
+            return []
+        
+        try:
+            # 🔧 Categories ที่เป็นสถานที่ท่องเที่ยว (ไม่รวม 'district', 'sub_district' ฯลฯ)
+            TOURIST_CATEGORIES = [
+                "attraction", "nature", "culture", "temple", 
+                "viewpoint", "waterfall", "museum", "historical",
+                "food", "restaurant", "cafe", "market"
+            ]
+            
+            # Query: หาสถานที่ท่องเที่ยวที่มีรูปภาพ และเรียงตาม random (หรือ popularity ถ้ามี)
+            pipeline = [
+                {"$match": {
+                    "category": {"$in": TOURIST_CATEGORIES},
+                    "$or": [
+                        {"metadata.image_prefix": {"$ne": None}},
+                        {"image_urls": {"$ne": []}},
+                        {"thumbnail_url": {"$ne": None}}
+                    ]
+                }},
+                {"$sample": {"size": limit}}  # Random selection
+            ]
+            
+            results = list(collection.aggregate(pipeline))
+            print(f"🎯 [DB] พบสถานที่ท่องเที่ยวแนะนำ {len(results)} แห่ง")
+            return results
+        except Exception as e:
+            print(f"❌ Error getting recommended attractions: {e}")
+            return []

@@ -1,583 +1,490 @@
-// /frontend/assets/scripts/avatar_logic.js (V-FSM Stable V2.1 - Audio Fix + Mute)
+// /frontend/assets/scripts/avatar_logic.js
+// 🤖 Avatar Controller V6.0 - Silero VAD Edition
+// Clean rewrite with Neural Network VAD
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("🤖 Avatar Logic V6.0 - Silero VAD");
 
-    const statusText = document.getElementById('status-text');
-    const stopSpeechButton = document.getElementById('stop-speech-btn');
-    const musicControls = document.getElementById('music-controls');
-    const textQueryForm = document.getElementById('text-query-form');
-
-    // Mute Button Injection
-    let muteButton = document.getElementById('mute-btn');
-    if (!muteButton) {
-        // Create it dynamically if missing
-        muteButton = document.createElement('button');
-        muteButton.id = 'mute-btn';
-        muteButton.className = 'stop-speech-button'; // Re-use style
-        muteButton.style.cssText = 'left: calc(50% + 70px); background: rgba(59, 130, 246, 0.9); display: none;'; // Position to right
-        muteButton.innerHTML = '<i class="fas fa-volume-up"></i>';
-        muteButton.title = 'ปิดเสียง';
-        document.body.appendChild(muteButton);
-    }
-
-    // 🌐 Globals
-    let websocket = null;
-    let mainAudioContext = null;
-    let mainGainNode = null; // 🎚️ Master Volume
-    let currentAudioSource = null;
-    let isMuted = false;
-
-    // Handlers
-    let musicHandler = null;
-    let voiceHandler = null;
-    let wakeWordHandler = null;
-    let aiModeManager = null;
-
-    // 🔊 Audio Queue
-    let audioQueue = [];
-    let isPlayingAudio = false;
-    let isServerResponseComplete = false;
-
-    // 🤖 State Manager initialized later
-    let stateManager = null;
-
-    // =========================================================================
-    // 🛠️ Core Utilities
-    // =========================================================================
-
-    const uiController = {
-        setEmotion(emotion) {
-            if (window.avatarAnimator?.setEmotion) window.avatarAnimator.setEmotion(emotion);
-        },
-        setStatus(text) {
-            if (statusText) statusText.textContent = text;
-        },
-        enterPresentation(data) {
-            if (window.avatarAnimator?.enterPresentationMode) window.avatarAnimator.enterPresentationMode(data);
-        },
-        exitPresentation() {
-            if (window.avatarAnimator?.exitPresentationMode) window.avatarAnimator.exitPresentationMode();
-        },
-        toggleMuteUI(muted) {
-            if (muteButton) {
-                muteButton.innerHTML = muted ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>';
-                muteButton.style.background = muted ? 'rgba(107, 114, 128, 0.9)' : 'rgba(59, 130, 246, 0.9)';
-                muteButton.title = muted ? 'เปิดเสียง' : 'ปิดเสียง';
-            }
-        }
+    // ==========================================
+    // 1. DOM References
+    // ==========================================
+    const UI = {
+        status: document.getElementById('status-text'),
+        micBtn: document.getElementById('mic-btn'),
+        stopBtn: document.getElementById('stop-speech-btn'),
+        startOverlay: document.getElementById('start-overlay'),
+        startBtn: document.getElementById('start-btn'),
+        inputForm: document.getElementById('text-query-form'),
+        inputField: document.getElementById('text-query-input')
     };
 
-    async function waitForAnimator() {
+    // ==========================================
+    // 2. State & Components
+    // ==========================================
+    let fsm = null;           // AvatarStateManager
+    let animator = null;      // window.avatarAnimator
+    let vadInstance = null;           // Silero VAD Instance
+    let ws = null;            // WebSocket
+    let audioCtx = null;      // AudioContext
+    let gainNode = null;      // Volume Control
+    let isVADActive = false;  // VAD running state
+    let audioQueue = [];      // Audio playback queue
+    let isPlaying = false;    // Audio playing state
+
+    const updateStatus = (msg) => {
+        console.log(`[Status] ${msg}`);
+        if (UI.status) UI.status.textContent = msg;
+    };
+
+    // ==========================================
+    // 3. Start Button (User Interaction Required)
+    // ==========================================
+    if (UI.startBtn) {
+        UI.startBtn.addEventListener('click', async () => {
+            console.log("👆 User Clicked Start");
+            UI.startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังโหลด...';
+
+            try {
+                await initSystem();
+                // Hide overlay
+                UI.startOverlay.style.opacity = '0';
+                setTimeout(() => UI.startOverlay.remove(), 500);
+            } catch (err) {
+                console.error("Init Failed:", err);
+                updateStatus(`❌ เกิดข้อผิดพลาด: ${err.message}`);
+                UI.startBtn.innerHTML = '<i class="fas fa-redo"></i> ลองใหม่';
+            }
+        });
+    }
+
+    // ==========================================
+    // 4. System Initialization
+    // ==========================================
+    async function initSystem() {
+        updateStatus("กำลังโหลดระบบแสดงผล...");
+
+        // 4.1 Wait for Animator
         let attempts = 0;
         while (!window.avatarAnimator && attempts < 50) {
             await new Promise(r => setTimeout(r, 100));
             attempts++;
         }
-        return window.avatarAnimator;
-    }
+        animator = window.avatarAnimator;
+        if (!animator) throw new Error("Animator ไม่พร้อม");
+        console.log("✅ Animator Ready");
 
-    // 🔥 Hard Audio Reset (The "Kill Switch")
-    async function hardResetAudio() {
-        console.warn("💀 Hard Resetting Audio System...");
+        // 4.2 Init Audio Context
+        updateStatus("กำลังเริ่มระบบเสียง...");
+        const AC = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AC();
+        gainNode = audioCtx.createGain();
+        gainNode.connect(audioCtx.destination);
 
-        // 1. Stop Current Logic
-        if (currentAudioSource) {
-            try { currentAudioSource.stop(); } catch (e) { }
-            currentAudioSource = null;
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
         }
-        audioQueue = [];
-        isPlayingAudio = false;
+        console.log("✅ Audio Context Ready");
 
-        // 2. Kill Context if possible (or just suspend/resume to clear buffers)
-        if (mainAudioContext) {
-            try {
-                await mainAudioContext.suspend();
-                await mainAudioContext.resume();
-            } catch (e) {
-                console.error("Failed to cycle AudioContext:", e);
-            }
+        // 4.3 Init FSM
+        if (window.AvatarStateManager) {
+            fsm = new AvatarStateManager(getFsmCallbacks());
+            console.log("✅ FSM Ready");
         }
 
-        // 3. Reset Handlers
-        if (wakeWordHandler) wakeWordHandler.stop();
-        if (voiceHandler) voiceHandler.stop(true);
-        if (window.avatarAnimator) window.avatarAnimator.stopSpeaking();
+        // 4.4 Init Silero VAD
+        updateStatus("กำลังโหลด AI ตรวจจับเสียง...");
+        if (vadInstance !== null) {
+            console.log("⚠️ VAD already exists, skipping init");
+        } else {
+            await initSileroVAD();
+        }
+
+        // 4.5 Connect WebSocket
+        updateStatus("กำลังเชื่อมต่อเซิร์ฟเวอร์...");
+        connectWebSocket();
+
+        // 4.6 Ready!
+        setTimeout(() => {
+            fsm?.transitionTo('IDLE');
+            if (UI.micBtn) UI.micBtn.style.display = 'flex';
+            console.log("🚀 System Ready!");
+        }, 300);
     }
 
-    // =========================================================================
-    // 🧠 Finite State Machine Callbacks
-    // =========================================================================
+    // ==========================================
+    // 5. Silero VAD Setup
+    // ==========================================
+    async function initSileroVAD() {
+        if (!window.vad || !window.vad.MicVAD) {
+            throw new Error("Silero VAD Library not loaded");
+        }
 
-    const fsmCallbacks = {
-        onIdle: () => {
-            console.log("[State] IDLE");
-            uiController.setStatus("🎤 พูดว่า \"น้องน่าน\" เพื่อเริ่ม...");
-            uiController.setEmotion('normal');
+        try {
+            vadInstance = await window.vad.MicVAD.new({
+                // 🔧 VAD Config
+                positiveSpeechThreshold: 0.8,  // ความมั่นใจที่เป็นเสียงพูด
+                negativeSpeechThreshold: 0.3,  // ความมั่นใจที่เป็นเสียงเงียบ
+                redemptionFrames: 5,           // จำนวน Frame ที่ต้องเงียบก่อนจบ (~0.5s at 10fps)
+                frameSamples: 1536,            // 96ms per frame at 16kHz
+                preSpeechPadFrames: 3,         // Buffer ก่อนพูด
+                minSpeechFrames: 3,            // ต้องพูดอย่างน้อย 3 frames
 
-            // Logic: WakeWord=ON, Voice=OFF, Audio=OFF
-            stopCurrentAudio();
-            if (voiceHandler) voiceHandler.stop(true);
+                // 📢 Callbacks
+                onSpeechStart: () => {
+                    console.log("🎤 Speech Started");
+                    if (fsm?.getState() === 'LISTENING') {
+                        updateStatus("กำลังฟัง... 👂");
+                        animator?.setEmotion('listening');
+                    }
+                },
 
-            if (wakeWordHandler) {
-                wakeWordHandler.start(); // Wait for "Nong Nan"
-            }
+                onSpeechEnd: async (audio) => {
+                    console.log("🛑 Speech Ended, Audio received");
 
-            // Reset Buttons
-            if (stopSpeechButton) stopSpeechButton.classList.remove('visible');
-            if (muteButton) muteButton.style.display = 'none';
-        },
+                    if (fsm?.getState() !== 'LISTENING') {
+                        console.log("⚠️ Not in LISTENING state, ignoring");
+                        return;
+                    }
 
-        onListening: () => {
-            console.log("[State] LISTENING");
-            uiController.setStatus("ฟังอยู่จ้าว... (พูดได้เลย)");
-            uiController.setEmotion('listening');
+                    // Transition to THINKING
+                    fsm.transitionTo('THINKING', { text: 'กำลังประมวลผล...' });
+                    animator?.setEmotion('thinking');
 
-            // Logic: WakeWord=OFF, Voice=ON, Audio=OFF
-            if (wakeWordHandler) wakeWordHandler.stopListening();
-            stopCurrentAudio();
+                    // Convert Float32Array to WAV Blob
+                    const audioBlob = float32ToWav(audio, 16000);
+                    console.log(`📦 Audio Blob: ${audioBlob.size} bytes`);
 
-            setTimeout(() => {
-                if (stateManager.getState() === 'LISTENING' && voiceHandler) {
-                    voiceHandler.start();
+                    // Send to Backend
+                    if (ws?.readyState === WebSocket.OPEN) {
+                        ws.send(audioBlob);
+                        updateStatus("กำลังคิด... 🧠");
+                    } else {
+                        updateStatus("❌ ไม่ได้เชื่อมต่อเซิร์ฟเวอร์");
+                        fsm.transitionTo('IDLE');
+                    }
+                },
+
+                onVADMisfire: () => {
+                    console.log("⚡ VAD Misfire (false positive)");
                 }
-            }, 200);
+            });
 
-            if (stopSpeechButton) stopSpeechButton.classList.add('visible');
-            if (muteButton) muteButton.style.display = 'none'; // Hide mute when listening
-        },
-
-        onThinking: (text) => {
-            console.log("[State] THINKING");
-            uiController.setStatus(text || "กำลังประมวลผล...");
-            uiController.setEmotion('thinking');
-
-            // Logic: ALL OFF
-            if (wakeWordHandler) wakeWordHandler.stopListening(); // Stay stopped
-            if (voiceHandler) voiceHandler.stop(false); // Stop recording
-            stopCurrentAudio();
-
-            if (stopSpeechButton) stopSpeechButton.classList.add('visible');
-            // Allow mute button during thinking/speaking
-            if (muteButton) {
-                muteButton.style.display = 'flex';
-                muteButton.classList.add('visible', 'popIn');
-            }
-        },
-
-        onSpeaking: () => {
-            console.log("[State] SPEAKING");
-            uiController.setEmotion('speaking');
-
-            // Logic: ALL INPUTS OFF
-            if (wakeWordHandler) wakeWordHandler.stopListening();
-            if (voiceHandler) voiceHandler.stop(true);
-
-            if (stopSpeechButton) stopSpeechButton.classList.add('visible');
-            if (muteButton) {
-                muteButton.style.display = 'flex';
-                muteButton.classList.add('visible', 'popIn');
-            }
-        },
-
-        onError: (msg) => {
-            console.error("[FSM Error]", msg);
-            uiController.setStatus(msg);
-            uiController.setEmotion('normal');
-        },
-
-        onForceStop: () => {
-            hardResetAudio();
+            console.log("✅ Silero VAD Ready");
+        } catch (err) {
+            console.error("VAD Init Error:", err);
+            throw new Error(`VAD ไม่พร้อม: ${err.message}`);
         }
-    };
-
-    // Initialize State Manager
-    if (window.AvatarStateManager) {
-        stateManager = new AvatarStateManager(fsmCallbacks);
-    } else {
-        console.error("AvatarStateManager not found!");
     }
 
-    // =========================================================================
-    // 🔌 WebSocket Logic
-    // =========================================================================
+    // ==========================================
+    // 6. WebSocket Connection
+    // ==========================================
+    let reconnectCount = 0;
 
     function connectWebSocket() {
-        if (typeof API_HOST === 'undefined') return;
-        websocket = new WebSocket(`ws://${API_HOST}:${API_PORT}/api/avatar/ws`);
-        websocket.binaryType = 'arraybuffer';
-
-        websocket.onopen = () => {
-            console.log("WS Connected");
-            if (aiModeManager) {
-                const currentMode = aiModeManager.getMode();
-                websocket.send(JSON.stringify({ "action": "SET_MODE", "ai_mode": currentMode }));
-            }
-        };
-
-        websocket.onmessage = async (event) => {
-            // 1. Text / JSON Message
-            if (typeof event.data === 'string') {
-                const data = JSON.parse(event.data);
-
-                if (data.action === "AUDIO_STREAM_END") {
-                    console.log("[Stream] EOS Received");
-                    isServerResponseComplete = true;
-                    if (audioQueue.length === 0 && !isPlayingAudio) {
-                        handlePlaybackFinished();
-                    }
-                    return;
-                }
-
-                if (musicHandler && musicHandler.handleMessage(data)) {
-                    stateManager.transitionTo('IDLE');
-                    return;
-                }
-
-                const hasVisual = data.image_url || data.image_gallery?.length || data.sources?.length || (data.action === 'SHOW_MAP_EMBED');
-                const shouldEnterPresentation = hasVisual || (data.answer && data.answer.length > 0);
-
-                if (shouldEnterPresentation) {
-                    uiController.enterPresentation(data);
-                    // Update status strictly to short description
-                    uiController.setStatus("กำลังนำเสนอข้อมูล...");
-                } else if (!data.answer && data.emotion) {
-                    // Only update emotional status if no text answer (e.g. "Thinking")
-                }
-
-                // [FIX] Do NOT dump raw answer into Status Text
-                // if (data.answer) uiController.setStatus(data.answer);
-
-                if (data.emotion && stateManager.getState() !== 'SPEAKING') {
-                    uiController.setEmotion(data.emotion);
-                }
-
-            }
-            // 2. Audio Binary Chunk
-            else if (event.data instanceof ArrayBuffer) {
-                if (stateManager.getState() !== 'SPEAKING') {
-                    stateManager.transitionTo('SPEAKING');
-                }
-
-                // 🛑 DISABLED LEGACY AudioStreamManager to prevent double audio
-                // if (window.audioStreamManager) audioStreamManager.enqueue(event.data); 
-
-                queueAudio(event.data);
-            }
-        };
-
-        websocket.onclose = () => setTimeout(connectWebSocket, 3000);
-    }
-
-    function sendAudioToBackend(audioBlob) {
-        if (websocket && websocket.readyState === WebSocket.OPEN) {
-            websocket.send(audioBlob);
-        } else {
-            uiController.setStatus("Error: No Connection");
-            stateManager.transitionTo('IDLE');
-        }
-    }
-
-    function sendQuery(query, intent = null, additionalData = {}) {
-        if (websocket && websocket.readyState === WebSocket.OPEN) {
-            hardResetAudio();
-
-            const mode = aiModeManager ? aiModeManager.getMode() : 'fast';
-            const payload = { "query": query, "ai_mode": mode, ...additionalData };
-            if (intent) payload.intent = intent;
-
-            websocket.send(JSON.stringify(payload));
-
-            stateManager.transitionTo('THINKING', { text: "กำลังค้นหา..." });
-        }
-    }
-
-    // =========================================================================
-    // 🔊 Audio Playback Logic (Streaming + Mute Support)
-    // =========================================================================
-
-    function stopCurrentAudio() {
-        if (currentAudioSource) {
-            try { currentAudioSource.stop(); } catch (e) { }
-            currentAudioSource = null;
-        }
-        if (window.avatarAnimator) window.avatarAnimator.stopSpeaking();
-    }
-
-    async function queueAudio(audioData) {
-        if (stateManager.getState() !== 'SPEAKING' && stateManager.getState() !== 'THINKING') {
+        if (!window.API_HOST) {
+            console.error("❌ config.js not loaded");
+            updateStatus("❌ ไม่พบ Config");
             return;
         }
-        audioQueue.push(audioData);
-        processAudioQueue();
+
+        const url = `ws://${window.API_HOST}:${window.API_PORT}/api/avatar/ws`;
+        console.log(`🔌 Connecting to ${url}...`);
+
+        ws = new WebSocket(url);
+        ws.binaryType = 'arraybuffer';
+
+        ws.onopen = () => {
+            console.log("🟢 WebSocket Connected");
+            reconnectCount = 0;
+        };
+
+        ws.onmessage = async (event) => {
+            // Text JSON
+            if (typeof event.data === 'string') {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleJsonMessage(data);
+                } catch (e) {
+                    console.error("JSON Parse Error:", e);
+                }
+            }
+            // Binary Audio
+            else if (event.data instanceof ArrayBuffer) {
+                if (fsm?.getState() !== 'SPEAKING') {
+                    fsm?.transitionTo('SPEAKING');
+                }
+                await playAudio(event.data);
+            }
+        };
+
+        ws.onclose = () => {
+            console.warn("🔴 WebSocket Disconnected");
+            const delay = Math.min(1000 * Math.pow(2, reconnectCount++), 10000);
+            setTimeout(connectWebSocket, delay);
+        };
+
+        ws.onerror = (e) => {
+            console.error("WebSocket Error:", e);
+        };
     }
 
-    async function processAudioQueue() {
-        if (isPlayingAudio || audioQueue.length === 0) return;
+    function handleJsonMessage(data) {
+        console.log("📩 Message:", data);
 
-        isPlayingAudio = true;
-        const audioData = audioQueue.shift();
+        // Show Presentation
+        if (data.answer || data.image_url) {
+            animator?.enterPresentationMode(data);
+        }
 
-        try {
-            await playAudioChunk(audioData);
-        } catch (e) {
-            console.error("Play Error:", e);
-        } finally {
-            isPlayingAudio = false;
-            processAudioQueue();
+        // Update Emotion
+        if (data.emotion) {
+            animator?.setEmotion(data.emotion);
+        }
+
+        // Handle stream end
+        if (data.action === 'AUDIO_STREAM_END') {
+            // Audio will naturally end and trigger IDLE via onended
         }
     }
 
-    async function playAudioChunk(audioData) {
-        if (!mainAudioContext) return;
-
-        // Ensure state is Speaking
-        if (stateManager.getState() !== 'SPEAKING') stateManager.transitionTo('SPEAKING');
+    // ==========================================
+    // 7. Audio Playback
+    // ==========================================
+    async function playAudio(arrayBuffer) {
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
 
         try {
-            const buffer = await (audioData instanceof Blob ? audioData.arrayBuffer() : audioData);
-            const audioBuffer = await mainAudioContext.decodeAudioData(buffer);
-
-            const source = mainAudioContext.createBufferSource();
+            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+            const source = audioCtx.createBufferSource();
             source.buffer = audioBuffer;
+            source.connect(gainNode);
 
-            // 🎚️ GAIN NODE Logic (Volume/Mute)
-            if (!mainGainNode) {
-                mainGainNode = mainAudioContext.createGain();
-                mainGainNode.connect(mainAudioContext.destination);
-            }
-
-            // Apply Mute State
-            mainGainNode.gain.value = isMuted ? 0 : 1;
-
-            // Connect Source -> Gain -> Destination
-            source.connect(mainGainNode);
-
-            // Lip Sync Trigger (Even if muted, we might want lips to move? 
-            // The user said "Mute... slide continues... maybe lips stop or not".
-            // Let's keep lips moving for realism, or stop them if muted?
-            // "Mute: reduce volume to 0 but do NOT stop playback".
-            // So lips SHOULD move technically, or we can disable them.
-            // Let's keep them moving as per plan "Animation ปากอาจขยับต่อ").
-            if (window.avatarAnimator && !window.avatarAnimator.isSpeaking) {
-                window.avatarAnimator.startSpeaking();
-            }
-
-            return new Promise((resolve) => {
-                source.onended = () => {
-                    currentAudioSource = null;
-                    if (audioQueue.length === 0) {
-                        if (isServerResponseComplete) {
-                            handlePlaybackFinished();
-                        }
-                    }
-                    resolve();
-                };
-                source.start(0);
-                currentAudioSource = source;
-            });
-        } catch (e) {
-            return Promise.resolve();
-        }
-    }
-
-    function handlePlaybackFinished() {
-        console.log("[Stream] Playback Finished.");
-        setTimeout(() => {
-            if (stateManager.getState() === 'SPEAKING') {
-                stateManager.transitionTo('LISTENING');
-            }
-        }, 500);
-        isServerResponseComplete = false;
-    }
-
-
-    // =========================================================================
-    // 🏗️ Initialization & Event Wiring
-    // =========================================================================
-
-    async function initializeAudioSystem() {
-        if (!mainAudioContext) {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            mainAudioContext = new AudioContext();
-        }
-        if (mainAudioContext.state === 'suspended') {
-            try {
-                // Attempt to resume, but don't crash if blocked by policy
-                await mainAudioContext.resume().catch(e => console.warn("Audio Autoplay Blocked (Will resume on click):", e));
-            } catch (e) {
-                console.warn("Audio Context Resume Error:", e);
-            }
-        }
-
-        // Create Master Gain
-        if (!mainGainNode) {
-            mainGainNode = mainAudioContext.createGain();
-            mainGainNode.connect(mainAudioContext.destination);
-        }
-
-        // 1. Wake Handlers
-        if (!wakeWordHandler && typeof WakeWordHandler !== 'undefined') {
-            wakeWordHandler = new WakeWordHandler({
-                onStatusUpdate: () => { },
-                onWakeWordDetected: () => {
-                    console.log("[WakeWord] Detected!");
-                    stateManager.transitionTo('LISTENING');
-                }
-            });
-        }
-
-        // 2. Voice Handler
-        if (!voiceHandler && typeof VoiceHandler !== 'undefined') {
-            voiceHandler = new VoiceHandler(mainAudioContext, {
-                onStatusUpdate: (msg) => {
-                    if (stateManager.getState() === 'LISTENING') uiController.setStatus(msg);
-                },
-                onSpeechEnd: (audioBlob) => {
-                    if (stateManager.getState() === 'LISTENING') {
-                        stateManager.transitionTo('THINKING', { text: "กำลังฟัง..." });
-                        sendAudioToBackend(audioBlob);
-                    }
-                }
-            });
-        }
-
-        // 3. Music (Legacy)
-        if (!musicHandler && typeof AvatarMusicHandler !== 'undefined') {
-            const timerManager = { clearPresentationTimeout: () => { }, startPresentationTimeout: () => { } };
-            musicHandler = new AvatarMusicHandler(websocket, uiController, voiceHandler, timerManager, {
-                musicControls: musicControls,
-                stopAISpeechAudio: stopCurrentAudio,
-                stopSpeechButton: stopSpeechButton,
-                resetToListeningState: () => stateManager.transitionTo('LISTENING')
-            });
-        }
-    }
-
-    window.AvatarController = {
-        setActive: async (active) => {
-            if (active) {
-                console.log("🟢 Avatar Controller Activated");
-                await waitForAnimator();
-                await initializeAudioSystem();
-                stateManager.transitionTo('IDLE');
-            }
-        }
-    };
-
-    // UI Event Listeners
-    if (stopSpeechButton) {
-        stopSpeechButton.addEventListener('click', () => {
-            stateManager.forceReset();
-        });
-    }
-
-    // Mute Button Listener
-    if (muteButton) {
-        muteButton.addEventListener('click', () => {
-            isMuted = !isMuted;
-            if (mainGainNode) {
-                mainGainNode.gain.value = isMuted ? 0 : 1;
-            }
-            uiController.toggleMuteUI(isMuted);
-        });
-    }
-
-    if (textQueryForm) {
-        textQueryForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const input = document.getElementById('text-query-input');
-            const text = input.value.trim();
-            if (text) {
-                sendQuery(text);
-                input.value = "";
-            }
-        });
-    }
-
-    // AI Mode Setup
-    if (window.NanApp && window.NanApp.AIModeManager) {
-        aiModeManager = new window.NanApp.AIModeManager();
-        const aiModeBtn = document.getElementById('ai-mode-toggle');
-
-        const updateUI = (mode) => {
-            if (aiModeBtn) {
-                const icon = aiModeBtn.querySelector('i');
-                const span = aiModeBtn.querySelector('span');
-                if (mode === 'fast') {
-                    icon.className = 'fas fa-bolt'; span.textContent = 'คิดเร็ว';
-                    aiModeBtn.style.borderColor = '#10b981';
+            source.onended = () => {
+                console.log("🔊 Audio chunk ended");
+                if (audioQueue.length > 0) {
+                    playNextInQueue();
                 } else {
-                    icon.className = 'fas fa-brain'; span.textContent = 'คิดละเอียด';
-                    aiModeBtn.style.borderColor = '#3b82f6';
+                    isPlaying = false;
+                    // Return to IDLE after speaking
+                    if (fsm?.getState() === 'SPEAKING') {
+                        fsm.transitionTo('IDLE');
+                    }
+                }
+            };
+
+            if (isPlaying) {
+                audioQueue.push(source);
+            } else {
+                isPlaying = true;
+                source.start(0);
+                animator?.startSpeaking();
+            }
+        } catch (e) {
+            console.error("Audio Decode Error:", e);
+        }
+    }
+
+    function playNextInQueue() {
+        const source = audioQueue.shift();
+        if (source) {
+            source.start(0);
+        }
+    }
+
+    // ==========================================
+    // 8. FSM Callbacks
+    // ==========================================
+    function getFsmCallbacks() {
+        return {
+            onIdle: () => {
+                updateStatus("กดปุ่มไมค์ 🎙️ เพื่อคุยกับน้องน่าน");
+                animator?.setEmotion('normal');
+                animator?.stopSpeaking();
+
+                // Stop VAD if running
+                if (isVADActive) {
+                    vadInstance?.pause();
+                    isVADActive = false;
+                }
+
+                // Show Mic Button
+                if (UI.micBtn) {
+                    UI.micBtn.style.display = 'flex';
+                    UI.micBtn.classList.remove('active-recording');
+                }
+
+                // Hide Stop Button
+                if (UI.stopBtn) UI.stopBtn.style.display = 'none';
+
+                // Clear audio queue
+                audioQueue = [];
+                isPlaying = false;
+            },
+
+            onListening: () => {
+                updateStatus("พูดได้เลยเจ้า... 🎤");
+                animator?.setEmotion('listening');
+
+                // Start VAD
+                if (vadInstance && !isVADActive) {
+                    vadInstance?.start();
+                    isVADActive = true;
+                    console.log("🎙️ VAD Started");
+                }
+
+                // Visual feedback
+                if (UI.micBtn) {
+                    UI.micBtn.classList.add('active-recording');
+                    gsap?.to(UI.micBtn, { scale: 1.1, duration: 0.2 });
+                }
+
+                // Show Stop Button
+                if (UI.stopBtn) UI.stopBtn.style.display = 'flex';
+            },
+
+            onThinking: (text) => {
+                updateStatus(text || "กำลังคิด... 🧠");
+                animator?.setEmotion('thinking');
+
+                // Stop VAD
+                if (isVADActive) {
+                    vadInstance?.pause();
+                    isVADActive = false;
+                }
+
+                // Reset mic button
+                if (UI.micBtn) {
+                    UI.micBtn.classList.remove('active-recording');
+                    gsap?.to(UI.micBtn, { scale: 1, duration: 0.2 });
+                }
+            },
+
+            onSpeaking: () => {
+                updateStatus("น้องน่านกำลังตอบ... 🗣️");
+                animator?.setEmotion('speaking');
+                animator?.startSpeaking();
+
+                // Hide mic during speaking
+                if (UI.micBtn) UI.micBtn.style.display = 'none';
+            },
+
+            onError: (msg) => {
+                console.error("FSM Error:", msg);
+                updateStatus(`❌ ${msg}`);
+            },
+
+            onForceStop: () => {
+                console.log("🛑 Force Stop");
+                audioQueue = [];
+                isPlaying = false;
+                if (isVADActive) {
+                    vadInstance?.pause();
+                    isVADActive = false;
                 }
             }
         };
-        updateUI(aiModeManager.getMode());
-
-        if (aiModeBtn) {
-            aiModeBtn.addEventListener('click', () => {
-                const newMode = aiModeManager.toggle();
-                updateUI(newMode);
-                if (websocket) websocket.send(JSON.stringify({ "action": "SET_MODE", "ai_mode": newMode }));
-            });
-        }
     }
 
-    // Fab Manager Setup
-    if (window.FabManager) {
-        new FabManager({
-            isAvatarMode: true,
-            buttons: {
-                music: 'avatar-music-btn',
-                faq: 'avatar-faq-btn',
-                calc: 'avatar-calc-btn',
-                nav: 'avatar-nav-btn'
-            },
-            callbacks: {
-                sendMessage: (text, intent, extra) => sendQuery(text, intent, extra),
-                onMusicAction: () => {
-                    const infoDisplay = document.getElementById('info-display');
-                    if (infoDisplay) {
-                        infoDisplay.innerHTML = '';
-                        const fm = new FabManager({ callbacks: { sendMessage: (t, i, d) => sendQuery(t, i, d) } });
-                        infoDisplay.appendChild(fm.createMusicWidget());
-                        if (window.avatarAnimator) window.avatarAnimator.enterPresentationMode({ html_is_pre_rendered: true });
-                        stateManager.transitionTo('LISTENING');
-                    }
-                },
-                onFaqAction: () => {
-                    const infoDisplay = document.getElementById('info-display');
-                    if (infoDisplay) {
-                        infoDisplay.innerHTML = '';
-                        const fm = new FabManager({ callbacks: { sendMessage: (t, i, d) => sendQuery(t, i, d) } });
-                        infoDisplay.appendChild(fm.createFAQWidget());
-                        if (window.avatarAnimator) window.avatarAnimator.enterPresentationMode({ html_is_pre_rendered: true });
-                        stateManager.transitionTo('LISTENING');
-                    }
-                },
-                onNavAction: () => {
-                    const infoDisplay = document.getElementById('info-display');
-                    if (infoDisplay) {
-                        infoDisplay.innerHTML = '';
-                        const fm = new FabManager({ callbacks: { sendMessage: (t, i, d) => sendQuery(t, i, d) } });
-                        infoDisplay.appendChild(fm.createNavigationWidget());
-                        if (window.avatarAnimator) window.avatarAnimator.enterPresentationMode({ html_is_pre_rendered: true });
-                        stateManager.transitionTo('LISTENING');
-                    }
-                },
-                onCalcAction: () => {
-                    const infoDisplay = document.getElementById('info-display');
-                    if (infoDisplay) {
-                        infoDisplay.innerHTML = '';
-                        const fm = new FabManager({ callbacks: { sendMessage: (t, i, d) => sendQuery(t, i, d) } });
-                        infoDisplay.appendChild(fm.createCalculatorWidget());
-                        if (window.avatarAnimator) window.avatarAnimator.enterPresentationMode({ html_is_pre_rendered: true });
-                        stateManager.transitionTo('LISTENING');
-                    }
-                }
+    // ==========================================
+    // 9. Event Listeners
+    // ==========================================
+
+    // Mic Button - Toggle Listen
+    if (UI.micBtn) {
+        UI.micBtn.addEventListener('click', () => {
+            const state = fsm?.getState();
+
+            if (state === 'IDLE') {
+                console.log("🎙️ Start Listening");
+                fsm.transitionTo('LISTENING');
+            } else if (state === 'LISTENING') {
+                console.log("🎙️ Manual Stop");
+                fsm.transitionTo('IDLE');
+            } else if (state === 'SPEAKING') {
+                console.log("🛑 Stop Speaking");
+                fsm.transitionTo('IDLE');
             }
         });
     }
 
-    connectWebSocket();
+    // Stop Button
+    if (UI.stopBtn) {
+        UI.stopBtn.addEventListener('click', () => {
+            console.log("🛑 Stop Button Clicked");
+            fsm?.forceReset();
+        });
+    }
+
+    // Text Input
+    if (UI.inputForm) {
+        UI.inputForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = UI.inputField.value.trim();
+            if (text && ws?.readyState === WebSocket.OPEN) {
+                // Stop any current activity
+                fsm?.transitionTo('THINKING', { text: 'กำลังคิด...' });
+
+                // Send text query
+                ws.send(JSON.stringify({ query: text, ai_mode: 'fast' }));
+                UI.inputField.value = '';
+            }
+        });
+    }
+
+    // ==========================================
+    // 10. Utility Functions
+    // ==========================================
+
+    // Convert Float32Array to WAV Blob
+    function float32ToWav(float32Array, sampleRate) {
+        const numChannels = 1;
+        const bytesPerSample = 2; // 16-bit
+        const blockAlign = numChannels * bytesPerSample;
+        const byteRate = sampleRate * blockAlign;
+        const dataSize = float32Array.length * bytesPerSample;
+        const buffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buffer);
+
+        // WAV Header
+        const writeString = (offset, str) => {
+            for (let i = 0; i < str.length; i++) {
+                view.setUint8(offset + i, str.charCodeAt(i));
+            }
+        };
+
+        writeString(0, 'RIFF');
+        view.setUint32(4, 36 + dataSize, true);
+        writeString(8, 'WAVE');
+        writeString(12, 'fmt ');
+        view.setUint32(16, 16, true); // Subchunk1Size
+        view.setUint16(20, 1, true);  // AudioFormat (PCM)
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, byteRate, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, bytesPerSample * 8, true); // BitsPerSample
+        writeString(36, 'data');
+        view.setUint32(40, dataSize, true);
+
+        // Convert samples
+        let offset = 44;
+        for (let i = 0; i < float32Array.length; i++) {
+            const sample = Math.max(-1, Math.min(1, float32Array[i]));
+            view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+            offset += 2;
+        }
+
+        return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    // ==========================================
+    // 11. Public API
+    // ==========================================
+    window.AvatarController = {
+        getState: () => fsm?.getState(),
+        forceStop: () => fsm?.forceReset()
+    };
 });

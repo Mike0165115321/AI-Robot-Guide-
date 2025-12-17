@@ -21,5 +21,7 @@ const WS_BASE_URL = isLocalDev
     : `${WS_PROTOCOL}//${window.location.host}`;
 
 // Export to window for other scripts
+window.API_HOST = API_HOST;
+window.API_PORT = API_PORT;
 window.API_BASE_URL = API_BASE_URL;
 window.WS_BASE_URL = WS_BASE_URL;

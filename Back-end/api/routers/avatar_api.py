@@ -80,6 +80,10 @@ async def process_orchestrator_result(result: Dict[str, Any]) -> Dict[str, Any]:
     payload["image_url"] = construct_full_image_url(image_url)
     payload["image_gallery"] = [construct_full_image_url(url) for url in image_gallery if url]
     
+    # 🔍 DEBUG: Log image URL construction
+    logging.info(f"🖼️ [Avatar] Image Debug - Raw: image_url={image_url}, gallery={image_gallery}")
+    logging.info(f"🖼️ [Avatar] Image Debug - Constructed: image_url={payload['image_url']}, gallery={payload['image_gallery']}")
+    
     processed_sources = []
     for source in sources:
         processed_source = source.copy()

@@ -263,7 +263,7 @@ async def preview_raw_file(file: UploadFile = File(...)):
     อ่านไฟล์และแสดง preview ข้อมูลดิบก่อน AI transform
     """
     # Validate file type using File Validator (Magic Number Check)
-    from ..utils.file_validator import verify_file_signature
+    from utils.file_validator import verify_file_signature
     import io
     
     if not await verify_file_signature(file):

@@ -98,21 +98,16 @@ class RAGOrchestrator:
         return {"source_info": source_info, "image_gallery": static_image_gallery}
 
     async def _handle_welcome_flow(self, session_id: Optional[str] = None, **kwargs) -> dict:
-        # ตั้งค่า session ให้รอรับข้อมูล analytics (ถ้ามี session_id)
-        if session_id:
-            try:
-                self.session_manager.collection.update_one(
-                    {"session_id": session_id},
-                    {"$set": {"awaiting": "analytics_origin_or_topic", "last_active": datetime.now(timezone.utc)}},
-                    upsert=True
-                )
-            except Exception as e:
-                logging.error(f"เกิดข้อผิดพลาดในการอัปเดตสถานะการต้อนรับ: {e}")
+        # 🆕 Dynamic Greeting (Requested by User)
+        # ไม่ใช้ Fixed Text แล้ว ให้โมเดล 8B (Small Talk) คิดคำตอบเองเลย
+        corrected_query = kwargs.get('corrected_query') or "สวัสดี"
         
-        # ข้อความทักทายแบบเป็นกันเอง
+        logging.info(f"👋 [Welcome] Generating Dynamic Greeting for: '{corrected_query}'")
+        final_answer = await get_small_talk_response(user_query=corrected_query)
+        
         return {
-            "answer": "สวัสดีค่ะ เราเป็น AI ไกด์จากน่านค่ะ ปรึกษาได้ทุกเรื่องเรามีข้อมูลสถานที่ท่องเที่ยวจังหวัดน่านแน่นๆเลย เลยอยากรู้ว่าเธอมาจากที่ไหน ไม่ต้องบอกแบบละเอียดก็ได้นะคะ แค่จังหวัดหรือประเทศก็พอค่ะ",
-            "action": "AWAITING_ANALYTICS_DATA",
+            "answer": final_answer,
+            "action": None, # ไม่ต้อง Force Analytics แล้ว
             "action_payload": None, "image_url": None, "image_gallery": [], "sources": [],
         }
 
@@ -181,7 +176,7 @@ class RAGOrchestrator:
     ) -> dict:
         interpretation = interpretation or kwargs.get("interpretation", {})
         
-        unique_queries = interpretation.get("sub_queries", [corrected_query])
+        unique_queries = interpretation.get("sub_queries") or [corrected_query]
         entity = interpretation.get("entity")
         
         print(f"DEBUG PRINT: _handle_informational CALLED. Entity=[{entity}]")
@@ -241,22 +236,23 @@ class RAGOrchestrator:
 
         # 🔥 SMART FEATURE: Trending Recommendations for Broad Queries
         # If no specific entity is requested AND no specific filters (except maybe general category),
-        # we consider it a "Broad Query" and inject trending locations.
+        # we consider it a "Broad Query" and inject recommended tourist attractions.
         is_broad_query = (not found_direct_entity) and (entity is None) and (not location_filter)
         
         if is_broad_query:
-            logging.info("🔥 [RAG] Broad Query Detected! Fetching Trending Locations...")
+            logging.info("🔥 [RAG] Broad Query Detected! Fetching Recommended Attractions...")
             try:
-                # Lazy import to avoid circular dependency if any
-                from core.services.analytics_service import AnalyticsService
-                analytics_service = AnalyticsService(self.mongo_manager)
-                trending_titles = await analytics_service.get_trending_locations(limit=5)
+                # 🆕 ใช้ get_recommended_attractions แทน get_trending_locations
+                # เพื่อให้แนะนำสถานที่ท่องเที่ยว ไม่ใช่อำเภอ
+                recommended_docs = await asyncio.to_thread(
+                    self.mongo_manager.get_recommended_attractions, 
+                    limit=5
+                )
                 
-                if trending_titles:
-                    logging.info(f"🔥 [Trending] Found: {trending_titles}")
-                    trending_docs = await asyncio.to_thread(self.mongo_manager.get_locations_by_titles, trending_titles)
-                    
-                    for doc in trending_docs:
+                if recommended_docs:
+                    logging.info(f"🎯 [Recommended] Found {len(recommended_docs)} attractions")
+                    for doc in recommended_docs:
+                        logging.info(f"   - {doc.get('title')} ({doc.get('category')})")
                         mock_result = {
                             "payload": {
                                 "mongo_id": str(doc.get("_id")),
@@ -267,14 +263,15 @@ class RAGOrchestrator:
                                 "location_data": doc.get("location_data"),
                                 "image_urls": doc.get("image_urls", []),
                                 "metadata": doc.get("metadata", {}),
-                                "is_trending": True # Mark as trending
+                                "is_recommended": True  # Mark as recommended
                             },
-                            "score": 0.85 # Good score but let semantic match win if very specific
+                            "score": 0.85  # Good score but let semantic match win if very specific
                         }
                         qdrant_results_combined.append(mock_result)
-                        # mongo_ids_from_search.append(str(doc.get("_id"))) # Optional: Add to search IDs if we want them de-duped later
+                else:
+                    logging.warning("⚠️ [Recommended] No attractions found, falling back to semantic search")
             except Exception as e:
-                logging.error(f"❌ [RAG] Error fetching trending locations: {e}")
+                logging.error(f"❌ [RAG] Error fetching recommended attractions: {e}")
 
         for q in unique_queries:
             # Pass metadata_filter to search_similar

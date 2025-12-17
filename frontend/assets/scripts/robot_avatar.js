@@ -173,7 +173,167 @@ class AvatarAnimator {
         this.resultText.innerHTML = '';
 
         const answerText = data.answer || '';
-        this.resultText.innerHTML = typeof marked !== 'undefined' ? marked.parse(answerText) : answerText;
+        
+        // 🔍 DEBUG: Log image data
+        console.log("🖼️ [Avatar] Image Data:", {
+            image_url: data.image_url,
+            image_gallery: data.image_gallery
+        });
+        let contentHtml = typeof marked !== 'undefined' ? marked.parse(answerText) : answerText;
+
+        // 🆕 Restore Image Gallery (Chat Style)
+        // User Request: "เอารุแบบการตอบเหมือนหน้าแชทเลยครับ อย่าไปแก้โค้ดหน้าแชทนะ ไปก็อปมาเลยก็ได้"
+        let allImages = [];
+        if (data.image_gallery && Array.isArray(data.image_gallery)) {
+            allImages = [...data.image_gallery];
+        }
+        if (data.image_url && !allImages.includes(data.image_url)) {
+            allImages.unshift(data.image_url);
+        }
+
+        if (allImages.length > 0) {
+            contentHtml += `<div class="image-gallery-grid" style="margin-top: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">`;
+            allImages.slice(0, 4).forEach(url => {
+                contentHtml += `<img src="${url}" class="responsive-image" style="width: 100%; border-radius: 8px; aspect-ratio: 4/3; object-fit: cover; cursor: pointer;" onclick="window.open('${url}', '_blank')">`;
+            });
+            contentHtml += `</div>`;
+        } else if (data.image_url) {
+            contentHtml += `<div class="single-image-container" style="margin-top: 15px;"><img src="${data.image_url}" class="responsive-image" style="width: 100%; border-radius: 10px; cursor: pointer;" onclick="window.open('${data.image_url}', '_blank')"></div>`;
+        }
+
+        this.resultText.innerHTML = ""; // Clear initial content
+
+        // 1. Create Main Content Wrapper
+        const contentWrapper = document.createElement('div');
+        contentWrapper.innerHTML = contentHtml;
+        this.resultText.appendChild(contentWrapper);
+
+        // 🆕 2. Append Action Buttons (Like, Dislike, Copy, Print)
+        // User Request: "เพิ่มปุ่ม ปริ้นหรือ ปุ่ม กดดไลค์ เหมือน หน้า แชทมาด้วยนะครับ"
+
+        const actionsContainer = document.createElement('div');
+        actionsContainer.style.display = 'flex';
+        actionsContainer.style.gap = '10px';
+        actionsContainer.style.marginTop = '15px';
+        actionsContainer.style.paddingTop = '10px';
+        actionsContainer.style.borderTop = '1px solid rgba(255, 255, 255, 0.1)';
+        actionsContainer.style.justifyContent = 'space-between';
+        actionsContainer.style.alignItems = 'center';
+
+        // Left Side: Feedback
+        const feedbackGroup = document.createElement('div');
+        feedbackGroup.style.display = 'flex';
+        feedbackGroup.style.gap = '8px';
+
+        const likeBtn = document.createElement('button');
+        likeBtn.className = 'avatar-action-btn';
+        likeBtn.innerHTML = '<i class="fa-regular fa-thumbs-up"></i>';
+        likeBtn.title = "ถูกใจ";
+
+        const dislikeBtn = document.createElement('button');
+        dislikeBtn.className = 'avatar-action-btn';
+        dislikeBtn.innerHTML = '<i class="fa-regular fa-thumbs-down"></i>';
+        dislikeBtn.title = "ไม่ถูกใจ";
+
+        // Feedback Logic
+        const submitAvatarFeedback = async (type) => {
+            const sessionId = sessionStorage.getItem('session_id') || 'anonymous';
+            if (type === 'like') {
+                likeBtn.innerHTML = '<i class="fa-solid fa-thumbs-up"></i>';
+                likeBtn.style.color = '#4ade80'; // Green
+                dislikeBtn.innerHTML = '<i class="fa-regular fa-thumbs-down"></i>';
+                dislikeBtn.style.color = '';
+            } else {
+                dislikeBtn.innerHTML = '<i class="fa-solid fa-thumbs-down"></i>';
+                dislikeBtn.style.color = '#f87171'; // Red
+                likeBtn.innerHTML = '<i class="fa-regular fa-thumbs-up"></i>';
+                likeBtn.style.color = '';
+            }
+            likeBtn.disabled = true;
+            dislikeBtn.disabled = true;
+
+            try {
+                await fetch('/api/analytics/submit_feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        query: document.getElementById('user-input')?.value || "speech_input",
+                        response: answerText.substring(0, 500),
+                        feedback_type: type
+                    })
+                });
+            } catch (e) {
+                console.error("Feedback failed:", e);
+            }
+        };
+
+        likeBtn.onclick = () => submitAvatarFeedback('like');
+        dislikeBtn.onclick = () => submitAvatarFeedback('dislike');
+
+        feedbackGroup.appendChild(likeBtn);
+        feedbackGroup.appendChild(dislikeBtn);
+
+        // Right Side: Utility
+        const utilityGroup = document.createElement('div');
+        utilityGroup.style.display = 'flex';
+        utilityGroup.style.gap = '8px';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'avatar-action-btn';
+        copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+        copyBtn.title = "คัดลอก";
+        copyBtn.onclick = () => {
+            navigator.clipboard.writeText(answerText).then(() => {
+                copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                setTimeout(() => copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>', 2000);
+            });
+        };
+
+        const printBtn = document.createElement('button');
+        printBtn.className = 'avatar-action-btn';
+        printBtn.innerHTML = '<i class="fa-solid fa-print"></i>';
+        printBtn.title = "พิมพ์";
+        printBtn.onclick = () => {
+            const printWindow = window.open('', '_blank');
+            let printImagesHtml = '';
+            // Use same images for print
+            if (allImages.length > 0) {
+                printImagesHtml += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px;">';
+                allImages.forEach(img => {
+                    printImagesHtml += `<img src="${img}" style="width: 100%; object-fit: cover; border-radius: 4px;">`;
+                });
+                printImagesHtml += '</div>';
+            }
+
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Print - AI Guide Nan</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 40px; line-height: 1.6; }
+                        img { max-width: 100%; }
+                    </style>
+                </head>
+                <body>
+                    <h2>ข้อมูลจากน้องน่าน</h2>
+                    <div>${typeof marked !== 'undefined' ? marked.parse(answerText) : answerText}</div>
+                    ${printImagesHtml}
+                    <script>window.onload = () => setTimeout(() => window.print(), 500);<\/script>
+                </body>
+                </html>
+             `);
+            printWindow.document.close();
+        };
+
+        utilityGroup.appendChild(copyBtn);
+        utilityGroup.appendChild(printBtn);
+
+        actionsContainer.appendChild(feedbackGroup);
+        actionsContainer.appendChild(utilityGroup);
+
+        this.resultText.appendChild(actionsContainer);
+
         gsap.fromTo(this.resultText, { opacity: 0 }, { opacity: 1, duration: 0.6 });
 
         if (data.action === 'SHOW_MAP_EMBED' && data.action_payload) {
@@ -236,81 +396,8 @@ class AvatarAnimator {
             }
         }
 
-        // Fix: Define allImages from data
-        let allImages = [];
-        if (data.image_gallery && Array.isArray(data.image_gallery)) {
-            allImages = [...data.image_gallery];
-        }
-        if (data.image_url && !allImages.includes(data.image_url)) {
-            allImages.unshift(data.image_url);
-        }
+        // ❌ Image Gallery Removed as per request
 
-        if (allImages.length > 0) {
-            const galleryContainer = document.createElement('div');
-            galleryContainer.className = 'gallery-container';
-            galleryContainer.style.cssText = `
-                margin-top: 25px;
-                padding: 20px;
-                background: rgba(15, 23, 42, 0.6);
-                border-radius: 16px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                backdrop-filter: blur(10px);
-            `;
-
-            const title = document.createElement('h3');
-            title.textContent = '📸 รูปภาพประกอบ';
-            title.style.cssText = `
-                margin: 0 0 15px 0;
-                font-size: 1.1rem;
-                color: #2dd4bf;
-                font-weight: 600;
-            `;
-            galleryContainer.appendChild(title);
-
-            const imagesWrapper = document.createElement('div');
-            imagesWrapper.className = 'gallery-images-wrapper';
-            imagesWrapper.style.cssText = `
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-                gap: 12px;
-            `;
-
-            allImages.slice(0, 6).forEach((url, index) => {
-                const imgContainer = document.createElement('div');
-                imgContainer.style.cssText = `
-                    position: relative;
-                    border-radius: 12px;
-                    overflow: hidden;
-                    aspect-ratio: 4/3;
-                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-                    transition: transform 0.3s, box-shadow 0.3s;
-                    cursor: pointer;
-                `;
-                imgContainer.onmouseover = () => {
-                    imgContainer.style.transform = 'scale(1.05)';
-                    imgContainer.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.4)';
-                };
-                imgContainer.onmouseout = () => {
-                    imgContainer.style.transform = 'scale(1)';
-                    imgContainer.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.3)';
-                };
-                imgContainer.onclick = () => window.open(url, '_blank');
-
-                const img = document.createElement('img');
-                img.src = url;
-                img.alt = 'ภาพประกอบ';
-                img.style.cssText = `
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                `;
-                imgContainer.appendChild(img);
-                imagesWrapper.appendChild(imgContainer);
-            });
-
-            galleryContainer.appendChild(imagesWrapper);
-            this.infoDisplay.appendChild(galleryContainer);
-        }
 
         // ❌ ลบส่วน "แหล่งข้อมูลเพิ่มเติม" ออกตามที่ user ต้องการ
 

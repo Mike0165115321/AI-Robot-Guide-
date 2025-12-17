@@ -1,30 +1,39 @@
+// /frontend/assets/scripts/voice-handler.js
+// 🎙️ Voice Activity Detection (VAD) Handler (V2.0 - Cleaned)
+
 class VoiceHandler {
     /**
-     * @param {AudioContext} audioContext - [แก้ไข] รับ AudioContext ที่สร้างจากข้างนอก
-     * @param {object} callbacks - ฟังก์ชัน Callback ต่างๆ
+     * @param {AudioContext} audioContext - Shared AudioContext from main controller
+     * @param {object} callbacks - Callback functions
      * @param {function} callbacks.onStatusUpdate
      * @param {function} callbacks.onSpeechEnd
-     * @param {object} options - การตั้งค่า VAD
+     * @param {object} options - VAD configuration
      */
-    constructor(audioContext, callbacks, options = {}) { // 👈 [แก้ไข] เพิ่ม audioContext
+    constructor(audioContext, callbacks, options = {}) {
         if (!audioContext) {
-            throw new Error("VoiceHandler requires a valid AudioContext to be provided.");
+            throw new Error('VoiceHandler requires a valid AudioContext');
         }
 
-        this.callbacks = { onStatusUpdate: () => { }, onSpeechEnd: () => { }, ...callbacks };
+        this.callbacks = {
+            onStatusUpdate: () => { },
+            onSpeechEnd: () => { },
+            ...callbacks
+        };
 
+        // VAD Configuration
         const defaults = {
-            NOISE_FLOOR: 0.003,               // ตัดเสียง noise ต่ำมาก
-            SPEECH_THRESHOLD: 0.35,           // [FIX] ลดจาก 0.5 → 0.35 (ใกล้ ambient ~0.28 มากขึ้น)
-            AMPLIFICATION: 60,                // [FIX] เพิ่มจาก 50 → 60
-            SILENCE_DELAY_MS: 1500,           // รอให้ user พูดจบแน่ๆ
-            SPEECH_CONFIRMATION_FRAMES: 3,    // เริ่มรับรวดเร็ว
-            MIN_BLOB_SIZE_BYTES: 5000,        // ยอมรับไฟล์เล็กกว่า
-            smoothingFactor: 0.2,             // ตอบสนองเร็ว
-            MAX_RECORDING_MS: 15000           // 15 วินาที
+            NOISE_FLOOR: 0.003,
+            SPEECH_THRESHOLD: 0.40, // Increased from 0.35
+            AMPLIFICATION: 45,      // Reduced from 60 to filter noise
+            SILENCE_DELAY_MS: 1500,
+            SPEECH_CONFIRMATION_FRAMES: 3,
+            MIN_BLOB_SIZE_BYTES: 1000, // Reduced from 5000 to allow short words
+            smoothingFactor: 0.2,
+            MAX_RECORDING_MS: 15000
         };
         Object.assign(this, defaults, options);
 
+        // State
         this.smoothedVolume = 0.0;
         this.wasInterrupted = false;
         this.isListening = false;
@@ -34,50 +43,32 @@ class VoiceHandler {
         this.audioChunks = [];
         this.speechFrameCount = 0;
 
-        this.audioContext = audioContext; // 👈 [แก้ไข] ใช้ Context ที่รับเข้ามา
+        // Audio
+        this.audioContext = audioContext;
         this.mediaStream = null;
         this.mediaRecorder = null;
         this.analyser = null;
         this.dataArray = null;
-    }
 
-    _getAudioContext() {
-        // 👈 [ลบ] ฟังก์ชันนี้ไม่จำเป็นอีกต่อไป เพราะเรารับ audioContext จาก constructor แล้ว
-        // เราจะปล่อยฟังก์ชัน start() ให้ใช้ this.audioContext โดยตรง
-        return this.audioContext;
+        // Debug
+        this.lastLogTime = 0;
     }
 
     async start() {
-        console.log('🎙️ [VoiceHandler.start] Called, isListening:', this.isListening);
-        if (this.isListening) {
-            console.log('🎙️ [VoiceHandler.start] Already listening, returning');
-            return;
-        }
+        if (this.isListening) return;
 
-        // 👈 [แก้ไข] ใช้ this.audioContext โดยตรง
         const audioContext = this.audioContext;
-        console.log('🎙️ [VoiceHandler.start] AudioContext state:', audioContext.state);
         if (audioContext.state === 'suspended') {
-            console.log('🎙️ [VoiceHandler.start] Resuming AudioContext...');
             await audioContext.resume();
         }
 
         try {
-            console.log('🎙️ [VoiceHandler.start] Requesting microphone access...');
             this.mediaStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     noiseSuppression: true,
                     echoCancellation: true,
-                    autoGainControl: true,
+                    autoGainControl: true
                 }
-            });
-            console.log('🎙️ [VoiceHandler.start] Microphone access granted!');
-
-            // 🔍 [DEBUG] ตรวจสอบ audio tracks
-            const audioTracks = this.mediaStream.getAudioTracks();
-            console.log('🔍 [DEBUG] Audio tracks:', audioTracks.length);
-            audioTracks.forEach((track, i) => {
-                console.log(`🔍 [DEBUG] Track ${i}: ${track.label}, enabled: ${track.enabled}, muted: ${track.muted}, readyState: ${track.readyState}`);
             });
 
             const source = audioContext.createMediaStreamSource(this.mediaStream);
@@ -86,64 +77,63 @@ class VoiceHandler {
             source.connect(this.analyser);
             this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
 
-            console.log('🔍 [DEBUG] Analyser created, frequencyBinCount:', this.analyser.frequencyBinCount);
-
-            // [แก้ไข] การันตี MimeType
-            const mimeTypes = [
-                'audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/webm'
-            ];
+            // Setup MediaRecorder with compatible mimeType
+            const mimeTypes = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/webm'];
             const supportedMimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type));
 
             if (!supportedMimeType) {
-                console.error("VAD: ไม่มี MimeType ที่รองรับ (webm/ogg) สำหรับการอัดเสียง");
-                this.callbacks.onStatusUpdate("เบราว์เซอร์ไม่รองรับการอัดเสียง");
+                this.callbacks.onStatusUpdate('เบราว์เซอร์ไม่รองรับการอัดเสียง');
                 return;
             }
 
-            console.log("🎙️ [VoiceHandler.start] Using mimeType:", supportedMimeType);
-            const options = { mimeType: supportedMimeType, audioBitsPerSecond: 128000 };
-            this.mediaRecorder = new MediaRecorder(this.mediaStream, options);
-
+            this.mediaRecorder = new MediaRecorder(this.mediaStream, {
+                mimeType: supportedMimeType,
+                audioBitsPerSecond: 128000
+            });
 
             this.mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) this.audioChunks.push(event.data);
+                if (event.data.size > 0) {
+                    this.audioChunks.push(event.data);
+                }
             };
 
             this.mediaRecorder.onstop = () => {
-                console.log('🎙️ [VoiceHandler] MediaRecorder stopped');
+                console.log("🛑 MediaRecorder Stopped");
                 if (this.wasInterrupted) {
+                    console.warn("⚠️ Recording was interrupted (discarding)");
                     this.audioChunks = [];
                     this.wasInterrupted = false;
                     return;
                 }
+
                 const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                console.log(`📦 Audio Blob Created. Size: ${audioBlob.size} bytes`);
                 this.audioChunks = [];
 
-                console.log('🎙️ [VoiceHandler] Audio blob size:', audioBlob.size);
                 if (audioBlob.size > this.MIN_BLOB_SIZE_BYTES) {
+                    console.log("✅ Sending valid audio blob...");
                     this.callbacks.onSpeechEnd(audioBlob);
                 } else {
-                    console.log(`🎤 VAD: Discarding audio, too small (${audioBlob.size} bytes).`);
+                    console.warn(`⚠️ Audio too short/small (${audioBlob.size} < ${this.MIN_BLOB_SIZE_BYTES}). Discarding.`);
+                    this.callbacks.onStatusUpdate('เสียงสั้นไป (ลองใหม่)');
                 }
-                this.callbacks.onStatusUpdate("กำลังฟัง...");
+                // this.callbacks.onStatusUpdate('กำลังฟัง...'); // Don't reset generic status here, let logic handle it
             };
 
             this.isListening = true;
             this.smoothedVolume = 0.0;
             this.speechFrameCount = 0;
-            this.callbacks.onStatusUpdate("กำลังฟัง...");
-            console.log('🟢 [VoiceHandler.start] Now listening! Starting detection loop...');
+            this.callbacks.onStatusUpdate('กำลังฟัง...');
             this._runDetectionLoop();
 
-            // [เพิ่ม] เริ่มจับเวลาอัดสูงสุด
+            // Max recording timeout
             this.recordingTimeout = setTimeout(() => {
-                console.warn(`VAD: Max recording time reached (${this.MAX_RECORDING_MS / 1000}s). Forcing stop.`);
                 this.stop(false);
             }, this.MAX_RECORDING_MS);
 
         } catch (err) {
-            console.error("🔴 [VoiceHandler.start] Microphone access error:", err);
-            this.callbacks.onStatusUpdate("ไม่สามารถเข้าถึงไมโครโฟน");
+            console.error('Microphone access error:', err);
+            this.callbacks.onStatusUpdate('ไม่สามารถเข้าถึงไมโครโฟน');
         }
     }
 
@@ -153,19 +143,20 @@ class VoiceHandler {
         this.wasInterrupted = interrupted;
         this.isListening = false;
 
-        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+        if (this.mediaRecorder?.state === 'recording') {
             this.mediaRecorder.stop();
         }
+
         this.mediaStream?.getTracks().forEach(track => track.stop());
         this.mediaStream = null;
+
         clearTimeout(this.silenceTimeout);
         this.silenceTimeout = null;
 
-        clearTimeout(this.recordingTimeout); // [เพิ่ม] เคลียร์ตัวจับเวลาสูงสุด
-        this.recordingTimeout = null;      // [เพิ่ม]
+        clearTimeout(this.recordingTimeout);
+        this.recordingTimeout = null;
 
-        console.log("VAD: Stopped.");
-        this.callbacks.onStatusUpdate("หยุดทำงาน");
+        this.callbacks.onStatusUpdate('หยุดทำงาน');
     }
 
     _runDetectionLoop() {
@@ -173,37 +164,33 @@ class VoiceHandler {
         requestAnimationFrame(() => this._runDetectionLoop());
 
         this.analyser.getByteTimeDomainData(this.dataArray);
+
+        // Calculate RMS volume
         let sumSquares = 0.0;
         for (const amplitude of this.dataArray) {
-            const normalizedAmplitude = (amplitude / 128.0) - 1.0;
-            sumSquares += normalizedAmplitude * normalizedAmplitude;
+            const normalized = (amplitude / 128.0) - 1.0;
+            sumSquares += normalized * normalized;
         }
         let rawVolume = Math.sqrt(sumSquares / this.dataArray.length);
 
+        // Apply noise floor
         if (rawVolume < this.NOISE_FLOOR) rawVolume = 0;
 
+        // Amplify and smooth
         const amplifiedVolume = rawVolume * this.AMPLIFICATION;
         this.smoothedVolume = this.smoothedVolume * this.smoothingFactor + amplifiedVolume * (1 - this.smoothingFactor);
 
-        // 🔊 [DEBUG] แสดงระดับเสียงทุก 60 frames (~1 วินาที)
-        if (!this._debugFrameCount) this._debugFrameCount = 0;
-        this._debugFrameCount++;
-        if (this._debugFrameCount % 60 === 0) {
-            // แสดง raw data ตัวอย่าง 10 ตัวแรก
-            const sampleData = Array.from(this.dataArray.slice(0, 10));
-            const rawVolumeBeforeFloor = Math.sqrt(sumSquares / this.dataArray.length);
-            console.log(`🔊 [VAD] rawVolume: ${rawVolumeBeforeFloor.toFixed(6)} | amplified: ${amplifiedVolume.toFixed(4)} | smoothed: ${this.smoothedVolume.toFixed(4)} | threshold: ${this.SPEECH_THRESHOLD}`);
-            console.log(`🔊 [VAD] Raw data sample (first 10):`, sampleData, `(128 = silence)`);
-        }
-
+        // Speech detection
         if (this.smoothedVolume > this.SPEECH_THRESHOLD) {
             this.speechFrameCount++;
             if (this.speechFrameCount >= this.SPEECH_CONFIRMATION_FRAMES) {
                 if (!this.isSpeaking) {
                     this.isSpeaking = true;
-                    console.log('🟢 [VAD] Speech DETECTED! Starting recording...');
-                    if (this.mediaRecorder.state === 'inactive') this.mediaRecorder.start();
-                    this.callbacks.onStatusUpdate("รับฟังอยู่...");
+                    console.log("🗣️ Speech STARTED (Volume > Threshold)");
+                    if (this.mediaRecorder.state === 'inactive') {
+                        this.mediaRecorder.start();
+                    }
+                    this.callbacks.onStatusUpdate('รับฟังอยู่...');
                 }
                 clearTimeout(this.silenceTimeout);
                 this.silenceTimeout = null;
@@ -211,15 +198,27 @@ class VoiceHandler {
         } else {
             this.speechFrameCount = 0;
             if (this.isSpeaking && this.silenceTimeout === null) {
+                console.log("🤫 Silence Detected, starting timeout...");
                 this.silenceTimeout = setTimeout(() => {
-                    console.log('🔴 [VAD] Silence detected, stopping recording...');
-                    if (this.mediaRecorder.state === 'recording') {
+                    if (this.mediaRecorder?.state === 'recording') {
                         this.mediaRecorder.stop();
                     }
                     this.isSpeaking = false;
                     this.silenceTimeout = null;
+                    console.log("⏹️ Speech ENDED (Silence Timeout)");
                 }, this.SILENCE_DELAY_MS);
             }
+        }
+
+        // Throttle Log: Print volume every 200ms
+        const now = Date.now();
+        if (now - this.lastLogTime > 200) {
+            const vol = this.smoothedVolume.toFixed(2);
+            // Visual Bar
+            const barLength = Math.min(20, Math.floor(this.smoothedVolume * 10));
+            const bar = '█'.repeat(barLength).padEnd(20, '░');
+            console.log(`🎤 Level: [${bar}] ${vol} ${this.isSpeaking ? '(Speaking)' : ''}`);
+            this.lastLogTime = now;
         }
     }
 }
