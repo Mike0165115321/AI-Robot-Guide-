@@ -1,0 +1,42 @@
+# Core API & Server
+fastapi
+uvicorn
+python-dotenv
+python-multipart
+websockets
+requests
+aiohttp
+aiofiles
+httpx
+jinja2
+schedule
+
+# Database
+pymongo
+qdrant-client
+
+# AI Cloud Clients
+google-generativeai
+groq
+
+# Google Services
+gspread
+oauthlib
+google-auth-oauthlib
+
+# Audio Processing & Speech
+faster-whisper
+edge-tts
+gTTS
+yt-dlp
+pydub
+
+# Data & Docs Processing
+pandas
+openpyxl
+python-docx
+PyPDF2
+PyMuPDF
+pytesseract
+pillow
+coloredlogs
