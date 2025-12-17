@@ -1,0 +1,120 @@
+# 🏗️ Architecture Deep Dive - AI Robot Guide
+
+เอกสารฉบับนี้เจาะลึกสถาปัตยกรรมทางเทคนิค (Technical Architecture) ของระบบ AI Robot Guide เพื่อให้นักพัฒนาเข้าใจการทำงานของระบบเบื้องหลัง
+
+---
+
+## 📐 System Architecture Diagram
+
+```mermaid
+graph TD
+    User((User))
+    
+    subgraph Frontend [Frontend Layer (HTML/JS)]
+        UI[Web UI (Chat/Avatar)]
+        WS_Client[WebSocket Client]
+        GSAP[GSAP Animation Engine]
+        
+        User <--> UI
+        UI <--> GSAP
+        UI <--> WS_Client
+    end
+    
+    subgraph Backend [Backend Layer (Python/FastAPI)]
+        WS_Server[WebSocket Endpoint]
+        Router{Intent Router}
+        
+        subgraph Services [Core Services]
+            Speech[Speech Handler (Whisper/TTS)]
+            RAG[RAG Orchestrator]
+            Nav[Navigation Service]
+            IMG[Image Service]
+        end
+        
+        subgraph AI_Brain [AI Models]
+            LLJ[Llama-3 (Groq)]
+            GEM[Gemini 2.5 (Google)]
+            VDB_Model[Embedding Model (E5-Large)]
+            Rerank[Cross-Encoder]
+        end
+        
+        subgraph Data [Data Layer]
+            Mongo[(MongoDB - Data)]
+            Qdrant[(Qdrant - Vectors)]
+        end
+        
+        WS_Client <--> |JSON/Binary| WS_Server
+        WS_Server --> Speech
+        Speech --> |Text Query| RAG
+        RAG --> Router
+        
+        Router --> |Simple| LLJ
+        Router --> |Complex| GEM
+        Router --> |Retrieval| VDB_Model
+        
+        VDB_Model --> Qdrant
+        RAG --> Mongo
+        RAG --> Rerank
+        
+        RAG --> |Result| WS_Server
+    end
+```
+
+---
+
+## 🧩 Component Breakdown
+
+### 1. Frontend Layer
+*   **Stack:** Vanilla HTML5, CSS3, JavaScript (ES6+).
+*   **Avatar Engine:** ใช้ **GSAP (GreenSock)** ในการขับเคลื่อน DOM Elements (`#eye-left`, `#arm-right`) เพื่อสร้าง Animation ที่ลื่นไหล
+    *   `robot_avatar.js`: ควบคุม Logic การขยับ (Eye Tracking, Lip Sync).
+*   **Communication:** เชื่อมต่อกับ Backend ผ่าน **WebSocket** (`ws://...`) เพื่อรับส่งข้อมูลเสียง (Binary) และข้อความ (JSON) แบบ Real-time.
+
+### 2. Backend Layer
+*   **Stack:** Python 3.12 + FastAPI.
+*   **Structure:**
+    *   `/api`: Endpoints สำหรับ HTTP และ WebSocket.
+    *   `/core`: Business Logic หลัก (RAG, Services).
+*   **Services:**
+    *   `speech_handler.py`: จัดการ STT (Whisper) และ TTS (Edge TTS).
+    *   `rag_orchestrator.py`: `Class` หลักที่เป็นมันสมอง ควบคุม Flow การค้นหาและตอบคำถาม
+    *   `ai_mapper_service.py`: ระบบ ETL อัจฉริยะ แปลงข้อมูลดิบเข้า DB.
+
+### 3. AI & Data Layer
+*   **Models:**
+    *   **Embedding:** `intfloat/multilingual-e5-large` (Local/GPU) - แปลงข้อความไทยเป็น Vector.
+    *   **Reranker:** `BAAI/bge-reranker-base` - จัดลำดับความสำคัญของเอกสาร.
+    *   **LLM 1 (Fast):** `llama-3.1-8b-instant` (via Groq Cloud) - เร็ว จัดการบทสนทนา.
+    *   **LLM 2 (Deep):** `gemini-2.5-flash` (via Google AI) - ฉลาด จัดการเนื้อหาซับซ้อน.
+*   **Databases:**
+    *   **MongoDB:** เก็บข้อมูลสถานที่ (JSON), Logs, Analytics.
+    *   **Qdrant:** เก็บ Vector Index เพื่อการค้นหา Semantic.
+
+---
+
+## 🌊 Data Flow: From Speech to Answer
+
+1.  **Input:** User พูดผ่านไมค์ -> Frontend ส่ง Binary Audio Chunks ผ่าน WebSocket
+2.  **Transcribe:** `SpeechHandler` ใช้ Whisper แปลงเสียงเป็นข้อความ (`transcribed_text`)
+3.  **Interpret:** `QueryInterpreter` วิเคราะห์เจตนา (Intent) ว่ามาทำอะไร (คุยเล่น/หาข้อมูล/ฟังเพลง)
+4.  **Retrieval (ถ้าหาข้อมูล):**
+    *   หาใน **MongoDB** ด้วยชื่อตรง (Exact Match)
+    *   หาใน **Qdrant** ด้วย Vector (Semantic Search)
+    *   หาใน **Trending** List
+    *   รวมผลลัพธ์ทั้งหมด
+5.  **Rerank:** `CrossEncoder` ให้คะแนนใหม่ คัดเฉพาะ Top 5 ที่ตรงคำถามที่สุด
+6.  **Synthesize:** ส่ง Context + Query เข้า LLM (Llama/Gemini) ให้เขียนคำตอบสั้นๆ น่าฟัง
+7.  **Response:**
+    *   Frontend รับ Text -> แสดงผล
+    *   Backend Stream Audio -> Frontend เล่นเสียง
+
+---
+
+## ⚙️ Key Technical Decisions
+
+*   **Why Dual LLM?**
+    *   Llama บน Groq เร็วมาก (Latency ~300ms) เหมาะกับ Voice Chat ที่ต้องการความ Real-time
+    *   Gemini ฉลาดกว่าและ Context Window ใหญ่ เหมาะกับการอ่าน PDF หรือสรุปข้อมูลยาวๆ
+*   **Why Hybrid Search?**
+    *   Vector Search บางทีก็พลาดชื่อเฉพาะ (เช่นชื่อร้านแปลกๆ)
+    *   Keyword Search (Mongo) มาช่วยอุดช่องโหว่นี้ ทำให้แม่นยำ 100% ถ้าชื่อตรง
