@@ -21,7 +21,41 @@
 
 ก่อนติดตั้ง ตรวจสอบว่าเครื่องคอมพิวเตอร์ของคุณมีโปรแกรมเหล่านี้:
 
-1.  **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (จำเป็นมาก! สำหรับรันฐานข้อมูล)
+1.  **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (ง่ายสุดสำหรับ Windows/Mac)
+    *   *หรือบน Linux (แนะนำ):* ติดตั้ง **Docker Engine + Docker Compose V2 (Go Version)** แบบ Stable
+
+    <details>
+    <summary>🔽 คลิกเพื่อดูวิธีติดตั้ง Docker มาตรฐาน (Linux/Ubuntu) แบบเสถียร</summary>
+
+    > **ทำไมต้องลงแบบนี้?** เพื่อให้ได้ Docker Compose V2 (เขียนด้วย Go) ที่เสถียรและเป็นมาตรฐาน แก้ปัญหา Version เพี้ยนที่มากับ Distro
+    
+    ```bash
+    # 1. ลบเวอร์ชั่นเก่า (ถ้ามี)
+    sudo apt-get remove docker docker-engine docker.io containerd runc
+
+    # 2. ติดตั้ง Dependencies
+    sudo apt-get update
+    sudo apt-get install ca-certificates curl gnupg
+
+    # 3. เพิ่ม Docker Official GPG Key
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+    # 4. เพิ่ม Repository (Stable)
+    echo \
+      "deb [arch=\"$(dpkg --print-architecture)\" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      \"$(. /etc/os-release && echo \"$VERSION_CODENAME\")\" stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    # 5. ติดตั้ง Docker Engine & Compose V2
+    sudo apt-get update
+    sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    # 6. ตรวจสอบเวอร์ชั่น (ต้องเป็น Docker Compose version v2.x.x)
+    docker compose version
+    ```
+    </details>
 2.  **[Python 3.12](https://www.python.org/downloads/)**
 3.  **[Git](https://git-scm.com/downloads)**
 4.  **FFmpeg** (สำหรับจัดการเสียง)
@@ -45,7 +79,8 @@ cd "AI Robot Guide จังหวัดน่าน"
 ### 2. เตรียมฐานข้อมูล (Start Databases)
 เราใช้ Docker ในการรัน MongoDB และ Qdrant เพื่อความง่าย ไม่ต้องลงแยก
 ```bash
-docker-compose -f docker-compose.db.yml up -d
+docker compose -f docker-compose.db.yml up -d
+# หรือถ้าใช้ docker-compose แบบเก่า: docker-compose -f docker-compose.db.yml up -d
 ```
 *รอสักครู่จนกว่าจะขึ้นคำว่า `Started` หรือ `Running`*
 
