@@ -45,7 +45,7 @@ cd "AI Robot Guide จังหวัดน่าน"
 ### 2. เตรียมฐานข้อมูล (Start Databases)
 เราใช้ Docker ในการรัน MongoDB และ Qdrant เพื่อความง่าย ไม่ต้องลงแยก
 ```bash
-docker-compose up -d mongodb qdrant
+docker-compose -f docker-compose.db.yml up -d
 ```
 *รอสักครู่จนกว่าจะขึ้นคำว่า `Started` หรือ `Running`*
 
