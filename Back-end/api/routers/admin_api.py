@@ -254,8 +254,8 @@ async def create_location(
             "title": location_data.title,
             "slug": location_data.slug,
             "category": location_data.category,  # สำคัญ!
-            "district": (location_data.location_data or {}).get("district"),
-            "sub_district": (location_data.location_data or {}).get("sub_district")
+            "district": (location_data.related_info or {}).get("district"),
+            "sub_district": (location_data.related_info or {}).get("sub_district")
         }
         
         await vector_db.upsert_location(
@@ -441,8 +441,8 @@ async def update_location_by_slug(
                 "title": updated_model.title,
                 "slug": updated_model.slug,
                 "category": updated_model.category,
-                "district": (updated_model.location_data or {}).get("district"),
-                "sub_district": (updated_model.location_data or {}).get("sub_district")
+                "district": (updated_model.related_info or {}).get("district"),
+                "sub_district": (updated_model.related_info or {}).get("sub_district")
             }
 
             await vector_db.upsert_location(

@@ -161,9 +161,9 @@ class GoogleSheetsService:
                 logging.error(f"❌ ดึง CSV ล้มเหลว: HTTP {response.status_code}")
                 return []
             
-            # Parse CSV
-            # response.text handles encoding automatically
-            csv_content = response.text
+            # Parse CSV with explicit UTF-8 encoding
+            # response.content is bytes, decode with UTF-8
+            csv_content = response.content.decode('utf-8')
             reader = csv.DictReader(io.StringIO(csv_content))
             records = list(reader)
             

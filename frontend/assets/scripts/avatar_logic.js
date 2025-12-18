@@ -369,6 +369,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Hide mic during speaking
                 if (UI.micBtn) UI.micBtn.style.display = 'none';
+                // Show stop button so user can interrupt
+                if (UI.stopBtn) UI.stopBtn.style.display = 'flex';
             },
 
             onError: (msg) => {

@@ -173,13 +173,26 @@ class AvatarAnimator {
         this.resultText.innerHTML = '';
 
         const answerText = data.answer || '';
-        
+
         // 🔍 DEBUG: Log image data
         console.log("🖼️ [Avatar] Image Data:", {
             image_url: data.image_url,
             image_gallery: data.image_gallery
         });
-        let contentHtml = typeof marked !== 'undefined' ? marked.parse(answerText) : answerText;
+
+        // 🆕 Strip inline markdown images (![alt](url)) from answer text
+        // Because LLM may translate filenames, causing broken images
+        // We display actual images in the gallery below instead
+        let processedAnswer = answerText.replace(/!\[[^\]]*\]\([^)]+\)/g, '');
+
+        // 🆕 Pre-process: Fix 0.0.0.0 in markdown BEFORE parsing
+        if (typeof fixImageUrl === 'function' && processedAnswer.includes('0.0.0.0')) {
+            // Replace all 0.0.0.0 with correct host in the raw text
+            const correctHost = window.API_HOST || window.location.hostname;
+            processedAnswer = processedAnswer.replace(/0\.0\.0\.0/g, correctHost);
+        }
+
+        let contentHtml = typeof marked !== 'undefined' ? marked.parse(processedAnswer) : processedAnswer;
 
         // 🆕 Restore Image Gallery (Chat Style)
         // User Request: "เอารุแบบการตอบเหมือนหน้าแชทเลยครับ อย่าไปแก้โค้ดหน้าแชทนะ ไปก็อปมาเลยก็ได้"
@@ -192,13 +205,15 @@ class AvatarAnimator {
         }
 
         if (allImages.length > 0) {
-            contentHtml += `<div class="image-gallery-grid" style="margin-top: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">`;
+            contentHtml += `<div class="image-gallery-grid">`;
             allImages.slice(0, 4).forEach(url => {
-                contentHtml += `<img src="${url}" class="responsive-image" style="width: 100%; border-radius: 8px; aspect-ratio: 4/3; object-fit: cover; cursor: pointer;" onclick="window.open('${url}', '_blank')">`;
+                const fixedUrl = typeof fixImageUrl === 'function' ? fixImageUrl(url) : url;
+                contentHtml += `<img src="${fixedUrl}" class="responsive-image" onclick="window.open('${fixedUrl}', '_blank')">`;
             });
             contentHtml += `</div>`;
         } else if (data.image_url) {
-            contentHtml += `<div class="single-image-container" style="margin-top: 15px;"><img src="${data.image_url}" class="responsive-image" style="width: 100%; border-radius: 10px; cursor: pointer;" onclick="window.open('${data.image_url}', '_blank')"></div>`;
+            const fixedUrl = typeof fixImageUrl === 'function' ? fixImageUrl(data.image_url) : data.image_url;
+            contentHtml += `<div class="single-image-container"><img src="${fixedUrl}" class="responsive-image" onclick="window.open('${fixedUrl}', '_blank')"></div>`;
         }
 
         this.resultText.innerHTML = ""; // Clear initial content
@@ -297,34 +312,129 @@ class AvatarAnimator {
         printBtn.onclick = () => {
             const printWindow = window.open('', '_blank');
             let printImagesHtml = '';
+
             // Use same images for print
-            if (allImages.length > 0) {
-                printImagesHtml += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px;">';
+            if (allImages && allImages.length > 0) {
+                printImagesHtml += '<div class="gallery">';
                 allImages.forEach(img => {
-                    printImagesHtml += `<img src="${img}" style="width: 100%; object-fit: cover; border-radius: 4px;">`;
+                    const fixedImg = typeof fixImageUrl === 'function' ? fixImageUrl(img) : img;
+                    printImagesHtml += `<img src="${fixedImg}" alt="Gallery Image">`;
                 });
                 printImagesHtml += '</div>';
             }
 
+            const htmlContent = typeof marked !== 'undefined' ? marked.parse(answerText) : answerText;
+
             printWindow.document.write(`
-                <html>
-                <head>
-                    <title>Print - AI Guide Nan</title>
-                    <style>
-                        body { font-family: sans-serif; padding: 40px; line-height: 1.6; }
-                        img { max-width: 100%; }
-                    </style>
-                </head>
-                <body>
-                    <h2>ข้อมูลจากน้องน่าน</h2>
-                    <div>${typeof marked !== 'undefined' ? marked.parse(answerText) : answerText}</div>
+            <!DOCTYPE html>
+            <html lang="th">
+            <head>
+                <meta charset="UTF-8">
+                <title>พิมพ์เอกสาร - AI Guide Nan</title>
+                <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+                <style>
+                    body {
+                        font-family: 'Sarabun', sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 210mm; /* A4 width */
+                        margin: 0 auto;
+                        padding: 20px;
+                        background: white;
+                    }
+                    @page {
+                        size: A4;
+                        margin: 20mm;
+                    }
+                    header {
+                        border-bottom: 2px solid #3b82f6;
+                        padding-bottom: 10px;
+                        margin-bottom: 20px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    .brand {
+                        font-size: 1.5rem;
+                        font-weight: bold;
+                        color: #1e40af;
+                    }
+                    .date {
+                        font-size: 0.9rem;
+                        color: #666;
+                    }
+                    .content {
+                        font-size: 14px;
+                    }
+                    h1, h2, h3 { color: #1e3a8a; margin-top: 15px; }
+                    ul { margin-left: 20px; }
+                    .main-image {
+                        width: auto;
+                        max-width: 100%;
+                        max-height: 200px; /* Reduced height for print */
+                        object-fit: cover;
+                        border-radius: 8px;
+                        margin: 10px auto;
+                        display: block;
+                    }
+                    .content img {
+                        max-width: 80%; /* Don't let inline images take full width */
+                        max-height: 200px; /* Limit height */
+                        width: auto;
+                        display: block;
+                        margin: 10px auto; /* Center */
+                        border-radius: 4px;
+                    }
+                    .gallery {
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        gap: 10px;
+                        margin-top: 15px;
+                    }
+                    .gallery img {
+                        width: 100%;
+                        height: 100px;
+                        object-fit: cover;
+                        border-radius: 4px;
+                    }
+                    .footer {
+                        margin-top: 30px;
+                        padding-top: 10px;
+                        border-top: 1px solid #ddd;
+                        text-align: center;
+                        font-size: 0.8rem;
+                        color: #888;
+                    }
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <header>
+                    <div class="brand"><i class="fa-solid fa-robot"></i> AI Guide Nan</div>
+                    <div class="date">พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')}</div>
+                </header>
+                
+                <div class="content">
+                    ${htmlContent}
                     ${printImagesHtml}
-                    <script>window.onload = () => setTimeout(() => window.print(), 500);<\/script>
-                </body>
-                </html>
-             `);
+                </div>
+
+                <div class="footer">
+                    เอกสารนี้สร้างโดยระบบ AI Robot Guide จังหวัดน่าน | ข้อมูลเพื่อการท่องเที่ยวเท่านั้น
+                </div>
+
+                <script>
+                    window.onload = () => { setTimeout(() => window.print(), 500); };
+                </script>
+            </body>
+            </html>
+        `);
             printWindow.document.close();
-        };
+        }
 
         utilityGroup.appendChild(copyBtn);
         utilityGroup.appendChild(printBtn);
@@ -421,6 +531,112 @@ document.addEventListener('DOMContentLoaded', () => {
         window.avatarAnimator = animatorInstance;
         animatorInstance.setEmotion('normal');
         console.log("AvatarAnimator initialized successfully.");
+
+        // 🚀 Initialize FAB Manager
+        if (window.FabManager) {
+            const fabManager = new FabManager({
+                buttons: {
+                    music: 'avatar-music-btn',
+                    faq: 'avatar-faq-btn',
+                    calc: 'avatar-calc-btn',
+                    nav: 'avatar-nav-btn'
+                },
+                callbacks: {
+                    // When a widget requests to send a message (e.g. FAQ click)
+                    sendMessage: (text, intent) => {
+                        const inputField = document.getElementById('text-query-input');
+                        if (inputField) {
+                            inputField.value = text;
+                            // Trigger submit manually
+                            const form = document.getElementById('text-query-form');
+                            if (form) form.dispatchEvent(new Event('submit'));
+                        }
+                    },
+
+                    // Widget Action Handlers -> Show in Presentation Area
+                    onMusicAction: () => {
+                        const widget = fabManager.createMusicWidget();
+                        displayWidgetInPresentation(widget);
+                    },
+                    onFaqAction: () => {
+                        const widget = fabManager.createFAQWidget();
+                        displayWidgetInPresentation(widget);
+                    },
+                    onNavAction: () => {
+                        const widget = fabManager.createNavigationWidget();
+                        displayWidgetInPresentation(widget);
+                    },
+                    onCalcAction: () => {
+                        const widget = fabManager.createCalculatorWidget();
+                        displayWidgetInPresentation(widget);
+                    }
+                }
+            });
+            console.log("🚀 FabManager initialized for Robot Avatar");
+
+            // FAB Toggle Open/Close
+            const fabToggle = document.getElementById('fab-toggle');
+            const fabActions = document.getElementById('fab-actions');
+            if (fabToggle && fabActions) {
+                fabToggle.addEventListener('click', () => {
+                    fabToggle.classList.toggle('active');
+                    fabActions.classList.toggle('open');
+                });
+                // Close FAB when clicking any action button
+                fabActions.querySelectorAll('.fab-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        fabToggle.classList.remove('active');
+                        fabActions.classList.remove('open');
+                    });
+                });
+            }
+
+            // AI Mode Toggle
+            const aiModeToggle = document.getElementById('ai-mode-toggle');
+            if (aiModeToggle && window.NanApp) {
+                const modeManager = window.NanApp.getAIModeManager();
+                const updateAIModeUI = (mode) => {
+                    const icon = aiModeToggle.querySelector('i');
+                    const span = aiModeToggle.querySelector('span');
+                    if (mode === 'fast') {
+                        icon.className = 'fas fa-bolt';
+                        span.textContent = 'คิดเร็ว';
+                    } else {
+                        icon.className = 'fas fa-brain';
+                        span.textContent = 'คิดละเอียด';
+                    }
+                };
+                updateAIModeUI(modeManager.getMode());
+                aiModeToggle.addEventListener('click', () => {
+                    const newMode = modeManager.toggle();
+                    updateAIModeUI(newMode);
+                });
+            }
+        }
+
+        // Helper to show FAB widgets in the presentation area
+        function displayWidgetInPresentation(widgetNode) {
+            const presentationArea = document.getElementById('presentation-area');
+            const resultText = document.getElementById('result-text');
+            const infoDisplay = document.getElementById('info-display');
+            const robotContainer = document.getElementById('robot-master-container');
+
+            if (!presentationArea || !resultText) return;
+
+            // Clear previous content
+            resultText.innerHTML = '';
+            infoDisplay.innerHTML = '';
+
+            // Append widget
+            resultText.appendChild(widgetNode);
+
+            // Animate View (similar to enterPresentationMode)
+            if (typeof gsap !== 'undefined') {
+                gsap.to(robotContainer, { x: '32vw', scale: 0.85, duration: 1.0, ease: 'power3.inOut' });
+                gsap.to(presentationArea, { opacity: 1, visibility: 'visible', y: 0, duration: 0.8, ease: 'power3.out', delay: 0.3 });
+            }
+        }
+
     } catch (e) {
         console.error("Failed to initialize AvatarAnimator:", e);
     }

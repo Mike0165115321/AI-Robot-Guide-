@@ -54,3 +54,31 @@ function getLocationImages(item, apiBaseUrl = '') {
         imgOnError
     };
 }
+
+/**
+ * แก้ไข URL รูปภาพให้ถูกต้อง
+ * - แปลง 0.0.0.0 เป็น hostname ปัจจุบัน
+ * - แปลง relative URL ให้มี full path
+ */
+function fixImageUrl(url) {
+    if (!url) return null;
+
+    // ถ้าเป็น Data URI หรือ External URL ที่ถูกต้องอยู่แล้ว (และไม่ใช่ 0.0.0.0)
+    if (url.startsWith('data:') || (url.startsWith('http') && !url.includes('0.0.0.0'))) {
+        return url;
+    }
+
+    // แก้ 0.0.0.0
+    if (url.includes('0.0.0.0')) {
+        const correctHost = window.API_HOST || window.location.hostname;
+        return url.replace('0.0.0.0', correctHost);
+    }
+
+    // แก้ Relative URL
+    if (url.startsWith('/')) {
+        const baseUrl = window.API_BASE_URL || '';
+        return `${baseUrl}${url}`;
+    }
+
+    return url;
+}
