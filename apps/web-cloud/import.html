@@ -1,0 +1,2070 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Import - AI Guide น่าน</title>
+    <link rel="stylesheet" href="assets/styles/main.css">
+    <link rel="stylesheet" href="assets/styles/admin.css">
+    <style>
+        /* Import Page Specific Styles */
+        .import-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .step.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .step.completed {
+            background: rgba(40, 167, 69, 0.2);
+            color: #28a745;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .step.active .step-number {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(102, 126, 234, 0.5);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.02);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .upload-zone input[type="file"] {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .preview-section {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .preview-section.active {
+            display: block;
+        }
+
+        .preview-table-container {
+            overflow-x: auto;
+            max-height: 400px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .preview-table th,
+        .preview-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            white-space: nowrap;
+        }
+
+        .preview-table th {
+            background: rgba(102, 126, 234, 0.2);
+            position: sticky;
+            top: 0;
+            font-weight: 600;
+        }
+
+        .preview-table tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .fields-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .field-checkbox {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        .field-checkbox:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .field-checkbox input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-top: 2px;
+        }
+
+        .field-info {
+            flex: 1;
+        }
+
+        .field-label {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .field-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .btn-large {
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(40, 167, 69, 0.1);
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .file-info .icon {
+            font-size: 2rem;
+        }
+
+        .file-name {
+            font-weight: 600;
+        }
+
+        .file-stats {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .comparison-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .comparison-panel {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .comparison-panel h4 {
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .select-all-container {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Field Group Sections */
+        .field-group {
+            margin-bottom: 2rem;
+        }
+
+        .field-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .field-group-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .field-group-title.details {
+            color: #11998e;
+        }
+
+        .field-group-badge {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+        }
+
+        /* Required field indicator */
+        .required-indicator {
+            color: #ff6b6b;
+            margin-left: 4px;
+        }
+
+        /* Field type badge */
+        .field-type-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            margin-left: 8px;
+        }
+
+        .field-type-badge.detail {
+            background: rgba(17, 153, 142, 0.2);
+            color: #11998e;
+        }
+
+        /* Custom Field Section */
+        .custom-field-section {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: rgba(255, 193, 7, 0.1);
+            border-radius: 12px;
+            border: 1px dashed rgba(255, 193, 7, 0.5);
+        }
+
+        .custom-field-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            align-items: flex-end;
+        }
+
+        .custom-field-row input {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+        }
+
+        .btn-add-field {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            color: #000;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .custom-fields-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .custom-field-tag {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 193, 7, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+        }
+
+        .custom-field-tag .remove-btn {
+            background: none;
+            border: none;
+            color: #ff6b6b;
+            cursor: pointer;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        /* Input Mode Tabs */
+        .input-mode-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1.5rem;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .mode-tab:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .mode-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .mode-tab.active.manual {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .mode-content {
+            display: none;
+        }
+
+        .mode-content.active {
+            display: block;
+        }
+
+        /* Manual Entry Form */
+        .manual-entry-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .form-row.full-width {
+            grid-template-columns: 1fr;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .form-group label .required {
+            color: #ff6b6b;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-group .hint {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        /* AI Toggle Switch */
+        .ai-toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 32px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #444;
+            transition: 0.3s;
+            border-radius: 32px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked+.toggle-slider {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .toggle-switch input:checked+.toggle-slider:before {
+            transform: translateX(28px);
+        }
+
+        .toggle-label {
+            font-weight: 600;
+        }
+
+        .toggle-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .ai-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .ai-status.on {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+        }
+
+        .ai-status.off {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-grid"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p id="loading-text">กำลังประมวลผล...</p>
+    </div>
+
+    <div class="import-container">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div>
+                <h1 class="text-gradient">📥 Bulk Import</h1>
+                <p style="color: var(--text-muted);">นำเข้าข้อมูลจาก Excel/CSV ด้วย AI อัตโนมัติ</p>
+            </div>
+            <a href="admin.html" class="btn btn-submit"
+                style="text-decoration: none; background-color: #667eea; border: none;">
+                ← กลับ Admin Panel
+            </a>
+        </header>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step active" id="step-1">
+                <span class="step-number">1</span>
+                <span>อัปโหลดไฟล์</span>
+            </div>
+            <div class="step" id="step-2">
+                <span class="step-number">2</span>
+                <span>เลือก Fields</span>
+            </div>
+            <div class="step" id="step-3">
+                <span class="step-number">3</span>
+                <span>AI Transform</span>
+            </div>
+            <div class="step" id="step-4">
+                <span class="step-number">4</span>
+                <span>ยืนยันบันทึก</span>
+            </div>
+        </div>
+
+        <section id="section-upload" class="form-container">
+            <h2>📥 Step 1: นำเข้าข้อมูล</h2>
+            <p style="margin-bottom: 1rem;">เลือกวิธีการนำเข้าข้อมูลที่เหมาะกับคุณ</p>
+
+            <!-- Input Mode Tabs -->
+            <div class="input-mode-tabs">
+                <button class="mode-tab active" id="tab-upload" onclick="switchInputMode('upload')">
+                    📤 อัปโหลดไฟล์
+                </button>
+                <button class="mode-tab" id="tab-document" onclick="switchInputMode('document')">
+                    📄 PDF/เอกสาร
+                </button>
+                <button class="mode-tab manual" id="tab-manual" onclick="switchInputMode('manual')">
+                    ✏️ กรอกข้อมูลเอง
+                </button>
+            </div>
+
+            <!-- Upload Mode Content -->
+            <div class="mode-content active" id="mode-upload">
+                <p style="margin-bottom: 1rem;">
+                    รองรับไฟล์ Excel (.xlsx, .xls) และ CSV (.csv) สำหรับนำเข้าข้อมูลจำนวนมาก
+                </p>
+
+                <div class="upload-zone" id="upload-zone">
+                    <input type="file" id="file-input" accept=".xlsx,.xls,.csv">
+                    <div class="upload-icon">📁</div>
+                    <p><strong>คลิกเพื่อเลือกไฟล์</strong> หรือลากไฟล์มาวางที่นี่</p>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">
+                        รองรับไฟล์สูงสุด 2GB
+                    </p>
+                </div>
+
+                <div id="file-info-display" style="display: none;" class="file-info">
+                    <span class="icon">📊</span>
+                    <div>
+                        <div class="file-name" id="uploaded-filename">-</div>
+                        <div class="file-stats" id="uploaded-stats">-</div>
+                    </div>
+                    <button class="btn" style="margin-left: auto;" onclick="resetUpload()">เปลี่ยนไฟล์</button>
+                </div>
+            </div>
+
+            <!-- Document Import Mode Content -->
+            <div class="mode-content" id="mode-document">
+                <p style="margin-bottom: 1rem;">
+                    อัปโหลด PDF หรือ DOC/DOCX → AI จะค้นหาหลายรายการและสร้างข้อมูลอัตโนมัติ
+                </p>
+
+                <!-- Entry Count Input - BEFORE Upload -->
+                <div class="info-box"
+                    style="margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                    <label style="font-weight: 600;">🎯 ต้องการกี่หัวข้อ?</label>
+                    <input type="number" id="doc-target-count" min="1" max="50" value="5"
+                        style="width: 70px; padding: 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; text-align: center; font-size: 1rem;">
+                    <span style="color: var(--text-muted); font-size: 0.9rem;">หัวข้อ (AI จะสรุปให้ตามจำนวนนี้)</span>
+                </div>
+
+                <div class="upload-zone" id="doc-upload-zone"
+                    onclick="document.getElementById('doc-file-input').click()"
+                    style="background: linear-gradient(135deg, rgba(240, 147, 251, 0.1) 0%, rgba(245, 87, 108, 0.1) 100%); cursor: pointer;">
+                    <input type="file" id="doc-file-input" accept=".pdf,.doc,.docx"
+                        onchange="handleDocumentUpload(event)" style="display: none;">
+                    <div class="upload-icon">📄</div>
+                    <p><strong>คลิกเพื่ออัปโหลด PDF หรือ Word</strong></p>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">
+                        AI จะสแกนและหารายการสถานที่/หัวข้อให้อัตโนมัติ
+                    </p>
+                </div>
+
+                <!-- Document Scan Results -->
+                <div id="doc-scan-results" style="display: none; margin-top: 1.5rem;">
+                    <div class="info-box success"
+                        style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <p><strong>📄 <span id="doc-page-count">0</span> หน้า</strong> → AI สร้าง <strong><span
+                                    id="doc-entry-count">0</span></strong> หัวข้อ
+                            <button type="button" class="btn" onclick="rescanDocumentWithCount()"
+                                style="background: rgba(102, 126, 234, 0.3); padding: 0.25rem 0.75rem; font-size: 0.85rem; margin-left: 0.5rem;">
+                                🔄 สแกนใหม่
+                            </button>
+                        </p>
+                    </div>
+
+                    <h4 style="margin: 1rem 0;">รายการที่พบ (แก้ไขได้)</h4>
+                    <div id="doc-entries-list"
+                        style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 400px; overflow-y: auto;">
+                        <!-- Entries will be loaded here -->
+                    </div>
+
+                    <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn" onclick="addNewDocEntry()"
+                            style="background: rgba(102, 126, 234, 0.2);">
+                            ➕ เพิ่มรายการ
+                        </button>
+                    </div>
+
+                    <div class="action-buttons" style="margin-top: 1.5rem;">
+                        <button type="button" class="btn btn-cta" onclick="goToDocStep2()">
+                            ⏭️ ถัดไป: เลือก Fields
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual Entry Mode Content -->
+            <div class="mode-content" id="mode-manual">
+                <p style="margin-bottom: 1.5rem;">
+                    กรอกข้อมูลทีละรายการ เหมาะสำหรับการเพิ่มข้อมูลใหม่โดยไม่ต้องมีไฟล์
+                </p>
+
+                <form class="manual-entry-form" id="manual-entry-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Title (ชื่อ) <span class="required">*</span></label>
+                            <input type="text" id="manual-title" required placeholder="เช่น วัดภูมินทร์">
+                        </div>
+                        <div class="form-group">
+                            <label>Category (หมวดหมู่) <span class="required">*</span></label>
+                            <select id="manual-category" required>
+                                <option value="">เลือกหมวดหมู่</option>
+                                <option value="แหล่งท่องเที่ยว">แหล่งท่องเที่ยว</option>
+                                <option value="ร้านอาหาร">ร้านอาหาร</option>
+                                <option value="ที่พัก">ที่พัก</option>
+                                <option value="วัด">วัด</option>
+                                <option value="คาเฟ่">คาเฟ่</option>
+                                <option value="กิจกรรม">กิจกรรม</option>
+                                <option value="อื่นๆ">อื่นๆ</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Topic (ประเภทย่อย) <span class="required">*</span></label>
+                            <input type="text" id="manual-topic" required
+                                placeholder="เช่น วัดประวัติศาสตร์, อาหารเหนือ">
+                        </div>
+                        <div class="form-group">
+                            <label>Keywords (คำค้นหา)</label>
+                            <input type="text" id="manual-keywords" placeholder="คั่นด้วย comma เช่น วัด,น่าน,จิตรกรรม">
+                            <div class="hint">ใส่คำค้นหาหลายคำ คั่นด้วยเครื่องหมาย comma</div>
+                        </div>
+                    </div>
+
+                    <div class="form-row full-width">
+                        <div class="form-group">
+                            <label>Summary (สรุป)</label>
+                            <textarea id="manual-summary"
+                                placeholder="สรุปข้อมูลสำคัญของสถานที่นี้ใน 2-3 ประโยค"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-row full-width">
+                        <div class="form-group">
+                            <label>รายละเอียดเพิ่มเติม</label>
+                            <textarea id="manual-details" rows="4" placeholder="ใส่รายละเอียดต่างๆ เช่น ที่ตั้ง, เวลาเปิด-ปิด, ราคา, สิ่งอำนวยความสะดวก ฯลฯ
+
+AI สามารถช่วยจัดโครงสร้างข้อมูลให้ถ้าเปิดใช้งาน"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- AI Assist Buttons -->
+                    <div class="ai-assist-buttons"
+                        style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <button type="button" class="btn"
+                            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"
+                            onclick="triggerPDFUpload()">
+                            📄 อัปโหลด PDF
+                        </button>
+                        <button type="button" class="btn"
+                            style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"
+                            onclick="aiWebSearch()">
+                            🌐 ค้นหาข้อมูลจากเว็บ
+                        </button>
+                    </div>
+                    <input type="file" id="pdf-file-input" accept=".pdf" style="display: none;"
+                        onchange="handlePDFUpload(event)">
+
+                    <div class="action-buttons" style="justify-content: flex-start;">
+                        <button type="button" class="btn btn-cta btn-large" onclick="submitManualEntry()">
+                            💾 บันทึกข้อมูล
+                        </button>
+                        <button type="reset" class="btn btn-large">
+                            🔄 ล้างฟอร์ม
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Step 2: Preview + Select Fields -->
+        <section id="section-preview" class="preview-section form-container">
+            <h2>👁️ Step 2: ตรวจสอบข้อมูลดิบ & เลือก Fields</h2>
+
+            <h3>ข้อมูลดิบที่อ่านได้:</h3>
+            <div class="preview-table-container">
+                <table class="preview-table" id="raw-preview-table">
+                    <thead id="raw-preview-thead"></thead>
+                    <tbody id="raw-preview-tbody"></tbody>
+                </table>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 2rem 0;">
+
+            <!-- AI Toggle Switch -->
+            <div class="ai-toggle-container">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="ai-toggle" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <div>
+                    <div class="toggle-label">🤖 ใช้ AI ช่วย Extract ข้อมูล</div>
+                    <div class="toggle-desc">ปิดเพื่อข้ามไปกรอกข้อมูลเอง (ไม่ใช้ API quota)</div>
+                </div>
+                <span id="ai-status-badge" class="ai-status on">AI เปิด</span>
+            </div>
+
+            <!-- AI Recommendation Hint -->
+            <div
+                style="background: rgba(102, 126, 234, 0.1); border-left: 4px solid #667eea; padding: 1rem; border-radius: 0 8px 8px 0; margin-bottom: 1.5rem;">
+                <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+                    <span style="font-size: 1.2rem;">💡</span>
+                    <div style="font-size: 0.9rem; color: var(--text-light);">
+                        <strong>คำแนะนำ:</strong><br>
+                        • <strong>ใช้ AI</strong> → ถ้าไฟล์ไม่มีคอลัมน์ครบ (เช่น ไม่มี Summary, Category) AI
+                        จะสร้างให้อัตโนมัติ<br>
+                        • <strong>ข้าม AI</strong> → ถ้าไฟล์มีคอลัมน์ครบตาม Schema แล้ว (ประหยัด quota)
+                    </div>
+                </div>
+            </div>
+
+            <h3 id="field-selection-title">🎯 เลือก Target Fields (AI จะ extract ข้อมูลลง fields เหล่านี้)</h3>
+
+            <div class="select-all-container">
+                <input type="checkbox" id="select-all-fields">
+                <label for="select-all-fields"><strong>เลือกทั้งหมด</strong></label>
+                <span id="selected-count" class="field-group-badge">เลือกแล้ว: 0 fields</span>
+            </div>
+
+            <!-- Core Fields Section -->
+            <div class="field-group" id="core-fields-group">
+                <div class="field-group-header">
+                    <span class="field-group-title">📋 ฟิลด์หลัก (Core Fields)</span>
+                    <span class="field-group-badge">ตรงกับ Database Schema</span>
+                </div>
+                <div class="fields-selector" id="core-fields-selector">
+                    <!-- Core fields will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Detail Fields Section -->
+            <div class="field-group" id="detail-fields-group">
+                <div class="field-group-header">
+                    <span class="field-group-title details">📝 ฟิลด์รายละเอียด (Details)</span>
+                    <span class="field-group-badge">แต่ละช่องเป็น 1 กล่องใน details[]</span>
+                </div>
+                <div class="fields-selector" id="detail-fields-selector">
+                    <!-- Detail fields will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Custom Fields Section -->
+            <div class="custom-field-section">
+                <h4 style="margin-bottom: 1rem;">➕ เพิ่ม Custom Field (สำหรับความยืดหยุ่น)</h4>
+                <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.9rem;">
+                    สร้าง field เพิ่มเติมสำหรับข้อมูลเฉพาะที่ไม่อยู่ในรายการด้านบน
+                </p>
+                <div class="custom-field-row">
+                    <input type="text" id="custom-field-name" placeholder="ชื่อ Field (เช่น เมนูแนะนำ, ราคาที่จอดรถ)">
+                    <button class="btn-add-field" onclick="addCustomField()">+ เพิ่ม Field</button>
+                </div>
+                <div class="custom-fields-list" id="custom-fields-list">
+                    <!-- Custom fields will appear here -->
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-large" onclick="goToStep(1)">← ย้อนกลับ</button>
+                <button class="btn btn-cta btn-large" id="btn-transform" onclick="runAITransform()"
+                    style="display: inline-flex;">
+                    🤖 AI Transform →
+                </button>
+                <button class="btn btn-large" id="btn-skip-ai" onclick="skipAITransform()"
+                    style="display: none; background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: #000;">
+                    ⏩ ข้ามไปบันทึกเลย
+                </button>
+            </div>
+        </section>
+
+        <!-- Step 3: AI Transform Preview -->
+        <section id="section-transform" class="preview-section form-container">
+            <h2>🤖 Step 3: ผลลัพธ์ AI Transform</h2>
+            <p>เปรียบเทียบข้อมูลดิบ vs ข้อมูลที่ AI แปลงแล้ว</p>
+
+            <div class="preview-table-container" style="max-height: 500px;">
+                <table class="preview-table" id="transform-preview-table">
+                    <thead id="transform-preview-thead"></thead>
+                    <tbody id="transform-preview-tbody"></tbody>
+                </table>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-large" onclick="goToStep(2)">← แก้ไข Fields</button>
+                <button class="btn btn-cta btn-large" id="btn-save" onclick="confirmSave()">
+                    💾 ยืนยันบันทึก →
+                </button>
+            </div>
+        </section>
+
+        <!-- Step 4: Success -->
+        <section id="section-success" class="preview-section form-container" style="text-align: center;">
+            <h2>✅ บันทึกสำเร็จ!</h2>
+            <p id="success-message">-</p>
+            <div class="action-buttons">
+                <button class="btn btn-large" onclick="location.reload()">📥 Import อีกไฟล์</button>
+                <a href="admin.html" class="btn btn-cta btn-large" style="text-decoration: none;">
+                    📋 ไปหน้า Admin
+                </a>
+            </div>
+        </section>
+    </div>
+
+    <script src="assets/scripts/config.js"></script>
+    <script>
+        // ===========================================
+        // State Management
+        // ===========================================
+        let currentStep = 1;
+        let rawData = [];
+        let transformedData = [];
+        let targetFields = [];
+        let allFields = [];
+
+        // ===========================================
+        // API Base URL
+        // ===========================================
+        const API_BASE = window.API_BASE_URL || 'http://localhost:9090';
+
+        // ===========================================
+        // Input Mode State (upload or manual)
+        // ===========================================
+        let inputMode = 'upload';
+
+        function switchInputMode(mode) {
+            inputMode = mode;
+
+            // Update tabs
+            document.getElementById('tab-upload').classList.toggle('active', mode === 'upload');
+            document.getElementById('tab-document').classList.toggle('active', mode === 'document');
+            document.getElementById('tab-manual').classList.toggle('active', mode === 'manual');
+
+            // Update content visibility
+            document.getElementById('mode-upload').classList.toggle('active', mode === 'upload');
+            document.getElementById('mode-document').classList.toggle('active', mode === 'document');
+            document.getElementById('mode-manual').classList.toggle('active', mode === 'manual');
+        }
+
+        // ===========================================
+        // AI Toggle State
+        // ===========================================
+        let useAI = true;  // Default: use AI
+
+        function initAIToggle() {
+            const toggle = document.getElementById('ai-toggle');
+            const badge = document.getElementById('ai-status-badge');
+            const btnTransform = document.getElementById('btn-transform');
+            const btnSkipAI = document.getElementById('btn-skip-ai');
+            const fieldTitle = document.getElementById('field-selection-title');
+
+            toggle.addEventListener('change', function () {
+                useAI = this.checked;
+
+                if (useAI) {
+                    badge.textContent = 'AI เปิด';
+                    badge.className = 'ai-status on';
+                    btnTransform.style.display = 'inline-flex';
+                    btnSkipAI.style.display = 'none';
+                    fieldTitle.textContent = '🎯 เลือก Target Fields (AI จะ extract ข้อมูลลง fields เหล่านี้)';
+                } else {
+                    badge.textContent = 'AI ปิด';
+                    badge.className = 'ai-status off';
+                    btnTransform.style.display = 'none';
+                    btnSkipAI.style.display = 'inline-flex';
+                    fieldTitle.textContent = '🎯 เลือก Fields ที่ต้องการบันทึก (กรอกข้อมูลเอง)';
+                }
+            });
+        }
+
+        // Skip AI and go directly to manual entry
+        function skipAITransform() {
+            targetFields = getSelectedFields();
+
+            if (targetFields.length === 0) {
+                alert('กรุณาเลือก Fields อย่างน้อย 1 field');
+                return;
+            }
+
+            // Create empty transformed data from raw data
+            transformedData = rawData.map(row => {
+                const result = {};
+                targetFields.forEach(field => {
+                    // Use first raw data value as a hint
+                    result[field] = '';
+                });
+                result['_original_combined'] = Object.values(row).filter(v => v).join(' | ');
+                result['_original_row'] = row;
+                return result;
+            });
+
+            // Show in transform preview with editable note
+            renderTransformPreviewTable({ target_fields: targetFields, transformed_rows: transformedData }, true);
+            goToStep(3);
+        }
+
+        // ===========================================
+        // Document Import Mode
+        // ===========================================
+        let documentText = '';
+        let documentEntries = [];
+        let uploadedDocFile = null;  // Store for rescan
+
+
+        async function handleDocumentUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const validExts = ['.pdf', '.doc', '.docx'];
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (!validExts.includes(ext)) {
+                alert('รองรับเฉพาะไฟล์ PDF, DOC, DOCX เท่านั้น');
+                return;
+            }
+
+            // Store file for rescan
+            uploadedDocFile = file;
+
+            const targetCount = parseInt(document.getElementById('doc-target-count').value) || 5;
+
+            showLoading('📄 AI กำลังสแกนเอกสาร...');
+
+            try {
+                // First, just do the scan to get entries (for preview)
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('target_count', targetCount.toString());
+
+                const response = await fetch(`${API_BASE}/api/admin/import/document-scan`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'สแกนเอกสารล้มเหลว');
+                }
+
+                if (!result.success || result.entries.length === 0) {
+                    alert(result.message || 'ไม่พบรายการในเอกสาร');
+                    return;
+                }
+
+                // Save data
+                documentText = result.text_preview;
+                documentEntries = result.entries;
+
+                // Set document mode flag
+                window.isDocumentMode = true;
+
+                // Prepare raw data for Step 2 preview
+                rawData = documentEntries.map(e => ({ title: e.title, description: e.description }));
+
+                // Render raw preview
+                renderRawPreviewTable({
+                    columns: ['title', 'description'],
+                    preview_rows: rawData
+                });
+
+                // Load fields and go to Step 2
+                await loadTargetFields();
+                goToStep(2);
+
+                alert(`✅ พบ ${result.entries.length} รายการ กรุณาเลือก Fields ที่ต้องการ`);
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Function to start streaming extraction (called when user clicks Transform in Step 2)
+        async function startDocumentStreaming() {
+            if (!uploadedDocFile) {
+                alert('ไม่พบไฟล์เอกสาร');
+                return;
+            }
+
+            // Get selected fields using shared function
+            const selectedFields = getSelectedFields();
+
+            if (selectedFields.length === 0) {
+                alert('กรุณาเลือกอย่างน้อย 1 field');
+                return;
+            }
+
+            const targetCount = parseInt(document.getElementById('doc-target-count').value) || 5;
+            const targetFields = selectedFields.join(',');
+
+            // Go to Step 3 and start streaming
+            transformedData = [];
+            targetFields_arr = selectedFields;
+
+            renderStreamingPreviewTable(targetFields_arr);
+            goToStep(3);
+
+            // Start SSE streaming
+            const formData = new FormData();
+            formData.append('file', uploadedDocFile);
+            formData.append('target_count', targetCount.toString());
+            formData.append('target_fields', targetFields);
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/import/document-stream`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const event = JSON.parse(line.slice(6));
+                                handleSSEEvent(event);
+                            } catch (e) {
+                                console.log('SSE parse error:', e);
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            }
+        }
+
+        let targetFields_arr = [];
+        let streamingTotal = 0;
+        let streamingCompleted = 0;
+
+        function handleSSEEvent(event) {
+            const type = event.type;
+            const data = event.data;
+
+            if (type === 'scan') {
+                streamingTotal = data.total_entries;
+                streamingCompleted = 0;
+                updateStreamingProgress();
+            } else if (type === 'entry') {
+                streamingCompleted++;
+                transformedData.push(data);
+                addStreamingEntry(data);
+                updateStreamingProgress();
+            } else if (type === 'done') {
+                updateStreamingProgress(true);
+            } else if (type === 'error') {
+                alert('❌ ' + data.message);
+            }
+        }
+
+        function renderStreamingPreviewTable(fields) {
+            const thead = document.getElementById('transform-preview-thead');
+            const tbody = document.getElementById('transform-preview-tbody');
+
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            // Header
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = '<th>#</th>';
+            fields.forEach(field => {
+                headerRow.innerHTML += `<th>${field}</th>`;
+            });
+            thead.appendChild(headerRow);
+
+            // Add progress row
+            tbody.innerHTML = `<tr id="streaming-progress-row">
+                <td colspan="${fields.length + 1}" style="text-align: center; padding: 2rem;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
+                        <div class="loading-spinner" style="width: 30px; height: 30px;"></div>
+                        <span id="streaming-status">🔄 กำลังประมวลผล...</span>
+                    </div>
+                </td>
+            </tr>`;
+        }
+
+        function addStreamingEntry(data) {
+            const tbody = document.getElementById('transform-preview-tbody');
+            const progressRow = document.getElementById('streaming-progress-row');
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>✅ ${streamingCompleted}</td>`;
+            targetFields_arr.forEach(field => {
+                const value = data[field] || '';
+                const displayValue = typeof value === 'string' ? value.substring(0, 80) : String(value);
+                tr.innerHTML += `<td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(displayValue)}</td>`;
+            });
+
+            // Insert before progress row
+            tbody.insertBefore(tr, progressRow);
+        }
+
+        function updateStreamingProgress(done = false) {
+            const statusEl = document.getElementById('streaming-status');
+            if (statusEl) {
+                if (done) {
+                    const progressRow = document.getElementById('streaming-progress-row');
+                    if (progressRow) progressRow.remove();
+                    statusEl.textContent = `✅ เสร็จสิ้น ${streamingCompleted} รายการ`;
+                } else {
+                    statusEl.textContent = `🔄 กำลังประมวลผล... ${streamingCompleted}/${streamingTotal}`;
+                }
+            }
+        }
+
+        async function rescanDocumentWithCount() {
+            if (!uploadedDocFile) {
+                alert('กรุณาอัปโหลดเอกสารก่อน');
+                return;
+            }
+
+            const targetCount = parseInt(document.getElementById('doc-target-count').value) || 5;
+
+            showLoading(`📄 AI กำลังสแกนใหม่ (${targetCount} หัวข้อ)...`);
+
+            try {
+                const formData = new FormData();
+                formData.append('file', uploadedDocFile);
+                formData.append('target_count', targetCount.toString());
+
+                const response = await fetch(`${API_BASE}/api/admin/import/document-scan`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'สแกนเอกสารล้มเหลว');
+                }
+
+                // Update data
+                documentText = result.text_preview;
+                documentEntries = result.entries;
+
+                // Update UI
+                document.getElementById('doc-page-count').textContent = result.page_count;
+                document.getElementById('doc-entry-count').textContent = result.entries.length;
+                renderDocumentEntries();
+
+                alert(`✅ สแกนใหม่สำเร็จ: พบ ${result.entries.length} หัวข้อ`);
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function renderDocumentEntries() {
+            const container = document.getElementById('doc-entries-list');
+            container.innerHTML = documentEntries.map((entry, index) => `
+                <div class="entry-item" style="background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 8px; display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.2rem;">📌</span>
+                    <input type="text" value="${entry.title || ''}" 
+                        onchange="updateDocEntry(${index}, 'title', this.value)"
+                        style="flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.2); padding: 0.5rem; border-radius: 4px; color: white;">
+                    <input type="text" value="${entry.description || ''}" 
+                        onchange="updateDocEntry(${index}, 'description', this.value)"
+                        placeholder="คำอธิบาย"
+                        style="flex: 2; background: transparent; border: 1px solid rgba(255,255,255,0.2); padding: 0.5rem; border-radius: 4px; color: white;">
+                    <button onclick="removeDocEntry(${index})" style="background: rgba(255,0,0,0.3); border: none; padding: 0.5rem; border-radius: 4px; cursor: pointer; color: white;">🗑️</button>
+                </div>
+            `).join('');
+            document.getElementById('doc-entry-count').textContent = documentEntries.length;
+        }
+
+        function updateDocEntry(index, field, value) {
+            documentEntries[index][field] = value;
+        }
+
+        function removeDocEntry(index) {
+            documentEntries.splice(index, 1);
+            renderDocumentEntries();
+        }
+
+        function addNewDocEntry() {
+            documentEntries.push({ title: '', description: '' });
+            renderDocumentEntries();
+            // Focus on new entry
+            const inputs = document.querySelectorAll('#doc-entries-list input[type="text"]');
+            if (inputs.length > 0) {
+                inputs[inputs.length - 2].focus();
+            }
+        }
+
+        async function goToDocStep2() {
+            // Filter out empty entries
+            documentEntries = documentEntries.filter(e => e.title && e.title.trim());
+
+            if (documentEntries.length === 0) {
+                alert('กรุณาเพิ่มรายการอย่างน้อย 1 รายการ');
+                return;
+            }
+
+            // Use the document entries as raw data for Step 2
+            rawData = documentEntries.map(e => ({ title: e.title, description: e.description }));
+
+            // Set document mode flag
+            window.isDocumentMode = true;
+            window.documentTextForExtract = documentText;
+
+            // Render raw preview for document entries
+            renderRawPreviewTable({
+                columns: ['title', 'description'],
+                preview_rows: rawData
+            });
+
+            // Load fields and go to Step 2
+            await loadTargetFields();
+            goToStep(2);
+        }
+
+        // ===========================================
+        // Step Navigation
+        // ===========================================
+        function goToStep(step) {
+            currentStep = step;
+            updateStepIndicators();
+            updateSectionVisibility();
+        }
+
+        function updateStepIndicators() {
+            for (let i = 1; i <= 4; i++) {
+                const stepEl = document.getElementById(`step-${i}`);
+                stepEl.classList.remove('active', 'completed');
+                if (i < currentStep) {
+                    stepEl.classList.add('completed');
+                } else if (i === currentStep) {
+                    stepEl.classList.add('active');
+                }
+            }
+        }
+
+        function updateSectionVisibility() {
+            document.getElementById('section-upload').style.display = currentStep === 1 ? 'block' : 'none';
+            document.getElementById('section-preview').style.display = currentStep === 2 ? 'block' : 'none';
+            document.getElementById('section-preview').classList.toggle('active', currentStep === 2);
+            document.getElementById('section-transform').style.display = currentStep === 3 ? 'block' : 'none';
+            document.getElementById('section-transform').classList.toggle('active', currentStep === 3);
+            document.getElementById('section-success').style.display = currentStep === 4 ? 'block' : 'none';
+            document.getElementById('section-success').classList.toggle('active', currentStep === 4);
+        }
+
+        // ===========================================
+        // Loading Overlay
+        // ===========================================
+        function showLoading(text = 'กำลังประมวลผล...') {
+            document.getElementById('loading-text').textContent = text;
+            document.getElementById('loading-overlay').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.remove('active');
+        }
+
+        // ===========================================
+        // Manual Entry Submission (Single Record)
+        // ===========================================
+        async function submitManualEntry() {
+            const title = document.getElementById('manual-title').value.trim();
+            const category = document.getElementById('manual-category').value;
+            const topic = document.getElementById('manual-topic').value.trim();
+            const keywords = document.getElementById('manual-keywords').value.trim();
+            const summary = document.getElementById('manual-summary').value.trim();
+            const details = document.getElementById('manual-details').value.trim();
+
+            // Validation
+            if (!title || !category || !topic) {
+                alert('กรุณากรอก Title, Category และ Topic');
+                return;
+            }
+
+            showLoading('กำลังบันทึกข้อมูล...');
+
+            try {
+                // Generate slug from title
+                const slug = title.toLowerCase()
+                    .replace(/\s+/g, '-')
+                    .replace(/[^\u0E00-\u0E7Fa-z0-9-]/g, '')
+                    .substring(0, 50) + '-' + Date.now().toString(36);
+
+                // Build location data
+                const locationData = {
+                    slug: slug,
+                    title: title,
+                    category: category,
+                    topic: topic,
+                    summary: summary || `ข้อมูลเกี่ยวกับ ${title}`,
+                    keywords: keywords ? keywords.split(',').map(k => k.trim()).filter(k => k) : [title, category, topic],
+                    details: details ? [{ heading: 'รายละเอียด', content: details }] : []
+                };
+
+                const response = await fetch(`${API_BASE}/api/admin/locations/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(locationData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'การบันทึกล้มเหลว');
+                }
+
+                // Success
+                document.getElementById('success-message').innerHTML =
+                    `<strong>บันทึกสำเร็จ!</strong><br>` +
+                    `เพิ่ม "${title}" เข้าสู่ระบบเรียบร้อยแล้ว`;
+                goToStep(4);
+
+                // Reset form
+                document.getElementById('manual-entry-form').reset();
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ===========================================
+        // PDF Upload & AI Assist (Manual Entry)
+        // ===========================================
+        function triggerPDFUpload() {
+            document.getElementById('pdf-file-input').click();
+        }
+
+        async function handlePDFUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                alert('กรุณาเลือกไฟล์ PDF เท่านั้น');
+                return;
+            }
+
+            showLoading('📄 กำลังอ่าน PDF และให้ AI วิเคราะห์...');
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch(`${API_BASE}/api/admin/import/pdf-extract`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'การอ่าน PDF ล้มเหลว');
+                }
+
+                if (!result.success) {
+                    alert(result.message || 'ไม่สามารถอ่านข้อมูลจาก PDF ได้');
+                    return;
+                }
+
+                // Fill form with AI extracted data
+                console.log('📄 PDF API Response:', result);
+                console.log('📄 AI Data:', result.ai_data);
+
+                if (result.ai_data) {
+                    fillFormWithAIData(result.ai_data);
+                    alert(`✅ ${result.message}\n\nAI ช่วยกรอกข้อมูลแล้ว กรุณาตรวจสอบและแก้ไขตามต้องการ`);
+                } else {
+                    alert(`⚠️ ${result.message}\n\nแต่ AI ไม่สามารถ extract ข้อมูลได้ กรุณากรอกเอง`);
+                }
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                hideLoading();
+                // Reset file input
+                event.target.value = '';
+            }
+        }
+
+        async function aiWebSearch() {
+            // Collect current form data
+            const partialData = {
+                title: document.getElementById('manual-title').value.trim(),
+                category: document.getElementById('manual-category').value,
+                topic: document.getElementById('manual-topic').value.trim(),
+                keywords: document.getElementById('manual-keywords').value.trim(),
+                summary: document.getElementById('manual-summary').value.trim(),
+                details: document.getElementById('manual-details').value.trim()
+            };
+
+            // Check if there's enough data for web search
+            const hasData = partialData.title || partialData.topic;
+            if (!hasData) {
+                alert('กรุณากรอกชื่อสถานที่ก่อน\n\nAI จะค้นหาข้อมูลจากเว็บและกรอกให้');
+                return;
+            }
+
+            showLoading('🌐 AI กำลังค้นหาข้อมูลจากเว็บ...');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/import/ai-fill-form`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        partial_data: partialData,
+                        target_fields: ['title', 'category', 'topic', 'summary', 'keywords'],
+                        use_web_search: true
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'ค้นหาข้อมูลล้มเหลว');
+                }
+
+                if (result.success && result.filled_data) {
+                    fillFormWithAIData(result.filled_data);
+                    alert(`✅ ${result.message}\n\nกรุณาตรวจสอบและแก้ไขตามต้องการ`);
+                } else {
+                    alert(result.message || 'ไม่พบข้อมูลจากเว็บ');
+                }
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function fillFormWithAIData(data) {
+            if (data.title) document.getElementById('manual-title').value = data.title;
+            if (data.category) {
+                const categorySelect = document.getElementById('manual-category');
+                // Try to match category option
+                const options = Array.from(categorySelect.options).map(o => o.value);
+                if (options.includes(data.category)) {
+                    categorySelect.value = data.category;
+                } else {
+                    // If no exact match, try partial match or default to 'อื่นๆ'
+                    categorySelect.value = 'อื่นๆ';
+                }
+            }
+            if (data.topic) document.getElementById('manual-topic').value = data.topic;
+            if (data.keywords) {
+                const keywordsValue = Array.isArray(data.keywords) ? data.keywords.join(', ') : data.keywords;
+                document.getElementById('manual-keywords').value = keywordsValue;
+            }
+            if (data.summary) document.getElementById('manual-summary').value = data.summary;
+
+            // Combine detail fields into details textarea
+            const detailParts = [];
+            if (data.detail_overview) detailParts.push(`ภาพรวม: ${data.detail_overview}`);
+            if (data.detail_location) detailParts.push(`ที่ตั้ง: ${data.detail_location}`);
+            if (data.detail_hours_contact) detailParts.push(`เวลา/ติดต่อ: ${data.detail_hours_contact}`);
+            if (data.detail_highlights) detailParts.push(`จุดเด่น: ${data.detail_highlights}`);
+            if (data.detail_price) detailParts.push(`ราคา: ${data.detail_price}`);
+
+            if (detailParts.length > 0) {
+                const existingDetails = document.getElementById('manual-details').value.trim();
+                const newDetails = detailParts.join('\n\n');
+                document.getElementById('manual-details').value = existingDetails
+                    ? existingDetails + '\n\n---\n\n' + newDetails
+                    : newDetails;
+            }
+        }
+
+        // ===========================================
+        // File Upload Handling
+        // ===========================================
+        const uploadZone = document.getElementById('upload-zone');
+        const fileInput = document.getElementById('file-input');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                handleFileUpload(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        async function handleFileUpload(file) {
+            // Validate file size (2GB max)
+            const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+            if (file.size > MAX_FILE_SIZE) {
+                alert('ไฟล์ใหญ่เกินไป! รองรับไฟล์สูงสุด 2GB');
+                return;
+            }
+
+            showLoading('กำลังอ่านไฟล์...');
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch(`${API_BASE}/api/admin/import/preview-raw`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'เกิดข้อผิดพลาดในการอ่านไฟล์');
+                }
+
+                const result = await response.json();
+                rawData = result.preview_rows;
+
+                // Update UI
+                document.getElementById('uploaded-filename').textContent = result.filename;
+                document.getElementById('uploaded-stats').textContent =
+                    `${result.total_rows} แถว, ${result.columns.length} คอลัมน์`;
+                document.getElementById('file-info-display').style.display = 'flex';
+                uploadZone.style.display = 'none';
+
+                // Render preview table
+                renderRawPreviewTable(result);
+
+                // Load target fields
+                await loadTargetFields();
+
+                // For Excel/CSV: skip field selection, auto-run AI Transform
+                // Auto-select default fields
+                const defaultFields = ['title', 'category', 'topic', 'summary', 'keywords'];
+                targetFields = defaultFields;
+
+                // Run AI transform automatically
+                showLoading('🤖 AI กำลังวิเคราะห์ข้อมูล...');
+
+                try {
+                    const transformResponse = await fetch(`${API_BASE}/api/admin/import/ai-transform`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            raw_data: rawData,
+                            target_fields: targetFields
+                        })
+                    });
+
+                    if (!transformResponse.ok) {
+                        const error = await transformResponse.json();
+                        throw new Error(error.detail || 'AI Transform ล้มเหลว');
+                    }
+
+                    const transformResult = await transformResponse.json();
+                    transformedData = transformResult.transformed_rows;
+
+                    renderTransformPreviewTable(transformResult);
+                    goToStep(3);  // Skip to Step 3 (AI Transform Preview)
+
+                } catch (transformError) {
+                    alert('AI Transform error: ' + transformError.message);
+                    // Fallback: go to Step 2 for manual field selection
+                    goToStep(2);
+                }
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function resetUpload() {
+            rawData = [];
+            transformedData = [];
+            fileInput.value = '';
+            document.getElementById('file-info-display').style.display = 'none';
+            uploadZone.style.display = 'block';
+            goToStep(1);
+        }
+
+        // ===========================================
+        // Preview Table Rendering
+        // ===========================================
+        function renderRawPreviewTable(data) {
+            const thead = document.getElementById('raw-preview-thead');
+            const tbody = document.getElementById('raw-preview-tbody');
+
+            // Clear existing
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            // Create header row
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = '<th>#</th>';
+            data.columns.forEach(col => {
+                headerRow.innerHTML += `<th>${escapeHtml(col)}</th>`;
+            });
+            thead.appendChild(headerRow);
+
+            // Create data rows
+            data.preview_rows.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${idx + 1}</td>`;
+                data.columns.forEach(col => {
+                    const value = row[col] !== undefined ? row[col] : '';
+                    tr.innerHTML += `<td>${escapeHtml(String(value).substring(0, 100))}</td>`;
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ===========================================
+        // Target Fields - Grouped Display
+        // ===========================================
+        let coreFields = [];
+        let detailFields = [];
+        let customFields = [];  // User-added custom fields
+
+        async function loadTargetFields() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/import/target-fields`);
+                const result = await response.json();
+
+                coreFields = result.core_fields || [];
+                detailFields = result.detail_fields || [];
+                allFields = result.all_fields || [...coreFields, ...detailFields];
+
+                renderGroupedFieldsSelector();
+                setupFieldCheckboxListeners();
+            } catch (error) {
+                console.error('Error loading target fields:', error);
+            }
+        }
+
+        function renderGroupedFieldsSelector() {
+            // Render Core Fields
+            const coreContainer = document.getElementById('core-fields-selector');
+            coreContainer.innerHTML = '';
+            coreFields.forEach(field => {
+                coreContainer.appendChild(createFieldCheckbox(field));
+            });
+
+            // Render Detail Fields
+            const detailContainer = document.getElementById('detail-fields-selector');
+            detailContainer.innerHTML = '';
+            detailFields.forEach(field => {
+                detailContainer.appendChild(createFieldCheckbox(field, true));
+            });
+
+            updateSelectedCount();
+        }
+
+        function createFieldCheckbox(field, isDetail = false) {
+            const div = document.createElement('div');
+            div.className = 'field-checkbox';
+
+            const requiredBadge = field.required ? '<span class="required-indicator">*</span>' : '';
+            const typeBadge = field.type === 'detail'
+                ? '<span class="field-type-badge detail">detail[]</span>'
+                : `<span class="field-type-badge">${field.type || 'text'}</span>`;
+
+            div.innerHTML = `
+                <input type="checkbox" id="field-${field.key}" value="${field.key}" data-group="${field.group || 'core'}">
+                <div class="field-info">
+                    <div class="field-label">${field.label}${requiredBadge}${typeBadge}</div>
+                    <div class="field-desc">${field.description}</div>
+                </div>
+            `;
+            return div;
+        }
+
+        function setupFieldCheckboxListeners() {
+            // Select All functionality
+            document.getElementById('select-all-fields').addEventListener('change', function () {
+                const allCheckboxes = document.querySelectorAll('#core-fields-selector input[type="checkbox"], #detail-fields-selector input[type="checkbox"]');
+                allCheckboxes.forEach(cb => cb.checked = this.checked);
+                updateSelectedCount();
+            });
+
+            // Individual checkbox change
+            document.querySelectorAll('#core-fields-selector input, #detail-fields-selector input').forEach(cb => {
+                cb.addEventListener('change', updateSelectedCount);
+            });
+        }
+
+        function updateSelectedCount() {
+            const allCheckboxes = document.querySelectorAll('#core-fields-selector input:checked, #detail-fields-selector input:checked');
+            const customCount = customFields.length;
+            const totalSelected = allCheckboxes.length + customCount;
+            document.getElementById('selected-count').textContent = `เลือกแล้ว: ${totalSelected} fields`;
+        }
+
+        // ===========================================
+        // Custom Fields Management
+        // ===========================================
+        function addCustomField() {
+            const input = document.getElementById('custom-field-name');
+            const fieldName = input.value.trim();
+
+            if (!fieldName) {
+                alert('กรุณาใส่ชื่อ Field');
+                return;
+            }
+
+            // Create key from name (convert to snake_case)
+            const key = 'custom_' + fieldName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_\u0E00-\u0E7F]/g, '');
+
+            // Check for duplicates
+            if (customFields.find(f => f.key === key)) {
+                alert('Field นี้มีอยู่แล้ว');
+                return;
+            }
+
+            customFields.push({
+                key: key,
+                label: fieldName,
+                description: `Custom field: ${fieldName}`,
+                type: 'custom',
+                group: 'custom'
+            });
+
+            renderCustomFieldsList();
+            input.value = '';
+            updateSelectedCount();
+        }
+
+        function removeCustomField(key) {
+            customFields = customFields.filter(f => f.key !== key);
+            renderCustomFieldsList();
+            updateSelectedCount();
+        }
+
+        function renderCustomFieldsList() {
+            const container = document.getElementById('custom-fields-list');
+            container.innerHTML = '';
+
+            customFields.forEach(field => {
+                const tag = document.createElement('div');
+                tag.className = 'custom-field-tag';
+                tag.innerHTML = `
+                    <span>📌 ${field.label}</span>
+                    <button class="remove-btn" onclick="removeCustomField('${field.key}')">&times;</button>
+                `;
+                container.appendChild(tag);
+            });
+        }
+
+        function getSelectedFields() {
+            // Get checked standard fields
+            const standardCheckboxes = document.querySelectorAll('#core-fields-selector input:checked, #detail-fields-selector input:checked');
+            const selectedKeys = Array.from(standardCheckboxes).map(cb => cb.value);
+
+            // Add all custom fields (they're always included if added)
+            customFields.forEach(f => selectedKeys.push(f.key));
+
+            return selectedKeys;
+        }
+
+        // ===========================================
+        // AI Transform
+        // ===========================================
+        async function runAITransform() {
+            // Document Mode: Delegate to streaming function
+            if (window.isDocumentMode) {
+                await startDocumentStreaming();
+                return;
+            }
+
+            // Excel/CSV Mode: Standard flow
+            targetFields = getSelectedFields();
+
+            if (targetFields.length === 0) {
+                alert('กรุณาเลือก Target Fields อย่างน้อย 1 field');
+                return;
+            }
+
+            showLoading('🤖 AI กำลังวิเคราะห์ข้อมูล...');
+
+            try {
+                // Use regular ai-transform API for Excel/CSV
+                const response = await fetch(`${API_BASE}/api/admin/import/ai-transform`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        raw_data: rawData,
+                        target_fields: targetFields
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'AI Transform ล้มเหลว');
+                }
+
+                let result = await response.json();
+                transformedData = result.transformed_rows;
+
+                renderTransformPreviewTable(result);
+                goToStep(3);
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function renderTransformPreviewTable(data) {
+            const thead = document.getElementById('transform-preview-thead');
+            const tbody = document.getElementById('transform-preview-tbody');
+
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            // Header with edit indicator
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = '<th>#</th><th>ข้อมูลดิบ</th>';
+            data.target_fields.forEach(field => {
+                const fieldInfo = allFields.find(f => f.key === field);
+                headerRow.innerHTML += `<th>${fieldInfo ? fieldInfo.label : field} <span style="font-size:0.7rem;color:#667eea;">✏️</span></th>`;
+            });
+            thead.appendChild(headerRow);
+
+            // Rows with editable cells
+            data.transformed_rows.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+                const original = row._original_combined || '';
+                tr.innerHTML = `<td>${idx + 1}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(original)}">${escapeHtml(original.substring(0, 60))}...</td>`;
+
+                data.target_fields.forEach(field => {
+                    const value = row[field] || '';
+                    const td = document.createElement('td');
+                    td.contentEditable = true;
+                    td.textContent = String(value);
+                    td.dataset.rowIndex = idx;
+                    td.dataset.field = field;
+                    td.style.cssText = 'background: rgba(102,126,234,0.1); border: 1px solid rgba(102,126,234,0.3); cursor: text; min-width: 100px; padding: 8px;';
+
+                    // Update data on blur
+                    td.addEventListener('blur', function () {
+                        transformedData[idx][field] = this.textContent.trim();
+                        this.style.background = 'rgba(34,197,94,0.2)'; // Show saved
+                        setTimeout(() => { this.style.background = 'rgba(102,126,234,0.1)'; }, 500);
+                    });
+
+                    // Highlight on focus
+                    td.addEventListener('focus', function () {
+                        this.style.background = 'rgba(255,255,255,0.15)';
+                    });
+
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+
+            // Add edit instruction
+            const instruction = document.createElement('div');
+            instruction.style.cssText = 'margin-top: 1rem; padding: 0.75rem; background: rgba(102,126,234,0.15); border-radius: 8px; font-size: 0.9rem; color: var(--text-light);';
+            instruction.innerHTML = '💡 <strong>แก้ไขได้:</strong> คลิกที่ช่องสีม่วงเพื่อแก้ไขข้อมูล → การเปลี่ยนแปลงจะถูกบันทึกอัตโนมัติ';
+            tbody.parentElement.parentElement.appendChild(instruction);
+        }
+
+        // ===========================================
+        // Confirm Save
+        // ===========================================
+        async function confirmSave() {
+            if (transformedData.length === 0) {
+                alert('ไม่มีข้อมูลให้บันทึก');
+                return;
+            }
+
+            showLoading('💾 กำลังบันทึกข้อมูล...');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/import/confirm-save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        transformed_rows: transformedData
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('success-message').textContent =
+                        `บันทึกสำเร็จ ${result.saved_count} รายการ! ${result.message}`;
+                    goToStep(4);
+                } else {
+                    throw new Error(result.message || 'การบันทึกล้มเหลว');
+                }
+
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ===========================================
+        // Utilities
+        // ===========================================
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize
+        updateStepIndicators();
+        updateSectionVisibility();
+        initAIToggle();
+
+        // Check URL params for mode
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mode') === 'manual') {
+            // Auto-turn off AI when coming from manual mode link
+            document.getElementById('ai-toggle').checked = false;
+            document.getElementById('ai-toggle').dispatchEvent(new Event('change'));
+        }
+    </script>
+</body>
+
+</html>

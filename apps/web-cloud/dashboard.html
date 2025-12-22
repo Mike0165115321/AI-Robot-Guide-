@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - AI Guide น่าน</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Sarabun:wght@300;400;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="stylesheet" href="assets/styles/dashboard.css">
+
+</head>
+
+<body>
+    <div class="loading-overlay" id="loader">
+        <div class="loader"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <div class="brand">
+                <div
+                    style="width: 40px; height: 40px; background: var(--accent-gradient); border-radius: 10px; display: grid; place-items: center;">
+                    <i class="fa-solid fa-chart-pie" style="color: white; font-size: 1.2rem;"></i>
+                </div>
+                <div>
+                    <h1>statistics</h1>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">ข้อมูลเชิงลึกแบบเรียลไทม์</p>
+                </div>
+            </div>
+            <div class="actions">
+                <a href="admin.html" class="btn btn-glass">
+                    <i class="fa-solid fa-arrow-left"></i> กลับหน้า Admin
+                </a>
+                <a href="/" class="btn btn-primary">
+                    <i class="fa-solid fa-robot"></i> เปิดหน้าแอป
+                </a>
+            </div>
+        </header>
+
+        <!-- Key Metrics -->
+        <div class="stats-grid">
+            <div class="card stat-card">
+                <div class="stat-label">บทสนทนาทั้งหมด (30 วัน)</div>
+                <div class="stat-number" id="total-conversations">0</div>
+            </div>
+            <div class="card stat-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div class="stat-label">สถานที่ยอดฮิต (พูดถึงมากที่สุด)</div>
+                    <div class="stat-number" id="top-location" style="font-size: 2.5rem; margin-bottom: 5px;">--</div>
+                    <div class="stat-subtext" id="top-location-count">
+                        <i class="fa-solid fa-fire"></i> กำลังมาแรง
+                    </div>
+                </div>
+                <button id="view-details-btn" class="btn-subtle">
+                    ดูรายละเอียด <i class="fa-solid fa-chevron-right" style="font-size: 0.8em;"></i>
+                </button>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-label">คะแนนความพึงพอใจ</div>
+                <div class="stat-number" id="satisfaction-score">4.9</div>
+                <div style="font-size: 0.8rem; color: #4ade80; margin-top: 5px;" id="satisfaction-container">
+                    <i class="fa-solid fa-arrow-trend-up"></i> <span id="satisfaction-label">ยอดเยี่ยม</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));">
+            <div class="card">
+                <h3><i class="fa-solid fa-earth-asia"></i> นักท่องเที่ยวมาจากประเทศไหน?</h3>
+                <div class="chart-container">
+                    <canvas id="originChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><i class="fa-solid fa-map-location-dot"></i> มาจากจังหวัดไหนบ้าง? (คนไทย)</h3>
+                <div class="chart-container">
+                    <canvas id="provinceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><i class="fa-solid fa-fire"></i> หัวข้อที่กำลังมาแรง</h3>
+                <div class="chart-container">
+                    <canvas id="interestChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    </div>
+
+    <!-- Top Locations Modal -->
+    <div id="details-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-ranking-star"></i> 10 อันดับสถานที่ยอดฮิต</h3>
+                <button id="close-modal-btn" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <ul id="top-locations-list" class="ranking-list">
+                    <!-- List items will be populated by JS -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/main.js"></script>
+    <script src="assets/scripts/dashboard.js"></script>
+</body>
+
+</html>

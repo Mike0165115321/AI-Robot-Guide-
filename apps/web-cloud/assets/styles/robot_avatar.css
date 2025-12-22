@@ -1,0 +1,1145 @@
+:root {
+    /* Map to main.css variables */
+    --color-bg-primary: var(--bg-dark);
+    --color-robot-white: #fcfcfc;
+    --color-robot-teal: var(--accent);
+    --color-robot-dark: #2c2f33;
+    --color-robot-eye-glow: #40c4ff;
+    --color-robot-mouth: #f75d5d;
+}
+
+body {
+    /* Inherit from main.css */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    overflow: hidden;
+    /* Background handled by main.css and .bg-grid */
+}
+
+.main-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.presentation-container {
+    position: absolute;
+    left: 5vw;
+    width: 50vw;
+    height: 80vh;
+    color: #e0e0e0;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(30px);
+    background: var(--bg-card);
+    border-radius: 20px;
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    padding: 30px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(56, 109, 128, 0.7) transparent;
+}
+
+.presentation-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.presentation-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.presentation-container::-webkit-scrollbar-thumb {
+    background-color: var(--accent);
+    border-radius: 20px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+.presentation-container::-webkit-scrollbar-thumb:hover {
+    background-color: var(--primary);
+}
+
+.presentation-container img {
+    width: 100%;
+    height: auto;
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.presentation-container p {
+    font-size: 1.1em;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.presentation-container strong {
+    color: var(--color-robot-eye-glow);
+}
+
+/* --- [เพิ่ม/แก้ไข] ปรับปรุงระยะห่างของ Markdown ที่แปลงแล้ว --- */
+.presentation-container h3 {
+    font-size: 1.4em;
+    color: var(--color-robot-teal);
+    border-bottom: 2px solid var(--color-robot-teal);
+    padding-bottom: 8px;
+    margin-top: 20px;
+    margin-bottom: 15px;
+}
+
+.presentation-container ul {
+    list-style: none;
+    padding-left: 5px;
+}
+
+.presentation-container li {
+    margin-bottom: 5px;
+    padding-left: 20px;
+    position: relative;
+    line-height: 1.25;
+}
+
+.presentation-container li::before {
+    content: '▹';
+    position: absolute;
+    left: 0;
+    color: var(--color-robot-eye-glow);
+    font-weight: bold;
+}
+
+/* --- Robot CSS (โค้ดทั้งหมดของคุณเหมือนเดิม) --- */
+.robot-container {
+    position: relative;
+    width: 320px;
+    height: 420px;
+    perspective: 1200px;
+    transform-style: preserve-3d;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 20px;
+    transform: translateY(20px);
+}
+
+.robot-container::before {
+    content: '';
+    position: absolute;
+    bottom: 60px;
+    width: 100px;
+    height: 5px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 50%;
+    filter: blur(4px);
+    z-index: 1;
+}
+
+.robot-body {
+    position: absolute;
+    bottom: 60px;
+    width: 190px;
+    height: 220px;
+    background-color: var(--color-robot-white);
+    border-radius: 40% 40% 60% 60% / 65% 65% 55% 55%;
+    z-index: 3;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.1), inset 0 0 50px rgba(0, 0, 0, 0.08);
+    background: radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.6) 0%, transparent 40%), linear-gradient(to bottom, rgba(255, 255, 255, 0.3) 0%, transparent 10%), var(--color-robot-white);
+    animation: body-idle 8s infinite ease-in-out;
+    animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+@keyframes body-idle {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+.body-accent {
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 95px;
+    height: 65px;
+    background-color: var(--color-robot-teal);
+    border-radius: 0 0 70% 70% / 0 0 100px 100px;
+    z-index: 4;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.05);
+}
+
+.eilik-text {
+    position: absolute;
+    top: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #333;
+    font-size: 18px;
+    font-weight: 700;
+    z-index: 5;
+    letter-spacing: 1px;
+    opacity: 0.8;
+}
+
+.robot-neck {
+    position: absolute;
+    top: -120px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50px;
+    height: 15px;
+    background-color: var(--color-robot-white);
+    border-radius: 50%;
+    z-index: 4;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.robot-head {
+    position: absolute;
+    top: -125px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 170px;
+    height: 170px;
+    background-color: var(--color-robot-white);
+    border-radius: 50%;
+    z-index: 6;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15), inset 0 0 40px rgba(0, 0, 0, 0.08);
+    background: radial-gradient(circle at 50% 15%, rgba(255, 255, 255, 0.8) 0%, transparent 35%), var(--color-robot-white);
+    animation: head-idle 8s infinite ease-in-out;
+}
+
+@keyframes head-idle {
+
+    0%,
+    100% {
+        transform: translateX(-50%) rotateZ(0deg);
+    }
+
+    50% {
+        transform: translateX(-50%) rotateZ(-1deg);
+    }
+}
+
+.head-top-accent {
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90px;
+    height: 45px;
+    background-color: var(--color-robot-teal);
+    border-radius: 100px / 50px;
+    z-index: 7;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
+}
+
+.robot-face {
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 130px;
+    height: 90px;
+    background-color: var(--color-robot-dark);
+    border-radius: 50% / 45px;
+    z-index: 8;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 8px;
+    box-shadow: inset 0 0 25px rgba(0, 0, 0, 1.0);
+    overflow: hidden;
+}
+
+.robot-eye {
+    width: 40px;
+    height: 30px;
+    border-radius: 50%;
+    transform: translateY(-5px);
+    background-color: var(--color-robot-eye-glow);
+    box-shadow: 0 0 8px var(--color-robot-eye-glow), 0 0 20px var(--color-robot-eye-glow), 0 0 40px var(--color-robot-eye-glow), inset 0 0 8px rgba(255, 255, 255, 0.9);
+    opacity: 0.95;
+    animation: eye-pulse 4s infinite alternate;
+    transition: width 0.3s ease-out, height 0.3s ease-out, border-radius 0.3s ease-out, opacity 0.3s ease-out, transform 0.1s linear;
+}
+
+@keyframes eye-pulse {
+    from {
+        box-shadow: 0 0 8px var(--color-robot-eye-glow), 0 0 20px var(--color-robot-eye-glow);
+    }
+
+    to {
+        box-shadow: 0 0 15px var(--color-robot-eye-glow), 0 0 35px var(--color-robot-eye-glow);
+    }
+}
+
+.robot-eye.blink {
+    height: 5px !important;
+    transition: height 0.05s ease-out, width 0.3s ease-out, border-radius 0.3s ease-out;
+}
+
+.robot-face.face-speaking .robot-eye,
+.robot-face.face-thinking .robot-eye {
+    opacity: 0;
+    pointer-events: none;
+    animation: none;
+}
+
+.robot-face.face-listening .robot-eye {
+    animation: none;
+    height: 8px;
+}
+
+.robot-mouth {
+    position: absolute;
+    width: 40px;
+    height: 10px;
+    background-color: var(--color-robot-mouth);
+    border-radius: 5px;
+    bottom: 10px;
+    opacity: 0;
+    transform-origin: center bottom;
+    transition: opacity 0.3s ease-out;
+}
+
+.robot-face.face-speaking .robot-mouth {
+    opacity: 1;
+    animation: mouth-talk 0.2s infinite alternate ease-in-out;
+}
+
+@keyframes mouth-talk {
+    0% {
+        transform: scaleY(0.7) scaleX(1.0);
+    }
+
+    100% {
+        transform: scaleY(1.2) scaleX(1.1);
+    }
+}
+
+.thinking-dots {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 40px;
+    font-weight: 900;
+    color: var(--color-robot-eye-glow);
+    letter-spacing: -5px;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
+}
+
+.robot-face.face-thinking .thinking-dots {
+    opacity: 1;
+}
+
+.thinking-dots span {
+    opacity: 0;
+    transition: opacity 0s;
+    animation: dot-pulse 1.5s infinite steps(1);
+}
+
+.thinking-dots span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.thinking-dots span:nth-child(2) {
+    animation-delay: 0.5s;
+}
+
+.thinking-dots span:nth-child(3) {
+    animation-delay: 1.0s;
+}
+
+@keyframes dot-pulse {
+    0% {
+        opacity: 0;
+    }
+
+    33% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+.robot-arm {
+    position: absolute;
+    width: 45px;
+    height: 120px;
+    background-color: var(--color-robot-white);
+    border-radius: 30px;
+    z-index: 4;
+    transform-origin: 50% 10%;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease-out, top 0.3s ease-out, height 0.3s ease-out;
+    animation: none !important;
+}
+
+.left-arm {
+    top: 20px;
+    left: -5px;
+    transform: rotate(-5deg);
+}
+
+.right-arm {
+    top: 20px;
+    right: -5px;
+    transform: rotate(5deg);
+}
+
+.left-arm.arm-normal {
+    animation: arm-idle-left 3s infinite ease-in-out;
+}
+
+.right-arm.arm-normal {
+    animation: arm-idle-right 3s infinite ease-in-out;
+}
+
+@keyframes arm-idle-left {
+
+    0%,
+    100% {
+        transform: rotate(-5deg);
+    }
+
+    50% {
+        transform: rotate(-10deg);
+    }
+}
+
+@keyframes arm-idle-right {
+
+    0%,
+    100% {
+        transform: rotate(5deg);
+    }
+
+    50% {
+        transform: rotate(0deg);
+    }
+}
+
+.left-arm.arm-speaking {
+    animation: arm-speaking-left 0.6s infinite alternate cubic-bezier(0.5, 0.0, 0.5, 1.0);
+}
+
+.right-arm.arm-speaking {
+    animation: arm-speaking-right 0.6s infinite alternate cubic-bezier(0.5, 0.0, 0.5, 1.0);
+}
+
+@keyframes arm-speaking-left {
+    0% {
+        transform: rotate(-50deg);
+        top: 5px;
+    }
+
+    50% {
+        transform: rotate(-25deg);
+        top: 20px;
+    }
+
+    100% {
+        transform: rotate(-10deg);
+        top: 30px;
+    }
+}
+
+@keyframes arm-speaking-right {
+    0% {
+        transform: rotate(50deg);
+        top: 5px;
+    }
+
+    50% {
+        transform: rotate(25deg);
+        top: 20px;
+    }
+
+    100% {
+        transform: rotate(10deg);
+        top: 30px;
+    }
+}
+
+.left-arm.arm-thinking {
+    transform: rotate(-15deg);
+}
+
+.right-arm.arm-thinking {
+    transform: rotate(15deg);
+}
+
+.left-arm.arm-listening {
+    transform: rotate(-45deg);
+    top: 0px;
+    height: 140px;
+}
+
+.right-arm.arm-listening {
+    transform: rotate(45deg);
+    top: 0px;
+    height: 140px;
+}
+
+.robot-arm::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 40px;
+    background-color: var(--color-robot-white);
+    border-radius: 30px;
+    z-index: 5;
+    box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.1);
+}
+
+.youtube-player-container {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    display: none;
+}
+
+.youtube-player-container iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.image-card {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.image-card img {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.image-card:hover img {
+    transform: scale(1.05);
+}
+
+.image-card p {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 8px;
+    font-size: 0.8em;
+    font-weight: 500;
+    color: white;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+    text-align: center;
+}
+
+.music-controls {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 20px;
+    background: rgba(17, 34, 64, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--color-border);
+    border-radius: 50px;
+    z-index: 100;
+}
+
+.music-controls button {
+    background: none;
+    border: none;
+    color: var(--color-text-primary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.music-controls button:hover {
+    color: var(--color-accent-teal);
+    transform: scale(1.1);
+}
+
+#play-pause-btn .fa-pause {
+    display: none;
+}
+
+.text-input-container {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    left: unset;
+
+    z-index: 100;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: var(--glass);
+    backdrop-filter: blur(5px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    overflow: hidden;
+}
+
+
+.text-input-prompt {
+    font-size: 24px;
+    opacity: 1;
+    transition: opacity 0.2s ease-out;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.text-query-form {
+    width: 100%;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.3s ease-in-out;
+    position: relative;
+}
+
+#text-query-input {
+    width: 100%;
+    height: 48px;
+    border: none;
+    background: transparent;
+    color: white;
+    font-family: 'Kanit', sans-serif;
+    font-size: 16px;
+    padding: 0 20px;
+    box-sizing: border-box;
+}
+
+#text-query-input:focus {
+    outline: none;
+}
+
+.text-input-container:hover {
+    width: 350px;
+    border-radius: 25px;
+    cursor: default;
+}
+
+.text-input-container:hover .text-input-prompt {
+    opacity: 0;
+    position: absolute;
+}
+
+.text-input-container:hover .text-query-form {
+    opacity: 1;
+    transform: scale(1);
+    transition-delay: 0.1s;
+}
+
+.music-controls {
+    bottom: 90px;
+    right: 25px;
+    left: unset;
+}
+
+.stop-speech-button {
+    position: fixed;
+    bottom: 90px;
+    right: 25px;
+    left: unset;
+    z-index: 99;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+
+    background-color: rgba(239, 68, 68, 0.6);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+
+    color: white;
+    font-size: 20px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.8);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.stop-speech-button.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+}
+
+#info-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.gallery-image {
+    max-width: 30%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    object-fit: cover;
+}
+
+#info-display {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: 100%;
+    max-width: 100%;
+}
+
+.gallery-container h3,
+.sources-container h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 8px;
+}
+
+.gallery-images-wrapper {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.gallery-images-wrapper a {
+    display: block;
+    aspect-ratio: 16 / 10;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.gallery-images-wrapper a:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px var(--color-robot-eye-glow, #40c4ff);
+}
+
+.gallery-images-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* --- [NEW] Image Gallery Styles (Ported from chat.css) --- */
+.image-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+    padding: 5px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+}
+
+.responsive-image {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    transition: transform 0.2s;
+    cursor: pointer;
+}
+
+.responsive-image:hover {
+    transform: scale(1.05);
+}
+
+.single-image-container {
+    margin-top: 15px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.single-image-container .responsive-image {
+    height: auto;
+    max-height: 300px;
+}
+
+.sources-cards-wrapper {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.source-card {
+    background-color: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.source-card:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.source-card img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    display: block;
+}
+
+.source-card p {
+    padding: 10px;
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #cbd5e1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.music-prompt-wrapper {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    align-items: center;
+}
+
+.song-input-field {
+    flex-grow: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--color-robot-teal);
+    background: var(--color-bg-primary);
+    color: var(--color-robot-white);
+    font-family: 'Kanit', sans-serif;
+    font-size: 1em;
+}
+
+.song-input-field:focus {
+    outline: none;
+    box-shadow: 0 0 10px var(--color-robot-teal);
+}
+
+.song-submit-btn {
+    padding: 10px 15px;
+    background: var(--color-robot-teal);
+    color: var(--color-bg-primary);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Kanit', sans-serif;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+.song-submit-btn:hover {
+    background-color: var(--color-robot-white);
+}
+
+.song-choice-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 12px;
+    margin-top: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-robot-teal);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--color-robot-white);
+    font-family: 'Kanit', sans-serif;
+    transition: background-color 0.3s ease;
+}
+
+.song-choice-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* ===================================== */
+/* 🎨 Improved Presentation Styling */
+/* ===================================== */
+
+#result-text {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+}
+
+#result-text p {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 12px;
+}
+
+#result-text h1,
+#result-text h2,
+#result-text h3 {
+    color: #2dd4bf;
+    margin-top: 20px;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+#result-text h3 {
+    font-size: 1.2rem;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(45, 212, 191, 0.3);
+}
+
+#result-text ul,
+#result-text ol {
+    padding-left: 20px;
+    margin: 12px 0;
+}
+
+#result-text li {
+    margin-bottom: 8px;
+    line-height: 1.6;
+    position: relative;
+}
+
+#result-text li::marker {
+    color: #2dd4bf;
+}
+
+#result-text strong {
+    color: #60a5fa;
+    font-weight: 600;
+}
+
+#result-text em {
+    color: #f472b6;
+    font-style: italic;
+}
+
+#result-text a {
+    color: #38bdf8;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+#result-text a:hover {
+    color: #7dd3fc;
+}
+
+/* Presentation container improvements */
+.presentation-container {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.85));
+}
+
+#info-display {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* --- Widget Fixes for Avatar Page --- */
+/* --- Widget Fixes for Avatar Page --- */
+#info-display .fab-widget-container {
+    /* Layout & Sizing */
+    width: 95% !important;
+    /* Use percentage to be responsive */
+    max-width: 600px !important;
+    /* Much wider as requested (was 420px) */
+    margin: 20px auto !important;
+    position: relative !important;
+    display: block !important;
+    flex-shrink: 0 !important;
+
+    /* Premium Look (Glassmorphism) */
+    background: rgba(15, 23, 42, 0.85) !important;
+    /* Slightly more opaque for readability */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    padding: 25px !important;
+    color: #f8fafc;
+}
+
+/* Ensure all text inside is readable and beautiful */
+#info-display .fab-widget-container .prose h3 {
+    color: #38bdf8 !important;
+    /* Sky blue header */
+    font-size: 1.2rem !important;
+    font-weight: 600;
+    margin-bottom: 8px !important;
+}
+
+#info-display .fab-widget-container .prose p {
+    color: #cbd5e1 !important;
+    font-size: 0.95rem !important;
+}
+
+/* Buttons (Nav, Genre, FAQ) - Override inline styles */
+#info-display .fab-widget-container button {
+    pointer-events: auto !important;
+    font-family: 'Kanit', sans-serif !important;
+    transition: all 0.2s ease;
+}
+
+/* Location / Genre Buttons */
+#info-display .nav-loc-btn,
+#info-display .genre-btn,
+#info-display .faq-btn {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #e2e8f0 !important;
+    padding: 10px 16px !important;
+    border-radius: 12px !important;
+    font-size: 0.9rem !important;
+    margin-bottom: 8px;
+    /* For FAQ list spacing */
+}
+
+#info-display .nav-loc-btn:hover,
+#info-display .genre-btn:hover,
+#info-display .faq-btn:hover {
+    background: rgba(56, 189, 248, 0.2) !important;
+    /* Blue tint hover */
+    border-color: rgba(56, 189, 248, 0.5) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Inputs */
+#info-display input[type="text"] {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#info-display input[type="text"]:focus {
+    border-color: #38bdf8 !important;
+}
+
+/* Search/Action Buttons can keep their gradient but refined */
+#info-display .nav-search-btn,
+#info-display .music-search-btn {
+    border-radius: 12px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+#info-display .nav-search-btn:hover,
+#info-display .music-search-btn:hover {
+    filter: brightness(1.1);
+    transform: scale(1.02);
+}
+
+/* Close Link/Button */
+#info-display .close-widget-btn {
+    color: #94a3b8 !important;
+    font-size: 0.85rem !important;
+    margin-top: 15px !important;
+    opacity: 0.8;
+}
+
+#info-display .close-widget-btn:hover {
+    color: #f1f5f9 !important;
+    opacity: 1;
+    text-decoration: underline;
+}
+
+/* Ensure presentation container keeps its original layout flow (block) */
+/* REMOVED destructive .presentation-container flex overrides */
+
+/* Music Control visibility fix */
+.music-controls {
+    /* Only ensure it CAN be displayed when active */
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+/* Note: Original CSS handles display:none/flex via JS or other rules. 
+   We just want to ensure it's not hidden if it should be visible. 
+   If JS uses .active/visible class: */
+.music-controls.active {
+    opacity: 1;
+    pointer-events: auto;
+    display: flex !important;
+}

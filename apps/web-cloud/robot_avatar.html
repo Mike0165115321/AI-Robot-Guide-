@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>คุยกับน้องน่าน (3D)</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/styles/main.css">
+    <link rel="stylesheet" href="assets/styles/robot_avatar.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="assets/scripts/marked.min.js"></script>
+
+    <!-- 🆕 Silero VAD (Neural Network Voice Activity Detection) -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.19/dist/bundle.min.js"></script>
+
+    <style>
+        /* ปุ่มย้อนกลับ (ลอยมุมซ้าย) */
+        .back-home-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-family: 'Kanit', sans-serif;
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+        }
+
+        .back-home-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Status Text */
+        #status-text {
+            position: absolute;
+            bottom: 100px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.2rem;
+            font-weight: 500;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* ปุ่มหยุดพูด */
+        .stop-speech-button {
+            display: none;
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 60;
+            width: 60px;
+            height: 60px;
+            background-color: rgba(239, 68, 68, 0.9);
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s;
+        }
+
+        .stop-speech-button.visible {
+            display: flex;
+            animation: popIn 0.3s ease-out;
+        }
+
+        /* ช่องพิมพ์ข้อความ */
+        .text-input-container {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            z-index: 60;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.4s;
+            overflow: hidden;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .text-input-container:hover {
+            width: 300px;
+            border-radius: 25px;
+        }
+
+        .text-query-form {
+            width: 100%;
+            opacity: 0;
+            transition: 0.3s;
+        }
+
+        .text-input-container:hover .text-query-form {
+            opacity: 1;
+        }
+
+        .text-input-prompt {
+            position: absolute;
+            font-size: 24px;
+            transition: 0.2s;
+        }
+
+        .text-input-container:hover .text-input-prompt {
+            opacity: 0;
+        }
+
+        #text-query-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 0 20px;
+            outline: none;
+            font-family: 'Kanit';
+        }
+
+        @keyframes popIn {
+            from {
+                transform: translateX(-50%) scale(0);
+            }
+
+            to {
+                transform: translateX(-50%) scale(1);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-grid"></div>
+
+    <a href="chat.html" class="back-home-btn btn-reset"
+        style="width: auto; position: absolute; top: 20px; left: 20px; z-index: 100; backdrop-filter: blur(5px);">
+        <i class="fas fa-arrow-left"></i> กลับหน้าหลัก
+    </a>
+
+    <div id="start-overlay"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+        <button id="start-btn"
+            style="padding: 20px 40px; font-size: 2rem; border-radius: 50px; border: none; background: linear-gradient(135deg, #10b981, #059669); color: white; cursor: pointer; box-shadow: 0 0 30px rgba(16, 185, 129, 0.5); font-family: 'Kanit'; transition: transform 0.2s;">
+            <i class="fas fa-power-off"></i> เริ่มต้นใช้งาน
+        </button>
+    </div>
+
+    <main class="main-container">
+        <div class="presentation-container" id="presentation-area">
+            <div id="result-text" class="prose"></div>
+            <div id="info-display" class="info-display-container"></div>
+        </div>
+
+        <div id="youtube-display" class="youtube-player-container">
+            <div id="youtube-player"></div>
+        </div>
+
+        <div class="robot-container" id="robot-master-container">
+            <div class="robot-body">
+                <div class="body-accent"></div>
+                <div class="robot-neck"></div>
+                <div class="robot-head">
+                    <div class="head-top-accent"></div>
+                    <div class="robot-face" id="robot-face">
+                        <div class="robot-eye left" id="eye-left"></div>
+                        <div class="robot-eye right" id="eye-right"></div>
+                        <div class="robot-mouth"></div>
+                        <div class="thinking-dots" id="thinking-dots"><span>.</span><span>.</span><span>.</span></div>
+                    </div>
+                </div>
+                <span class="eilik-text">น่าน</span>
+                <div class="robot-arm left-arm" id="left-arm"></div>
+                <div class="robot-arm right-arm" id="right-arm"></div>
+            </div>
+        </div>
+
+        <div id="status-text">กำลังเตรียมความพร้อม...</div> <!-- Mic Button for Push-to-Talk -->
+        <button id="mic-btn" class="mic-button"
+            style="display: none; position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #2563eb); border: 2px solid white; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4); z-index: 100; cursor: pointer; align-items: center; justify-content: center; transition: all 0.3s ease;">
+            <i class="fas fa-microphone" style="font-size: 28px; color: white;"></i>
+        </button>
+
+        <!-- Stop Button -->
+        <button id="stop-speech-btn" class="stop-speech-button"><i class="fas fa-stop"></i></button>
+
+        <div id="text-input-container" class="text-input-container">
+            <div class="text-input-prompt"><span>⌨️</span></div>
+            <form id="text-query-form" class="text-query-form">
+                <input type="text" id="text-query-input" placeholder="พิมพ์คุย...">
+            </form>
+        </div>
+
+        <div class="music-controls" id="music-controls">
+            <button id="play-pause-btn"><i class="fas fa-play"></i></button>
+            <button id="stop-btn"><i class="fas fa-stop"></i></button>
+        </div>
+
+        <!-- Floating Action Panel (Collapsible) -->
+        <div class="fab-panel" id="fab-panel">
+            <button class="fab-toggle" id="fab-toggle" title="เครื่องมือ">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+
+            <div id="fab-actions" class="fab-actions">
+                <button id="ai-mode-toggle" class="fab-btn" title="🤖 เปลี่ยนโหมด AI">
+                    <i class="fas fa-bolt"></i>
+                    <span>คิดเร็ว</span>
+                </button>
+                <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 5px 10px;"></div>
+                <button id="avatar-music-btn" class="fab-btn" title="🎵 เปิดเพลง">
+                    <i class="fa-solid fa-music"></i>
+                    <span>เพลง</span>
+                </button>
+                <button id="avatar-faq-btn" class="fab-btn" title="❓ คำถามที่พบบ่อย">
+                    <i class="fa-solid fa-circle-question"></i>
+                    <span>FAQ</span>
+                </button>
+                <button id="avatar-calc-btn" class="fab-btn" title="🔢 เครื่องคิดเลข">
+                    <i class="fa-solid fa-calculator"></i>
+                    <span>คำนวณ</span>
+                </button>
+                <button id="avatar-nav-btn" class="fab-btn" title="🗺️ นำทาง">
+                    <i class="fa-solid fa-route"></i>
+                    <span>นำทาง</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <style>
+        /* Floating Action Panel */
+        .fab-panel {
+            position: fixed;
+            right: 25px;
+            bottom: 120px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .fab-toggle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .fab-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        .fab-toggle.active {
+            transform: rotate(45deg);
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .fab-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+        }
+
+        .fab-actions.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .fab-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-radius: 25px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            color: #10b981;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: 'Kanit', sans-serif;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .fab-btn:hover {
+            background: rgba(16, 185, 129, 0.2);
+            transform: translateX(-5px);
+        }
+
+        /* Avatar Action Buttons */
+        .avatar-action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.7);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .avatar-action-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .avatar-action-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .avatar-action-btn:disabled {
+            cursor: default;
+            opacity: 0.6;
+        }
+    </style>
+
+    <script src="assets/scripts/config.js?v=6.0"></script>
+    <script src="assets/scripts/main.js?v=6.0"></script>
+    <script src="assets/scripts/utils.js?v=6.0"></script>
+    <script src="assets/scripts/music_player.js?v=6.0"></script>
+    <script src="assets/scripts/fab_manager.js?v=6.0"></script>
+    <script src="assets/scripts/calculator_widget.js?v=6.0"></script>
+    <script src="assets/scripts/robot_avatar.js?v=6.1"></script>
+    <script src="assets/scripts/avatar_state_manager.js?v=6.0"></script>
+    <script src="assets/scripts/avatar_logic.js?v=6.2"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - AI Guide น่าน</title>
+    <link rel="stylesheet" href="assets/styles/main.css">
+    <link rel="stylesheet" href="assets/styles/admin.css">
+</head>
+
+<body>
+    <div class="bg-grid"></div>
+
+    <div class="container" style="align-items: stretch; max-width: 1000px;">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div>
+                <h1 class="text-gradient">Admin Panel</h1>
+                <p style="color: var(--text-muted);">จัดการข้อมูลสถานที่และคลังความรู้ AI</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <a href="import.html" class="btn btn-submit"
+                    style="text-decoration: none; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; display: flex; align-items: center; gap: 5px;">
+                    📥 Bulk Import
+                </a>
+                <a href="dashboard.html" class="btn btn-submit"
+                    style="text-decoration: none; background-color: #667eea; border: none; display: flex; align-items: center; gap: 5px;">
+                    📊 สถิติ (Dashboard)
+                </a>
+
+                <a href="/" class="btn btn-cta"
+                    style="text-decoration: none; display: flex; align-items: center; gap: 5px;">
+                    <i class="fa-solid fa-house"></i> กลับหน้าหลัก
+                </a>
+            </div>
+        </header>
+
+        <div class="form-container">
+            <h2><i class="fa-solid fa-database"></i> นำเข้าข้อมูล</h2>
+            <p style="margin-bottom: 1.5rem;">
+                นำเข้าข้อมูลจาก Excel/CSV หรือกรอกข้อมูลทีละรายการ
+            </p>
+
+            <a href="import.html" class="btn btn-cta"
+                style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 1rem 2rem; font-size: 1.1rem;">
+                📥 เพิ่มข้อมูลใหม่
+            </a>
+        </div>
+
+        <!-- Google Sheets Sync Section -->
+        <div class="form-container sheets-sync-card"
+            style="margin-top: 2rem; background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(16,185,129,0.05)); border: 1px solid rgba(34,197,94,0.3);">
+            <h3 style="color: #22c55e; margin-bottom: 0.5rem;">🔗 Google Sheets Sync</h3>
+            <p style="margin-bottom: 1rem; color: var(--text-light);">
+                ซิงค์ข้อมูลจาก Google Sheets เข้าสู่ฐานข้อมูลน้องน่านอัตโนมัติ
+            </p>
+
+            <!-- Connection Status -->
+            <div id="sheets-status"
+                style="padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 1rem;">
+                <div id="sheets-connection-status"
+                    style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem;">
+                    <span id="sheets-status-dot"
+                        style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444;"></span>
+                    <span id="sheets-status-text">ยังไม่ได้เชื่อมต่อ</span>
+                </div>
+                <div id="sheets-info" style="font-size: 0.85rem; color: #888; display: none;">
+                    <div>📊 Sheet: <span id="sheets-title">-</span></div>
+                    <div>🕐 ซิงค์ล่าสุด: <span id="sheets-last-sync">-</span></div>
+                    <div>⚙️ โหมด: <span id="sheets-mode">-</span></div>
+                </div>
+            </div>
+
+            <!-- Simplified: Direct URL Input (No mode selection needed) -->
+            <div id="sheets-url-section" style="margin-top: 1rem;">
+                <h4 style="color: var(--text-light); margin-bottom: 0.75rem;">📋 วางลิงก์ Google Sheet ของคุณ</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <input type="text" id="sheets-url-input"
+                        placeholder="วางลิงก์ที่นี่... (จาก Address Bar ของ Browser)"
+                        style="flex: 1; min-width: 300px; padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: white;">
+                    <button id="sheets-connect-btn" class="btn btn-cta" onclick="connectGoogleSheet()"
+                        style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #22c55e, #16a34a);">
+                        🔗 เชื่อมต่อ
+                    </button>
+                </div>
+                <div
+                    style="margin-top: 0.75rem; font-size: 0.8rem; color: #888; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                    <strong>📌 วิธีใช้:</strong><br>
+                    1. เปิด Google Sheet ของคุณ และกด <strong>Share → ทุกคนที่มีลิงก์</strong><br>
+                    2. คัดลอก URL จาก <strong>Address Bar</strong> ของ Browser (ไม่ใช่จากปุ่ม "คัดลอกลิงก์")<br>
+                    3. วาง URL ในช่องด้านบน แล้วกด <strong>เชื่อมต่อ</strong>
+                </div>
+            </div>
+
+            <!-- Hidden: Mode selection (no longer shown, only polling mode is used) -->
+            <div id="sheets-mode-selection" style="display: none;"></div>
+            <div id="mode-instructions" style="display: none;"></div>
+
+            <!-- Action Buttons -->
+            <div style="margin-top: 1rem; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button id="sheets-sync-btn" class="btn" onclick="syncGoogleSheet()" disabled
+                    style="padding: 0.75rem 1.5rem; background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5);">
+                    🔄 Sync ตอนนี้
+                </button>
+                <button id="sheets-start-polling-btn" class="btn" onclick="startAutoPolling()" disabled style="display: none;
+                    padding: 0.75rem 1.5rem; background: rgba(34,197,94,0.3); border: 1px solid rgba(34,197,94,0.5);">
+                    ▶️ เริ่ม Auto Sync
+                </button>
+                <button id="sheets-stop-polling-btn" class="btn" onclick="stopAutoPolling()" disabled
+                    style="display: none;
+                    padding: 0.75rem 1.5rem; background: rgba(251,191,36,0.3); border: 1px solid rgba(251,191,36,0.5);">
+                    ⏹️ หยุด Auto Sync
+                </button>
+                <button id="sheets-disconnect-btn" class="btn" onclick="disconnectGoogleSheet()" disabled
+                    style="padding: 0.75rem 1.5rem; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); color: #ef4444;"
+                    title="ยกเลิกเชื่อมต่อ แต่เก็บข้อมูลไว้">
+                    ❌ ยกเลิกเชื่อมต่อ
+                </button>
+                <button id="sheets-disconnect-delete-btn" class="btn" onclick="disconnectAndDeleteGoogleSheet()"
+                    disabled
+                    style="display: none; padding: 0.75rem 1.5rem; background: rgba(220,38,38,0.3); border: 1px solid rgba(220,38,38,0.7); color: #dc2626;"
+                    title="⚠️ ยกเลิกและลบข้อมูลทั้งหมดที่ซิงค์มา">
+                    🗑️ ลบข้อมูลทั้งหมด
+                </button>
+            </div>
+
+            <!-- Sync Result -->
+            <div id="sheets-sync-result"
+                style="margin-top: 1rem; display: none; padding: 1rem; background: rgba(34,197,94,0.1); border-radius: 8px; border: 1px solid rgba(34,197,94,0.3);">
+            </div>
+        </div>
+
+        <hr style="border: none; border-top: 2px solid rgba(255,255,255,0.1); margin: 30px 0;">
+
+
+        <div id="edit-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-button"
+                    onclick="document.getElementById('edit-modal').style.display='none'">&times;</span>
+                <h2>แก้ไขข้อมูลสถานที่</h2>
+                <div id="edit-form-image-preview-container" style="margin-bottom: 20px; text-align: center;">
+                    <p><strong>รูปภาพปัจจุบัน:</strong></p>
+                    <img id="edit-form-image-preview" src="" alt="Image Preview"
+                        style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #ddd; display: none;">
+                    <p id="edit-form-no-image" style="color: #888;">ไม่มีรูปภาพ</p>
+                </div>
+                <form id="edit-location-form">
+                    <input type="hidden" id="edit-form-mongo-id" name="mongo_id">
+                    <input type="hidden" id="edit-form-slug" name="slug">
+
+                    Slug (ไม่สามารถแก้ไขได้): <br>
+                    <input type="text" id="display-slug" disabled style="background: #eee;"><br>
+
+                    Title: <br>
+                    <input type="text" id="edit-form-title" name="title" required><br>
+                    Summary: <br>
+                    <textarea id="edit-form-summary" name="summary" rows="5"></textarea><br>
+                    Category: <br>
+                    <input type="text" id="edit-form-category" name="category" required><br>
+                    Topic: <br>
+                    <input type="text" id="edit-form-topic" name="topic" required><br>
+
+                    Keywords (คั่นด้วย comma ,): <br>
+                    <input type="text" id="edit-form-keywords" name="keywords"
+                        placeholder="e.g., วัด,กระซิบรัก,ตำนาน"><br>
+
+                    Details (JSON Array): <br>
+                    <textarea id="edit-form-details" name="details" rows="8"
+                        placeholder='[{"heading": "ภาพรวม", "content": "..."}]'></textarea><br>
+                    <hr style="margin: 20px 0;">
+                    <h4>Image Management (Edit)</h4>
+                    <p>Image Prefix ต้องตรงกับ Slug (หรือไม่ต้องกรอกเพื่อลบ)</p>
+
+                    Image Prefix (ต้องตรงกับ Slug หรือเว้นว่าง): <br>
+                    <input type="text" id="edit-form-image-prefix" name="image_prefix"
+                        placeholder="e.g., wat_phumin_"><br>
+
+                    Upload New Image File (Optional): <br>
+                    <input type="file" id="edit-form-image-file" name="image_file" accept="image/*"><br><br>
+
+                    <button type="submit" class="btn btn-submit"
+                        style="background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Save
+                        Changes</button>
+                </form>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 1rem;">
+            <h2 style="margin: 0;">รายการข้อมูลทั้งหมด</h2>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <div id="bulk-actions" style="display: none;">
+                    <button onclick="deleteSelectedItems()"
+                        style="background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); border-radius: 8px; padding: 8px 12px; cursor: pointer; color: #ef4444; display: flex; align-items: center; gap: 5px;">
+                        🗑️ ลบที่เลือก (<span id="selected-count">0</span>)
+                    </button>
+                </div>
+                <button onclick="openFieldSettings()" title="ตั้งค่าการแสดง Fields"
+                    style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); border-radius: 8px; padding: 8px 12px; cursor: pointer; color: white; display: flex; align-items: center; gap: 5px;">
+                    ⚙️ ตั้งค่า Fields
+                </button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="locations-table">
+                <thead id="locations-table-head">
+                    <!-- Dynamic headers will be rendered by JS -->
+                </thead>
+                <tbody id="locations-table-body">
+                    <!-- Data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div id="pagination-container" class="pagination-container">
+            <!-- Buttons will be rendered here by JS -->
+        </div>
+
+        <!-- Field Settings Modal -->
+        <div id="field-settings-modal" class="modal" style="display: none;">
+            <div class="modal-content" style="max-width: 600px;">
+                <span class="close-button" onclick="closeFieldSettings()">&times;</span>
+                <h2>⚙️ ตั้งค่าการแสดง Fields</h2>
+                <p style="color: var(--text-muted); margin-bottom: 1rem;">
+                    เลือก fields ที่ต้องการแสดงในตาราง (ติ๊กเพื่อแสดง)
+                </p>
+
+                <div id="field-checkboxes"
+                    style="max-height: 400px; overflow-y: auto; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                    <!-- Checkboxes will be rendered by JS -->
+                    <p style="color: #888;">กำลังโหลด fields...</p>
+                </div>
+
+                <div style="margin-top: 1.5rem; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="resetFieldSettings()" class="btn"
+                        style="background: rgba(251,191,36,0.3); border: 1px solid rgba(251,191,36,0.5);">
+                        🔄 Reset เป็นค่าเริ่มต้น
+                    </button>
+                    <button onclick="applyFieldSettings()" class="btn btn-cta">
+                        ✅ บันทึก
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/main.js"></script>
+    <script src="assets/scripts/utils.js"></script>
+    <script src="assets/scripts/modules/google_sheets.js"></script>
+    <script src="assets/scripts/modules/document_analysis.js"></script>
+    <script src="assets/scripts/admin.js?v=20241213_03"></script>
+</body>
+
+</html>
