@@ -52,7 +52,7 @@ class Settings:
     # config.py is in Back-end/core, so parent.parent.parent is the root
     from pathlib import Path
     PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent.parent
-    FRONTEND_DIR: Path = PROJECT_ROOT / "frontend"
+    FRONTEND_DIR: Path = PROJECT_ROOT / "apps" / "web-cloud"
     IMG_DIR: Path = PROJECT_ROOT / "Back-end" / "static" / "images"
 
 settings = Settings()

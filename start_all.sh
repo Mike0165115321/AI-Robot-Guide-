@@ -9,9 +9,12 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🚀 Starting AI Robot Guide System (Local Hybrid Mode)...${NC}"
 
 # Function to kill processes on exit
+# Function to kill processes on exit
 cleanup() {
     echo -e "\n${RED}🛑 Stopping all services...${NC}"
-    kill $(jobs -p) 2>/dev/null
+    if [ -n "$BACKEND_PID" ]; then
+        kill $BACKEND_PID 2>/dev/null
+    fi
     exit
 }
 trap cleanup SIGINT SIGTERM
@@ -24,6 +27,15 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 echo -e "${GREEN}✅ Databases match configuration.${NC}"
+
+# 2. Check and Free Port 9090
+echo -e "\n${BLUE}🧹 Checking for existing processes on port 9090...${NC}"
+PID=$(lsof -t -i:9090)
+if [ -n "$PID" ]; then
+    echo -e "${RED}⚠️  Port 9090 is in use by PID $PID. Killing it...${NC}"
+    kill -9 $PID
+    sleep 1
+fi
 
 # 2. Start Python Backend
 echo -e "\n${GREEN}🐍 Starting Python Backend (Port 9090)...${NC}"
