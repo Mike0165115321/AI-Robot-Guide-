@@ -23,7 +23,7 @@ from .handlers.analytics_handler import AnalyticsHandler
 from core.database.mongodb_manager import MongoDBManager
 from core.database.qdrant_manager import QdrantManager
 from core.tools.image_search_tool import image_search_tool_instance
-# system_tool_instance ถูกลบออก - เครื่องคิดเลขย้ายไปทำที่ frontend แล้ว
+from core.services.calculator_service import calculator_service  # 🧮 เครื่องคิดเลข Python
 from utils.helper_functions import create_synthetic_document
 from .services.session_manager import SessionManager
 from .services.navigation_service import NavigationService
@@ -129,6 +129,13 @@ class RAGOrchestrator:
     async def _handle_small_talk(self, corrected_query: str, **kwargs) -> dict:
         final_answer = await get_small_talk_response(user_query=corrected_query)
         return {"answer": final_answer, "action": None, "sources": [], "image_url": None, "image_gallery": []}
+
+    async def _handle_calculate(self, corrected_query: str, **kwargs) -> dict:
+        """
+        🧮 Calculator handler - Hybrid Mode:
+        Pure math → Python ตรง | Text+math → AI 70B ช่วยวิเคราะห์
+        """
+        return await calculator_service.calculate(corrected_query)
 
     async def _handle_play_music(self, corrected_query: str = "", **kwargs) -> dict:
         """
@@ -542,7 +549,8 @@ class RAGOrchestrator:
         logging.info(f"🔄 [Session] ID: {session_id} | รอบที่: {current_turn} | โหมด AI: {ai_mode} | เจตนาจาก Frontend: {frontend_intent}")
 
         # 🆕 ใช้ frontend_intent โดยตรง - ไม่ต้องเรียก LLM วิเคราะห์เจตนา
-        if frontend_intent and frontend_intent != "GENERAL":
+        # Note: "LINE" frontend_intent should use LLM analysis to detect music/navigation intents
+        if frontend_intent and frontend_intent not in ["GENERAL", "LINE", None]:
             # Frontend บอก intent มาแล้ว ใช้เลย!
             intent = self._map_frontend_intent(frontend_intent)
             corrected_query = query
@@ -593,10 +601,18 @@ class RAGOrchestrator:
                     user_lat=kwargs.get('user_lat', 0.0),
                     user_lon=kwargs.get('user_lon', 0.0)
                 )
+        
+        # 🧮 [Calculator Detection] ตรวจจับคำถามคณิตศาสตร์ก่อน (Hybrid Mode)
+        # Pure math → Python ตรง | Text+math → AI 70B ช่วยวิเคราะห์
+        if calculator_service.is_calculator_query(query):
+            logging.info(f"🧮 [Calculator] ตรวจพบโจทย์คณิตศาสตร์: '{query}'")
+            return await calculator_service.calculate(query)
+        
         handler_map = {
             "WELCOME_GREETING": self._handle_welcome_flow,
             "SMALL_TALK": self._handle_small_talk,  # 👈 [จุดแยก] ถ้าเป็น SMALL_TALK ไปใช้โมเดลเล็ก (Llama 8B)
             "PLAY_MUSIC": self._handle_play_music,
+            "CALCULATE": self._handle_calculate,  # 🧮 เครื่องคิดเลข Python
             "INFORMATIONAL": self._handle_informational,
         }
         handler = handler_map.get(intent, self._handle_informational)
