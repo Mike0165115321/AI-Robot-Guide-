@@ -32,9 +32,9 @@ google-auth-oauthlib==1.2.3
 google-generativeai==0.8.5
 googleapis-common-protos==1.70.0
 groq==0.31.1
-grpcio==1.76.0
-grpcio-status==1.71.2
-grpcio-tools==1.76.0
+grpcio>=1.62.0,<1.70.0
+grpcio-status>=1.62.0,<1.70.0
+grpcio-tools>=1.62.0,<1.70.0
 gspread==6.2.1
 gTTS==2.5.4
 h11==0.16.0
@@ -52,6 +52,7 @@ idna==3.10
 Jinja2==3.1.6
 joblib==1.5.2
 langdetect==1.0.9
+line-bot-sdk==3.5.0
 llvmlite==0.44.0
 lxml==6.0.2
 MarkupSafe==3.0.2
@@ -85,7 +86,7 @@ pillow==11.3.0
 portalocker==3.2.0
 propcache==0.4.0
 proto-plus==1.26.1
-protobuf==6.33.2
+protobuf>=5.26.1,<6.0.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pydantic==2.12.3
@@ -103,6 +104,7 @@ python-multipart==0.0.20
 pytz==2025.2
 PyYAML==6.0.2
 qdrant-client==1.15.1
+redis==5.0.1
 regex==2025.9.1
 requests==2.32.5
 requests-oauthlib==2.0.0

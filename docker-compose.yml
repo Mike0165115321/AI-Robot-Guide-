@@ -1,17 +1,17 @@
 services:
-  python-backend:
-    build: ./Back-end
-    container_name: python_backend
-    ports:
-      - "9090:9090"
-    environment:
-      - MONGO_URI=mongodb://mongodb:27017/
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
-    depends_on:
-      - mongodb
-      - qdrant
-    restart: always
+  #  python-backend:
+  #    build: ./Back-end
+  #    container_name: python_backend
+  #    ports:
+  #      - "9090:9090"
+  #    environment:
+  #      - MONGO_URI=mongodb://mongodb:27017/
+  #      - QDRANT_HOST=qdrant
+  #      - QDRANT_PORT=6333
+  #    depends_on:
+  #      - mongodb
+  #      - qdrant
+  #    restart: always
 
   mongodb:
     image: mongo:7
@@ -30,6 +30,13 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    restart: always
+
+  redis:
+    image: redis:alpine
+    container_name: redis_mq
+    ports:
+      - "6379:6379"
     restart: always
 
 volumes:
