@@ -22,7 +22,8 @@
 ก่อนติดตั้ง ตรวจสอบว่าเครื่องคอมพิวเตอร์ของคุณมีโปรแกรมเหล่านี้:
 
 1.  **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (ง่ายสุดสำหรับ Windows/Mac)
-    *   *หรือบน Linux (แนะนำ):* ติดตั้ง **Docker Engine + Docker Compose V2 (Go Version)** แบบ Stable
+   
+     ** บน Linux (แนะนำ):* ติดตั้ง **Docker Engine + Docker Compose V2 (Go Version)** แบบ Stable**
 
     > **ทำไมต้องลงแบบนี้?** เพื่อให้ได้ Docker Compose V2 (เขียนด้วย Go) ที่เสถียรและเป็นมาตรฐาน แก้ปัญหา Version เพี้ยนที่มากับ Distro
     
@@ -52,12 +53,12 @@
     # 6. ตรวจสอบเวอร์ชั่น (ต้องเป็น Docker Compose version v2.x.x)
     docker compose version
     ```
-2.  **[Python 3.12](https://www.python.org/downloads/)**
-3.  **[Git](https://git-scm.com/downloads)**
-4.  **FFmpeg** (สำหรับจัดการเสียง)
+3.  **[Python 3.12](https://www.python.org/downloads/)**
+4.  **[Git](https://git-scm.com/downloads)**
+5.  **FFmpeg** (สำหรับจัดการเสียง)
     *   *Ubuntu/Linux:* `sudo apt install ffmpeg`
     *   *Mac:* `brew install ffmpeg`
-5.  **Google Chrome** (เพื่อการแสดงผลที่ดีที่สุด)
+6.  **Google Chrome** (เพื่อการแสดงผลที่ดีที่สุด)
 
 ---
 
