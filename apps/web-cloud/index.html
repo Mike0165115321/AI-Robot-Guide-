@@ -4,30 +4,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <!-- SEO Meta Tags -->
     <title>AI Robot Guide - Nan Province | ไกด์ท่องเที่ยว AI จังหวัดน่าน</title>
-    <meta name="description" content="สัมผัสประสบการณ์ท่องเที่ยวรูปแบบใหม่ กับไกด์ AI อัจฉริยะที่จะพาคุณหลงรักน่าน ค้นหาสถานที่ท่องเที่ยว วัด ร้านอาหาร และประเพณีวัฒนธรรม">
-    <meta name="keywords" content="น่าน, ท่องเที่ยวน่าน, AI Guide, Robot Guide, วัดภูมินทร์, ดอยสะมาดาว, สถานที่ท่องเที่ยว, Nan Province">
+    <meta name="description"
+        content="สัมผัสประสบการณ์ท่องเที่ยวรูปแบบใหม่ กับไกด์ AI อัจฉริยะที่จะพาคุณหลงรักน่าน ค้นหาสถานที่ท่องเที่ยว วัด ร้านอาหาร และประเพณีวัฒนธรรม">
+    <meta name="keywords"
+        content="น่าน, ท่องเที่ยวน่าน, AI Guide, Robot Guide, วัดภูมินทร์, ดอยสะมาดาว, สถานที่ท่องเที่ยว, Nan Province">
     <meta name="author" content="AI Robot Guide Team">
     <meta name="robots" content="index, follow">
-    
+
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="">
     <meta property="og:title" content="AI Robot Guide - Nan Province">
-    <meta property="og:description" content="สัมผัสประสบการณ์ท่องเที่ยวรูปแบบใหม่ กับไกด์ AI อัจฉริยะที่จะพาคุณหลงรักน่าน">
+    <meta property="og:description"
+        content="สัมผัสประสบการณ์ท่องเที่ยวรูปแบบใหม่ กับไกด์ AI อัจฉริยะที่จะพาคุณหลงรักน่าน">
     <meta property="og:image" content="/assets/images/og-image.jpg">
-    
+
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:title" content="AI Robot Guide - Nan Province">
     <meta property="twitter:description" content="ไกด์ AI อัจฉริยะสำหรับการท่องเที่ยวในจังหวัดน่าน">
-    
+
     <!-- Theme Color for Mobile -->
     <meta name="theme-color" content="#0ea5e9">
-    
+
     <link rel="stylesheet" href="assets/styles/main.css">
+    <link rel="stylesheet" href="assets/styles/alert.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
@@ -59,6 +63,13 @@
                 <i class="fa-solid fa-arrow-right card-arrow"></i>
             </a>
 
+            <a href="/alerts" class="card">
+                <div class="card-icon"><i class="fa-solid fa-bell"></i></div>
+                <h2>ติดตามข่าว</h2>
+                <p>ระบบแจ้งเตือนอัจฉริยะ ข่าวสาร สภาพอากาศ และคุณภาพอากาศ PM2.5 แบบ Real-time</p>
+                <i class="fa-solid fa-arrow-right card-arrow"></i>
+            </a>
+
             <a href="/admin" class="card">
                 <div class="card-icon"><i class="fa-solid fa-database"></i></div>
                 <h2>Admin Data</h2>
@@ -72,6 +83,8 @@
             <script>document.getElementById('current-year').textContent = new Date().getFullYear();</script>
         </footer>
     </div>
+    <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/alert_handler.js"></script>
 </body>
 
 </html>

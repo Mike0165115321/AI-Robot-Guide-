@@ -18,7 +18,7 @@ from core.ai_models.youtube_handler import youtube_handler_instance
 from core.config import settings
 from utils.file_cleaner import start_background_cleanup
 from api.dependencies import get_rag_orchestrator 
-from api.routers import admin_api, chat_api, avatar_api, import_api, sheets_api, analytics_api, line_webhook
+from api.routers import admin_api, chat_api, avatar_api, import_api, sheets_api, analytics_api, line_webhook, alert_api
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("uvicorn").propagate = False
@@ -51,6 +51,13 @@ async def lifespan(app: FastAPI):
     app.state.cleanup_task = asyncio.create_task(start_background_cleanup())
     logging.info("✅ [Lifespan] งานทำความสะอาดเบื้องหลังเริ่มต้นแล้ว")
     
+    # เริ่ม News Scheduler สำหรับ Smart News Monitor
+    from core.services.news_scheduler import news_scheduler
+    from core.services.alert_manager import alert_manager
+    news_scheduler.set_alert_callback(alert_manager.broadcast_alert)
+    news_scheduler.start()
+    logging.info("✅ [Lifespan] News Scheduler เริ่มทำงาน")
+    
     logging.info("✅ [Lifespan] เริ่มต้นเสร็จสมบูรณ์ พร้อมให้บริการ")
     
     yield 
@@ -61,6 +68,11 @@ async def lifespan(app: FastAPI):
     
     app.state.cleanup_task.cancel()
     logging.info("✅ [Lifespan] งานทำความสะอาดเบื้องหลังหยุดแล้ว")
+    
+    # หยุด News Scheduler
+    from core.services.news_scheduler import news_scheduler
+    news_scheduler.stop()
+    logging.info("✅ [Lifespan] News Scheduler หยุดทำงาน")
     
     logging.info("✅ [Lifespan] ปิดการทำงานสมบูรณ์")
 
@@ -104,6 +116,7 @@ app.include_router(import_api.router, prefix="/api/admin/import")  # Smart ETL I
 app.include_router(sheets_api.router, prefix="/api/admin/sheets")  # Google Sheets Sync
 app.include_router(analytics_api.router, prefix="/api/analytics")  # Feedback & Stats
 app.include_router(line_webhook.router, prefix="/api/v1/line")     # LINE Webhook
+app.include_router(alert_api.router, prefix="/api")                 # Smart News Alerts
 
 
 @app.get("/health", tags=["Health"])
@@ -197,7 +210,8 @@ async def serve_frontend(request: Request, full_path: str):
         "admin": "admin.html",
         "import": "import.html",
         "robot_avatar": "robot_avatar.html",
-        "travel_mode": "travel_mode.html"
+        "travel_mode": "travel_mode.html",
+        "alerts": "alerts.html"
     }
     file_to_serve = path_map.get(full_path, full_path)
     

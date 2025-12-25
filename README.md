@@ -88,13 +88,13 @@ docker compose up -d
 cd Back-end
 
 # สร้าง Virtual Environment (แนะนำให้ใช้ชื่อ venv)
-python3 -m venv venv
+python3 -m venv venv-robot
 
 # เปิดใช้งาน venv
 # Windows:
-venv\Scripts\activate
+venv-robot\Scripts\activate
 # Mac/Linux:
-source venv/bin/activate
+source .venv-robot/bin/activate
 
 # ติดตั้ง Library ทั้งหมด
 pip install -r requirements.txt

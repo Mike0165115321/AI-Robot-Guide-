@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบแจ้งเตือน | AI Robot Guide น่าน</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="assets/styles/main.css">
+    <link rel="stylesheet" href="assets/styles/alert.css">
+
+    <style>
+        /* Page-specific overrides */
+        body {
+            margin: 0;
+            font-family: 'Kanit', sans-serif;
+        }
+
+        .page-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .back-link {
+            color: #aaa;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body class="alerts-page">
+    <div class="page-container">
+        <!-- Back Link -->
+        <a href="/" class="back-link">
+            ← กลับหน้าหลัก
+        </a>
+
+        <!-- Header -->
+        <header class="alerts-header">
+            <h1 class="alerts-title">
+                🔔 ระบบแจ้งเตือน
+            </h1>
+
+            <div class="alerts-controls">
+                <div class="connection-status disconnected">
+                    <span class="connection-status-dot"></span>
+                    กำลังเชื่อมต่อ...
+                </div>
+
+                <button class="alerts-btn secondary" onclick="refreshAlerts()">
+                    🔄 รีเฟรช
+                </button>
+
+                <button class="alerts-btn primary" onclick="testAlert()">
+                    🧪 ทดสอบ
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="alerts-stats">
+            <div class="stat-card">
+                <div class="stat-value stat-total">0</div>
+                <div class="stat-label">การแจ้งเตือนทั้งหมด</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value stat-critical">0</div>
+                <div class="stat-label">เร่งด่วน (Severity ≥ 4)</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value stat-connections">-</div>
+                <div class="stat-label">การเชื่อมต่อ</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value stat-scheduler">-</div>
+                <div class="stat-label">Scheduler</div>
+            </div>
+        </div>
+
+        <!-- Scheduler Controls -->
+        <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="alerts-btn secondary" onclick="startScheduler()">
+                ▶️ เริ่ม Scheduler
+            </button>
+            <button class="alerts-btn secondary" onclick="stopScheduler()">
+                ⏹️ หยุด Scheduler
+            </button>
+            <button class="alerts-btn secondary" onclick="pollNow()">
+                📰 ดึงข่าวทันที
+            </button>
+        </div>
+
+        <!-- Alert List -->
+        <div class="alerts-list">
+            <div class="alerts-empty">
+                <div class="alerts-empty-icon">🔔</div>
+                <p>กำลังโหลด...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/alert_handler.js"></script>
+
+    <script>
+        // Page-specific functions
+
+        async function refreshAlerts() {
+            try {
+                // ดึงจาก MongoDB แทน in-memory
+                const res = await fetch(`${window.API_BASE_URL}/api/alerts/db/recent?limit=50`);
+                const data = await res.json();
+
+                if (data.success && data.alerts) {
+                    window.alertHandler.alerts = data.alerts;
+                    window.alertHandler.updateDashboard();
+                }
+            } catch (e) {
+                console.error('Refresh error:', e);
+            }
+        }
+
+        async function testAlert() {
+            try {
+                const res = await fetch(`${window.API_BASE_URL}/api/alerts/test`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        severity: 4,
+                        summary: '⚠️ ทดสอบระบบแจ้งเตือน - นี่คือข้อความทดสอบ',
+                        category: 'general',
+                        location_name: 'อำเภอเมืองน่าน'
+                    })
+                });
+                const data = await res.json();
+                console.log('Test alert sent:', data);
+            } catch (e) {
+                console.error('Test alert error:', e);
+                alert('ไม่สามารถส่ง test alert ได้');
+            }
+        }
+
+        async function getStats() {
+            try {
+                // ดึงสถิติจาก MongoDB
+                const res = await fetch(`${window.API_BASE_URL}/api/alerts/db/stats`);
+                const data = await res.json();
+
+                if (data.success && data.stats) {
+                    document.querySelector('.stat-total').textContent = data.stats.total_alerts || 0;
+                    document.querySelector('.stat-critical').textContent = data.stats.critical_alerts || 0;
+                    document.querySelector('.stat-connections').textContent = data.stats.active_connections || 0;
+                    document.querySelector('.stat-scheduler').textContent =
+                        data.stats.scheduler_running ? '🟢 ทำงาน' : '🔴 หยุด';
+                }
+            } catch (e) {
+                console.error('Stats error:', e);
+            }
+        }
+
+        async function startScheduler() {
+            try {
+                const res = await fetch(`${window.API_BASE_URL}/api/alerts/scheduler/start`, { method: 'POST' });
+                const data = await res.json();
+                alert(data.message);
+                getStats();
+            } catch (e) {
+                console.error('Start scheduler error:', e);
+            }
+        }
+
+        async function stopScheduler() {
+            try {
+                const res = await fetch(`${window.API_BASE_URL}/api/alerts/scheduler/stop`, { method: 'POST' });
+                const data = await res.json();
+                alert(data.message);
+                getStats();
+            } catch (e) {
+                console.error('Stop scheduler error:', e);
+            }
+        }
+
+        async function pollNow() {
+            try {
+                const btn = event.target;
+                btn.disabled = true;
+                btn.textContent = '⏳ กำลังดึงข่าว...';
+
+                const res = await fetch(`${window.API_BASE_URL}/api/alerts/poll-now`, { method: 'POST' });
+                const data = await res.json();
+
+                alert(`ดึงข่าวเสร็จสิ้น: ${data.alerts?.length || 0} alerts`);
+                refreshAlerts();
+
+                btn.disabled = false;
+                btn.textContent = '📰 ดึงข่าวทันที';
+            } catch (e) {
+                console.error('Poll now error:', e);
+                alert('เกิดข้อผิดพลาด');
+            }
+        }
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                refreshAlerts();
+                getStats();
+            }, 1000);
+
+            // Refresh stats every 30 seconds
+            setInterval(getStats, 30000);
+        });
+    </script>
+</body>
+
+</html>

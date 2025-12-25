@@ -3,8 +3,11 @@
 import os
 from dotenv import load_dotenv
 from typing import Optional
+from pathlib import Path
 
-load_dotenv()
+# Load .env from Back-end folder (where config.py's parent is)
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(_BACKEND_DIR / ".env")
 
 class Settings:
     MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
@@ -44,6 +47,11 @@ class Settings:
     YOUTUBE_API_KEY: Optional[str] = os.getenv("YOUTUBE_API_KEY", None)
     GOOGLE_API_KEY: str | None = os.getenv("GOOGLE_API_KEY")
     GOOGLE_CSE_ID: str | None = os.getenv("GOOGLE_CSE_ID")
+    
+    # Weather & Air Quality APIs
+    OPENWEATHER_API_KEY: str | None = os.getenv("OPENWEATHER_API_KEY")
+    TMD_API_KEY: str | None = os.getenv("TMD_API_KEY")
+    WAQI_API_KEY: str | None = os.getenv("WAQI_API_KEY")  # World Air Quality Index
 
     API_HOST: str = os.getenv("API_HOST", "127.0.0.1")
     API_PORT: int = int(os.getenv("API_PORT", 9090))
