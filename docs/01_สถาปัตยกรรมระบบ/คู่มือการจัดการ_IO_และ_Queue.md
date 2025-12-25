@@ -11,9 +11,9 @@
 ```mermaid
 sequenceDiagram
     participant User
-    participant Webhook (FastAPI)
-    participant Redis (Queue)
-    participant Worker (Background)
+    participant Webhook as "Webhook (FastAPI)"
+    participant Redis as "Redis (Queue)"
+    participant Worker as "Worker (Background)"
     
     User->>Webhook: ส่งข้อความ (LINE Message)
     Webhook->>Webhook: ตรวจสอบ Signature

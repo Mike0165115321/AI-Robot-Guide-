@@ -19,28 +19,28 @@
 ```mermaid
 graph TD
     subgraph "Phase 1: Interaction"
-        User[User] -->|Q: ค่าเข้าวัดภูมินทร์เท่าไหร่?| API[Chat API]
-        API -->|Search| Qdrant[(Qdrant)]
-        Qdrant -->|Docs| RAG[RAG Orchestrator]
-        RAG -->|Score < 0.5?| LowConf{Low Confidence?}
+        User["User"] -->|Q: ค่าเข้าวัดภูมินทร์เท่าไหร่?| API["Chat API"]
+        API -->|Search| Qdrant[("Qdrant")]
+        Qdrant -->|Docs| RAG["RAG Orchestrator"]
+        RAG -->|Score < 0.5?| LowConf{"Low Confidence?"}
         LowConf --No--> User
-        LowConf --Yes (Dunno)--> DB[(Unanswered Log)]
+        LowConf --Yes (Dunno)--> DB[("Unanswered Log")]
         RAG -->|Say: ขอโทษค่ะ ไม่ทราบข้อมูลนี้| User
     end
 
     subgraph "Phase 2: The Researcher (Night Shift)"
-        Cron[Nightly Job] -->|Fetch| DB
-        Cron -->|Search| Web[Google/DDG Search]
-        Web -->|Result| LLM[Researcher Agent]
-        LLM -->|Draft Answer| Sheet[Google Sheets: AI_Suggestions]
+        Cron["Nightly Job"] -->|Fetch| DB
+        Cron -->|Search| Web["Google/DDG Search"]
+        Web -->|Result| LLM["Researcher Agent"]
+        LLM -->|Draft Answer| Sheet["Google Sheets: AI_Suggestions"]
     end
 
     subgraph "Phase 3: Approval"
-        Admin[Human Admin] -->|Review & Approve| Sheet
+        Admin["Human Admin"] -->|Review & Approve| Sheet
     end
 
     subgraph "Phase 4: Learning"
-        Sync[Sync Service] -->|Read Approved| Sheet
+        Sync["Sync Service"] -->|Read Approved| Sheet
         Sync -->|Vectorize| Qdrant
     end
 ```

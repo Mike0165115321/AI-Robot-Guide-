@@ -21,7 +21,7 @@
 sequenceDiagram
     participant User
     participant LINE_Platform
-    participant Webhook_Endpoint (FastAPI)
+    participant Webhook_Endpoint as "Webhook_Endpoint (FastAPI)"
     participant RAG_Core
     
     User->>LINE_Platform: Send Message (Text/Image/Location)
