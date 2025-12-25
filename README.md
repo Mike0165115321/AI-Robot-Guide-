@@ -24,8 +24,6 @@
 1.  **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (ง่ายสุดสำหรับ Windows/Mac)
     *   *หรือบน Linux (แนะนำ):* ติดตั้ง **Docker Engine + Docker Compose V2 (Go Version)** แบบ Stable
 
-    *   *หรือบน Linux (แนะนำ):* ติดตั้ง **Docker Engine + Docker Compose V2 (Go Version)** แบบ Stable
-
     > **ทำไมต้องลงแบบนี้?** เพื่อให้ได้ Docker Compose V2 (เขียนด้วย Go) ที่เสถียรและเป็นมาตรฐาน แก้ปัญหา Version เพี้ยนที่มากับ Distro
     
     ```bash
