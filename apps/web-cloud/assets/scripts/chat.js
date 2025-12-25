@@ -939,6 +939,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 query: text,
                 ai_mode: aiMode,
                 intent: intent,
+                user_province: localStorage.getItem('nan_user_province'),
+                user_origin: localStorage.getItem('nan_user_origin'),
                 ...additionalData
             };
 
