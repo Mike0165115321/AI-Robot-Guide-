@@ -1,0 +1,140 @@
+/**
+ * # Presentation Panel CSS
+ * สไตล์สำหรับ Panel แสดงผลคำตอบของ Avatar
+ */
+
+/* ==========================================
+   PRESENTATION PANEL (แสดงคำตอบ)
+   ========================================== */
+.presentation-panel {
+    position: fixed;
+    left: 5%;
+    top: 80px;
+    width: 45%;
+    max-height: 75vh;
+    background: rgba(15, 12, 41, 0.95);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(15px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    padding: var(--space-6);
+    overflow-y: auto;
+    z-index: 50;
+
+    /* Hidden by default */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-30px);
+    transition: all 0.4s ease;
+}
+
+.presentation-panel.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+}
+
+/* Scrollbar */
+.presentation-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.presentation-panel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.presentation-panel::-webkit-scrollbar-thumb {
+    background-color: var(--color-primary);
+    border-radius: 10px;
+}
+
+/* ==========================================
+   PRESENTATION CONTENT
+   ========================================== */
+.presentation-panel h3 {
+    color: var(--color-primary);
+    border-bottom: 2px solid var(--color-primary);
+    padding-bottom: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+
+.presentation-panel p {
+    line-height: 1.7;
+    margin-bottom: var(--space-4);
+}
+
+.presentation-panel img {
+    width: 100%;
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-4);
+}
+
+.presentation-panel ul {
+    list-style: none;
+    padding-left: var(--space-4);
+}
+
+.presentation-panel li {
+    position: relative;
+    padding-left: var(--space-4);
+    margin-bottom: var(--space-2);
+    line-height: 1.5;
+}
+
+.presentation-panel li::before {
+    content: '▹';
+    position: absolute;
+    left: 0;
+    color: var(--color-primary);
+    font-weight: bold;
+}
+
+/* ==========================================
+   CLOSE BUTTON
+   ========================================== */
+.presentation-close {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.presentation-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--color-text);
+}
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+@media (max-width: 1024px) {
+    .presentation-panel {
+        left: 3%;
+        width: 55%;
+    }
+}
+
+@media (max-width: 768px) {
+    .presentation-panel {
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: 0;
+        width: 100%;
+        max-height: 50vh;
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        transform: translateY(100%);
+    }
+
+    .presentation-panel.visible {
+        transform: translateY(0);
+    }
+}

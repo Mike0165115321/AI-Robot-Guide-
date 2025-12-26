@@ -59,6 +59,19 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
+        /* Embed mode - hide controls */
+        body.embed-mode .control-panel {
+            display: none !important;
+        }
+
+        body.embed-mode .info-panel {
+            display: none !important;
+        }
+
+        body.embed-mode {
+            background: transparent;
+        }
+
         .control-panel h3 {
             color: white;
             margin-bottom: 10px;
@@ -1168,6 +1181,37 @@
                     console.log(`🎭 Skin changed to: ${skinName}`);
                 }
             });
+        });
+
+        // Embed mode detection - hide controls when ?embed=true
+        (function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('embed') === 'true' || window.self !== window.top) {
+                document.body.classList.add('embed-mode');
+            }
+        })();
+
+        // Listen for messages from parent window (skin/mood changes)
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            if (!data || typeof data !== 'object') return;
+
+            // Change Skin
+            if (data.type === 'changeSkin' && data.skin) {
+                const skinName = data.skin;
+                if (SKINS[skinName]) {
+                    currentSkin = skinName;
+                    NanAvatar.moodColors = SKINS[skinName];
+                    NanAvatar.setMood(NanAvatar.currentMood);
+                    console.log(`🎭 [postMessage] Skin changed to: ${skinName}`);
+                }
+            }
+
+            // Change Mood
+            if (data.type === 'changeMood' && data.mood) {
+                NanAvatar.setMood(data.mood);
+                console.log(`😊 [postMessage] Mood changed to: ${data.mood}`);
+            }
         });
     </script>
 </body>

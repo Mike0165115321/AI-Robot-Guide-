@@ -1,35 +1,52 @@
 /**
- * # Base CSS - รากฐานของระบบ
- * CSS Variables, Reset, Typography
+ * # Base CSS - Neon Theme
+ * Modern, Neon style inspired by web-cloud
  */
 
 /* ==========================================
-   CSS VARIABLES
+   CSS VARIABLES - NEON THEME
    ========================================== */
 :root {
-    /* Colors - Primary */
-    --color-primary: #40c4ff;
-    --color-primary-dark: #0091ea;
-    --color-primary-light: #80d8ff;
+    /* Colors - Neon Primary */
+    --color-primary: #3b82f6;
+    --color-primary-dark: #1e40af;
+    --color-primary-light: #60a5fa;
 
-    /* Colors - Secondary */
+    /* Colors - Accent (Teal Neon) */
+    --color-accent: #2dd4bf;
+    --color-accent-dark: #14b8a6;
+    --color-accent-light: #5eead4;
+
+    /* Colors - Secondary (Pink) */
     --color-secondary: #ec4899;
     --color-secondary-dark: #db2777;
     --color-secondary-light: #f472b6;
 
-    /* Colors - Neutral */
-    --color-bg: #0f0c29;
-    --color-bg-secondary: #1a1635;
-    --color-bg-card: rgba(255, 255, 255, 0.05);
-    --color-text: #ffffff;
-    --color-text-muted: rgba(255, 255, 255, 0.6);
-    --color-border: rgba(255, 255, 255, 0.1);
+    /* Colors - Background */
+    --color-bg: #020617;
+    --color-bg-secondary: #0f172a;
+    --color-bg-card: rgba(30, 41, 59, 0.7);
+    --color-surface: #1e293b;
+
+    /* Colors - Text */
+    --color-text: #f8fafc;
+    --color-text-muted: #94a3b8;
+    --color-border: #334155;
 
     /* Colors - Status */
-    --color-success: #4ade80;
-    --color-warning: #fbbf24;
-    --color-error: #f43f5e;
+    --color-success: #22c55e;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
     --color-info: #38bdf8;
+
+    /* Glass Effect */
+    --glass: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+
+    /* Glow Effects */
+    --glow-primary: 0 0 20px rgba(59, 130, 246, 0.5);
+    --glow-accent: 0 0 20px rgba(45, 212, 191, 0.5);
+    --glow-secondary: 0 0 20px rgba(236, 72, 153, 0.5);
 
     /* Typography */
     --font-family: 'Kanit', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -60,7 +77,7 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
-    --shadow-glow: 0 0 20px rgba(64, 196, 255, 0.3);
+    --shadow-glow: var(--glow-accent);
 
     /* Transitions */
     --transition-fast: 0.15s ease;
@@ -97,6 +114,26 @@ body {
     color: var(--color-text);
     background: var(--color-bg);
     min-height: 100vh;
+
+    /* Gradient Background */
+    background-image:
+        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 40%);
+}
+
+/* Animated Grid Background */
+.bg-grid {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: 50px 50px;
+    background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    z-index: -1;
+    pointer-events: none;
 }
 
 /* Remove list styles */
@@ -165,6 +202,15 @@ p {
     margin-bottom: var(--space-4);
 }
 
+/* Gradient Text */
+.text-gradient {
+    background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-primary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 30px rgba(45, 212, 191, 0.3);
+}
+
 /* ==========================================
    UTILITY CLASSES
    ========================================== */
@@ -174,6 +220,10 @@ p {
 
 .text-primary {
     color: var(--color-primary);
+}
+
+.text-accent {
+    color: var(--color-accent);
 }
 
 .text-success {
@@ -188,10 +238,10 @@ p {
     display: none !important;
 }
 
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
+.glow-accent {
+    box-shadow: var(--glow-accent);
+}
+
+.glow-primary {
+    box-shadow: var(--glow-primary);
 }

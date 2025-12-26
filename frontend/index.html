@@ -1,16 +1,10 @@
 <!DOCTYPE html>
 <html lang="th">
-<!--
-    # AI Robot Guide - น้องน่าน
-    หน้าหลัก Avatar + Chat
-    Vanilla JS ES6+ / No Frameworks
--->
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="น้องน่าน - AI Guide ประจำจังหวัดน่าน">
-
     <title>น้องน่าน - AI Robot Guide จังหวัดน่าน</title>
 
     <!-- Fonts -->
@@ -19,66 +13,520 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/layout.css">
-    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/navbar.css">
 
-    <!-- GSAP for animations -->
+    <style>
+        /* Main Container */
+        .main-container {
+            position: relative;
+            width: 100vw;
+            height: calc(100vh - 60px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* Presentation Panel (ซ้าย) */
+        .presentation-panel {
+            position: absolute;
+            left: 5%;
+            width: 45%;
+            height: 75%;
+            background: var(--color-bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            padding: var(--space-6);
+            overflow-y: auto;
+            z-index: 10;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(30px);
+            transition: all 0.5s ease;
+        }
+
+        .presentation-panel.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .presentation-panel h3 {
+            color: var(--color-accent);
+            border-bottom: 2px solid var(--color-accent);
+            padding-bottom: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+
+        .presentation-close {
+            position: absolute;
+            top: var(--space-4);
+            right: var(--space-4);
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-full);
+            background: var(--glass);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-fast);
+        }
+
+        .presentation-close:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .presentation-panel ul {
+            padding-left: var(--space-4);
+        }
+
+        .presentation-panel li {
+            padding-left: var(--space-4);
+            margin-bottom: var(--space-2);
+            position: relative;
+        }
+
+        .presentation-panel li::before {
+            content: '▹';
+            position: absolute;
+            left: 0;
+            color: var(--color-accent);
+        }
+
+        /* Avatar Section (ขวา) */
+        .avatar-section {
+            position: absolute;
+            right: 10%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.6s ease;
+        }
+
+        .avatar-section.shifted {
+            right: 5%;
+        }
+
+        .avatar-section.centered {
+            right: 50%;
+            transform: translateX(50%);
+        }
+
+        #avatar-wrapper {
+            width: 320px;
+            height: 420px;
+        }
+
+        #avatar-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: var(--radius-lg);
+        }
+
+        .avatar-speech {
+            max-width: 350px;
+            margin-bottom: var(--space-4);
+            padding: var(--space-3) var(--space-5);
+            background: var(--color-bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            text-align: center;
+        }
+
+        .avatar-name {
+            margin-top: var(--space-4);
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--color-accent);
+            /* fallback */
+            background: linear-gradient(135deg, var(--color-accent), var(--color-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .avatar-subtitle {
+            color: var(--color-text-muted);
+            font-size: var(--font-size-sm);
+            margin-bottom: var(--space-4);
+        }
+
+        /* Skin Carousel Container - Below Avatar */
+        .skin-carousel-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-3);
+            margin-top: var(--space-4);
+        }
+
+        /* Toggle Button */
+        .skin-toggle-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-full);
+            background: var(--color-bg-card);
+            border: 2px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .skin-toggle-btn:hover {
+            border-color: var(--color-accent);
+            box-shadow: var(--glow-accent);
+        }
+
+        .skin-toggle-btn.active {
+            background: rgba(45, 212, 191, 0.2);
+            border-color: var(--color-accent);
+        }
+
+        /* Skin Carousel (Slides out) */
+        .skin-carousel {
+            display: flex;
+            align-items: center;
+            background: var(--color-bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: var(--space-2) var(--space-3);
+            backdrop-filter: blur(10px);
+            max-width: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .skin-carousel.open {
+            max-width: 320px;
+            opacity: 1;
+        }
+
+        /* Scrollable Skin List */
+        .skin-list {
+            display: flex;
+            gap: var(--space-2);
+            overflow-x: scroll;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            max-width: 270px;
+            padding: 4px;
+        }
+
+        .skin-list::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .skin-list::-webkit-scrollbar-thumb {
+            background: var(--color-accent);
+            border-radius: 4px;
+        }
+
+        .skin-btn {
+            width: 42px;
+            height: 42px;
+            min-width: 42px;
+            border-radius: var(--radius-full);
+            background: var(--glass);
+            border: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all var(--transition-fast);
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .skin-btn:hover {
+            transform: scale(1.1);
+            border-color: var(--color-accent);
+            box-shadow: var(--glow-accent);
+        }
+
+        .skin-btn.active {
+            border-color: var(--color-accent);
+            background: rgba(45, 212, 191, 0.25);
+            box-shadow: var(--glow-accent);
+        }
+
+        /* Input Bar */
+        .input-bar {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: var(--space-3);
+            background: var(--color-bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: var(--space-3);
+            backdrop-filter: blur(10px);
+            z-index: 60;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .input-bar input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--color-text);
+            font-size: var(--font-size-base);
+            padding: var(--space-2) var(--space-4);
+            outline: none;
+        }
+
+        .input-bar input::placeholder {
+            color: var(--color-text-muted);
+        }
+
+        .input-bar button {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-send {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .btn-voice {
+            background: var(--color-secondary);
+            color: white;
+        }
+
+        .input-bar button:hover {
+            transform: scale(1.05);
+            box-shadow: var(--glow-primary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .presentation-panel {
+                left: 2%;
+                right: 2%;
+                width: auto;
+                height: 50%;
+                bottom: 80px;
+                top: auto;
+            }
+
+            .avatar-section {
+                right: 50%;
+                transform: translateX(50%);
+            }
+
+            .avatar-section.shifted {
+                transform: translateX(50%) scale(0.7);
+                top: 20px;
+            }
+
+            #avatar-wrapper {
+                width: 260px;
+                height: 340px;
+            }
+        }
+    </style>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
 </head>
 
-<body>
+<body class="page-with-navbar">
+    <div class="bg-grid"></div>
 
-    <!-- Main App Container -->
-    <div id="app" class="app-split">
-
-        <!-- Left: Avatar Section -->
-        <main class="main-content flex items-center justify-center">
-            <div id="avatar-container">
-                <!-- Avatar จะถูก load เข้ามาที่นี่ -->
-                <p class="text-muted">กำลังโหลด Avatar...</p>
-            </div>
-        </main>
-
-        <!-- Right: Chat Sidebar -->
-        <aside class="sidebar">
-            <header class="sidebar-header">
-                <h2 class="text-primary">💬 พูดคุยกับน้องน่าน</h2>
-            </header>
-
-            <div id="chat-box" class="sidebar-content chat-container">
-                <div id="chat-messages" class="chat-messages">
-                    <!-- Chat messages จะถูกเพิ่มที่นี่ -->
-                </div>
-            </div>
-
-            <footer class="sidebar-footer">
-                <div class="chat-input-container">
-                    <input type="text" id="chat-input" class="input" placeholder="พิมพ์ข้อความ..." autocomplete="off">
-                    <button id="btn-send" class="btn btn-primary btn-icon" title="ส่ง">
-                        📤
-                    </button>
-                    <button id="btn-voice" class="btn btn-secondary btn-icon" title="พูด">
-                        🎤
-                    </button>
-                </div>
-            </footer>
-        </aside>
-
-    </div>
-
-    <!-- Control Panel (Dev) -->
-    <div id="dev-panel" class="card" style="position: fixed; bottom: 20px; left: 20px; z-index: 100;">
-        <p class="text-muted" style="font-size: 12px; margin-bottom: 8px;">🛠️ Dev Controls</p>
-        <div class="flex gap-2 flex-wrap">
-            <button class="btn btn-ghost btn-sm" data-mood="normal">😊 ปกติ</button>
-            <button class="btn btn-ghost btn-sm" data-mood="speaking">🗣️ พูด</button>
-            <button class="btn btn-ghost btn-sm" data-mood="thinking">🤔 คิด</button>
-            <button class="btn btn-ghost btn-sm" data-mood="listening">👂 ฟัง</button>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <a href="index.html" class="navbar-brand">🤖 น้องน่าน</a>
+        <div class="navbar-menu" id="navbar-menu">
+            <a href="index.html" class="navbar-link active"><span class="icon">🏠</span><span>หน้าหลัก</span></a>
+            <a href="places.html" class="navbar-link"><span class="icon">📍</span><span>สถานที่</span></a>
+            <a href="chat.html" class="navbar-link"><span class="icon">💬</span><span>พูดคุย</span></a>
+            <a href="about.html" class="navbar-link"><span class="icon">ℹ️</span><span>เกี่ยวกับ</span></a>
         </div>
+
+        <!-- Hamburger Dropdown -->
+        <div class="dropdown-wrapper">
+            <button class="navbar-toggle" id="navbar-toggle">☰</button>
+            <div class="dropdown-menu" id="dropdown-menu">
+                <a href="admin/" class="dropdown-item">📊 จัดการข้อมูล</a>
+                <a href="admin/locations.html" class="dropdown-item">🗺️ สถานที่ทั้งหมด</a>
+                <a href="admin/settings.html" class="dropdown-item">⚙️ ตั้งค่าระบบ</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="main-container">
+
+        <!-- Panel (ซ้าย) -->
+        <div class="presentation-panel" id="presentation-panel">
+            <button class="presentation-close" id="panel-close">✕</button>
+            <div id="presentation-content"></div>
+        </div>
+
+        <!-- Avatar (ขวา/กลาง) -->
+        <div class="avatar-section centered" id="avatar-section">
+            <div class="avatar-speech" id="speech-bubble">
+                <p id="speech-text">สวัสดีค่ะ! ยินดีต้อนรับสู่จังหวัดน่าน 🏔️</p>
+            </div>
+
+            <div id="avatar-wrapper">
+                <span
+                    style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--color-text-muted)">🤖
+                    กำลังโหลด...</span>
+            </div>
+
+            <!-- Skin Carousel (Below Avatar) -->
+            <div class="skin-carousel-wrapper">
+                <button class="skin-toggle-btn" id="skin-toggle">🎨</button>
+                <div class="skin-carousel" id="skin-carousel">
+                    <div class="skin-list" id="skin-list">
+                        <button class="skin-btn active" data-skin="NanRobot" title="น่าน">🤖</button>
+                        <button class="skin-btn" data-skin="GoldenNan" title="ทอง">🌟</button>
+                        <button class="skin-btn" data-skin="NightNan" title="กลางคืน">🌙</button>
+                        <button class="skin-btn" data-skin="SakuraNan" title="ซากุระ">🌸</button>
+                        <button class="skin-btn" data-skin="CyberNan" title="ไซเบอร์">🎮</button>
+                        <button class="skin-btn" data-skin="ForestNan" title="ป่า">🌲</button>
+                        <button class="skin-btn" data-skin="OceanNan" title="ทะเล">🌊</button>
+                        <button class="skin-btn" data-skin="SunsetNan" title="ตะวันตก">🌅</button>
+                        <button class="skin-btn" data-skin="FestivalNan" title="เทศกาล">🎉</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Input Bar -->
+    <div class="input-bar">
+        <input type="text" id="query-input" placeholder="พิมพ์คำถาม..." autocomplete="off">
+        <button class="btn-voice" id="btn-voice" title="พูด">🎤</button>
+        <button class="btn-send" id="btn-send" title="ส่ง">📤</button>
     </div>
 
-    <!-- JavaScript -->
-    <script type="module" src="js/app.js"></script>
+    <!-- JS -->
+    <script type="module">
+        import { $, $$, on, delegate } from './js/utils/dom.js';
+
+        const panel = $('#presentation-panel');
+        const panelContent = $('#presentation-content');
+        const panelClose = $('#panel-close');
+        const avatarSection = $('#avatar-section');
+        const speechText = $('#speech-text');
+        const queryInput = $('#query-input');
+        const btnSend = $('#btn-send');
+        const btnVoice = $('#btn-voice');
+
+        // Dropdown Menu Toggle
+        const toggle = $('#navbar-toggle');
+        const dropdownMenu = $('#dropdown-menu');
+        if (toggle && dropdownMenu) {
+            on(toggle, 'click', (e) => {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('open');
+            });
+            on(document, 'click', () => {
+                dropdownMenu.classList.remove('open');
+            });
+        }
+
+        // Skin Carousel Toggle
+        const skinToggle = $('#skin-toggle');
+        const skinCarousel = $('#skin-carousel');
+        if (skinToggle && skinCarousel) {
+            on(skinToggle, 'click', () => {
+                skinCarousel.classList.toggle('open');
+                skinToggle.classList.toggle('active');
+            });
+        }
+
+        function updateSpeech(text) { if (speechText) speechText.textContent = text; }
+
+        function showPanel(content) {
+            panelContent.innerHTML = content;
+            panel.classList.add('visible');
+            avatarSection.classList.remove('centered');
+            avatarSection.classList.add('shifted');
+        }
+
+        function hidePanel() {
+            panel.classList.remove('visible');
+            avatarSection.classList.remove('shifted');
+            avatarSection.classList.add('centered');
+            updateSpeech('มีอะไรให้ช่วยอีกไหมคะ? 😊');
+        }
+
+        if (panelClose) on(panelClose, 'click', hidePanel);
+
+        // Skin Selector
+        delegate(document.body, 'click', '.skin-btn', (e, target) => {
+            const skinName = target.dataset.skin;
+            if (!skinName) return;
+
+            $$('.skin-btn').forEach(btn => btn.classList.remove('active'));
+            target.classList.add('active');
+
+            // ส่ง message ไป Avatar iframe
+            const avatarFrame = document.querySelector('#avatar-wrapper iframe');
+            if (avatarFrame && avatarFrame.contentWindow) {
+                avatarFrame.contentWindow.postMessage({ type: 'changeSkin', skin: skinName }, '*');
+            }
+
+            updateSpeech(`เปลี่ยนเป็น ${target.title} แล้วค่ะ! ✨`);
+        });
+
+        // Send Query (Test)
+        async function sendQuery() {
+            const text = queryInput.value.trim();
+            if (!text) return;
+
+            updateSpeech('กำลังค้นหาข้อมูล... 🔍');
+            queryInput.value = '';
+
+            setTimeout(() => {
+                const response = `
+                    <h3>🏛️ ตัวอย่างคำตอบ</h3>
+                    <p>นี่คือข้อมูลที่น้องน่านหาให้ค่ะ</p>
+                    <ul>
+                        <li>รายละเอียดที่ 1</li>
+                        <li>รายละเอียดที่ 2</li>
+                    </ul>
+                `;
+                showPanel(response);
+                updateSpeech('นี่คือข้อมูลค่ะ! 😊');
+            }, 1000);
+        }
+
+        if (btnSend) on(btnSend, 'click', sendQuery);
+        if (queryInput) on(queryInput, 'keypress', e => { if (e.key === 'Enter') sendQuery(); });
+        if (btnVoice) on(btnVoice, 'click', () => updateSpeech('กรุณาพูดได้เลยค่ะ... 👂'));
+
+        // Load Avatar
+        function loadAvatar() {
+            const wrapper = $('#avatar-wrapper');
+            if (!wrapper) return;
+            wrapper.innerHTML = `<iframe src="../avatar/avatar_export.html?embed=true"></iframe>`;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 น้องน่าน');
+            loadAvatar();
+        });
+    </script>
 </body>
 
 </html>

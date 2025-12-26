@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="th">
+<!--
+    # AI Robot Guide - น้องน่าน
+    หน้าแชท - พูดคุยกับน้องน่าน
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="พูดคุยกับน้องน่าน - AI Guide ประจำจังหวัดน่าน">
+
+    <title>พูดคุยกับน้องน่าน - AI Guide</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/navbar.css">
+    <link rel="stylesheet" href="css/chat.css">
+</head>
+
+<body class="page-with-navbar">
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <a href="index.html" class="navbar-brand">
+            🤖 น้องน่าน
+        </a>
+
+        <button class="navbar-toggle" id="navbar-toggle" aria-label="Toggle menu">
+            ☰
+        </button>
+
+        <div class="navbar-menu" id="navbar-menu">
+            <a href="index.html" class="navbar-link">
+                <span class="icon">🏠</span>
+                <span>หน้าหลัก</span>
+            </a>
+            <a href="places.html" class="navbar-link">
+                <span class="icon">📍</span>
+                <span>สถานที่</span>
+            </a>
+            <a href="chat.html" class="navbar-link active">
+                <span class="icon">💬</span>
+                <span>พูดคุย</span>
+            </a>
+            <a href="about.html" class="navbar-link">
+                <span class="icon">ℹ️</span>
+                <span>เกี่ยวกับ</span>
+            </a>
+        </div>
+
+        <div class="navbar-actions">
+            <button class="navbar-settings" id="btn-settings" title="ตั้งค่า">
+                ⚙️
+            </button>
+        </div>
+    </nav>
+
+    <!-- CHAT PAGE -->
+    <main class="chat-page">
+
+        <!-- Chat Header -->
+        <header class="chat-header">
+            <div class="chat-avatar">🤖</div>
+            <div class="chat-info">
+                <h2>น้องน่าน</h2>
+                <span class="chat-status">ออนไลน์</span>
+            </div>
+        </header>
+
+        <!-- Messages -->
+        <div class="chat-messages" id="chat-messages">
+
+            <!-- Bot Message -->
+            <div class="message message-bot">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <p class="message-text">สวัสดีค่ะ! ดิฉันชื่อน้องน่าน ยินดีให้บริการข้อมูลท่องเที่ยวจังหวัดน่านค่ะ
+                        🏔️</p>
+                    <span class="message-time">14:05</span>
+                </div>
+            </div>
+
+            <div class="message message-bot">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <p class="message-text">พี่อยากไปเที่ยวที่ไหนคะ? หรืออยากให้น้องน่านแนะนำ?</p>
+                    <span class="message-time">14:05</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Input Area -->
+        <div class="chat-input-area">
+            <div class="chat-input-wrapper">
+                <input type="text" id="chat-input" placeholder="พิมพ์ข้อความ..." autocomplete="off">
+            </div>
+            <button class="chat-action-btn btn-voice" id="btn-voice" title="พูด">
+                🎤
+            </button>
+            <button class="chat-action-btn btn-send" id="btn-send" title="ส่ง">
+                📤
+            </button>
+        </div>
+
+    </main>
+
+    <!-- JavaScript -->
+    <script type="module">
+        import { $, on } from './js/utils/dom.js';
+        import { api } from './js/api/client.js';
+
+        // State
+        let isListening = false;
+
+        // Elements
+        const messagesContainer = $('#chat-messages');
+        const chatInput = $('#chat-input');
+        const btnSend = $('#btn-send');
+        const btnVoice = $('#btn-voice');
+
+        // Navbar Toggle
+        const toggle = $('#navbar-toggle');
+        const menu = $('#navbar-menu');
+        if (toggle && menu) {
+            on(toggle, 'click', () => menu.classList.toggle('open'));
+        }
+
+        // Add Message
+        function addMessage(text, sender = 'bot') {
+            const now = new Date();
+            const time = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message message-${sender}`;
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${sender === 'bot' ? '🤖' : '👤'}</div>
+                <div class="message-content">
+                    <p class="message-text">${text}</p>
+                    <span class="message-time">${time}</span>
+                </div>
+            `;
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Add Typing Indicator
+        function showTyping() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message message-bot';
+            typingDiv.id = 'typing-indicator';
+            typingDiv.innerHTML = `
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <div class="typing-indicator">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            `;
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function hideTyping() {
+            const typing = $('#typing-indicator');
+            if (typing) typing.remove();
+        }
+
+        // Send Message
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            // Add user message
+            addMessage(text, 'user');
+            chatInput.value = '';
+
+            // Show typing
+            showTyping();
+
+            // TODO: Send to backend
+            // const response = await api.post('/chat', { message: text });
+
+            // Simulate response
+            setTimeout(() => {
+                hideTyping();
+                addMessage('ขอบคุณสำหรับคำถามค่ะ! น้องน่านกำลังหาข้อมูลให้นะคะ... 🔍');
+            }, 1500);
+        }
+
+        // Voice Button
+        function toggleVoice() {
+            isListening = !isListening;
+            btnVoice.classList.toggle('listening', isListening);
+
+            if (isListening) {
+                console.log('🎤 Start listening...');
+                // TODO: Start STT
+            } else {
+                console.log('🎤 Stop listening');
+                // TODO: Stop STT
+            }
+        }
+
+        // Event Bindings
+        if (btnSend) on(btnSend, 'click', sendMessage);
+        if (chatInput) {
+            on(chatInput, 'keypress', (e) => {
+                if (e.key === 'Enter') sendMessage();
+            });
+        }
+        if (btnVoice) on(btnVoice, 'click', toggleVoice);
+
+        // Init
+        console.log('💬 หน้าแชท');
+    </script>
+</body>
+
+</html>

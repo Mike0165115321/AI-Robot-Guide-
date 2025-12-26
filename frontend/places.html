@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="th">
+<!--
+    # AI Robot Guide - น้องน่าน
+    หน้าสถานที่ท่องเที่ยว
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="สถานที่ท่องเที่ยวจังหวัดน่าน - วัด, ธรรมชาติ, อาหาร, ที่พัก">
+
+    <title>สถานที่ท่องเที่ยว - น้องน่าน AI Guide</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/navbar.css">
+    <link rel="stylesheet" href="css/places.css">
+</head>
+
+<body class="page-with-navbar">
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <a href="index.html" class="navbar-brand">
+            🤖 น้องน่าน
+        </a>
+
+        <button class="navbar-toggle" id="navbar-toggle" aria-label="Toggle menu">
+            ☰
+        </button>
+
+        <div class="navbar-menu" id="navbar-menu">
+            <a href="index.html" class="navbar-link">
+                <span class="icon">🏠</span>
+                <span>หน้าหลัก</span>
+            </a>
+            <a href="places.html" class="navbar-link active">
+                <span class="icon">📍</span>
+                <span>สถานที่</span>
+            </a>
+            <a href="chat.html" class="navbar-link">
+                <span class="icon">💬</span>
+                <span>พูดคุย</span>
+            </a>
+            <a href="about.html" class="navbar-link">
+                <span class="icon">ℹ️</span>
+                <span>เกี่ยวกับ</span>
+            </a>
+        </div>
+
+        <div class="navbar-actions">
+            <button class="navbar-settings" id="btn-settings" title="ตั้งค่า">
+                ⚙️
+            </button>
+        </div>
+    </nav>
+
+    <!-- HEADER -->
+    <header class="page-header">
+        <h1>📍 สถานที่ท่องเที่ยวจังหวัดน่าน</h1>
+        <p>ค้นหาสถานที่น่าสนใจในจังหวัดน่าน</p>
+    </header>
+
+    <!-- SEARCH & FILTER -->
+    <section class="search-section">
+        <div class="search-box">
+            <span class="icon">🔍</span>
+            <input type="text" id="search-input" placeholder="ค้นหาสถานที่...">
+        </div>
+
+        <div class="category-filters">
+            <button class="category-btn active" data-category="all">ทั้งหมด</button>
+            <button class="category-btn" data-category="temple">🏛️ วัด</button>
+            <button class="category-btn" data-category="nature">🌲 ธรรมชาติ</button>
+            <button class="category-btn" data-category="food">🍜 อาหาร</button>
+            <button class="category-btn" data-category="hotel">🏨 ที่พัก</button>
+            <button class="category-btn" data-category="shopping">🛍️ ช้อปปิ้ง</button>
+        </div>
+    </section>
+
+    <!-- PLACES GRID -->
+    <main class="places-grid" id="places-grid">
+        <!-- Places จะถูก render ที่นี่ -->
+
+        <!-- Sample Cards (จะแทนที่ด้วยข้อมูลจริงจาก API) -->
+        <article class="place-card">
+            <div class="place-card-image">🏛️</div>
+            <div class="place-card-content">
+                <span class="place-card-category">วัด</span>
+                <h3 class="place-card-title">วัดภูมินทร์</h3>
+                <p class="place-card-desc">วัดเก่าแก่ที่มีภาพจิตรกรรมฝาผนัง "ปู่ม่าน ญ่าม่าน" ที่โด่งดัง</p>
+            </div>
+            <div class="place-card-footer">
+                <span class="place-card-location">📍 อ.เมือง</span>
+                <span class="place-card-rating">⭐ 4.8</span>
+            </div>
+        </article>
+
+        <article class="place-card">
+            <div class="place-card-image">🌄</div>
+            <div class="place-card-content">
+                <span class="place-card-category">ธรรมชาติ</span>
+                <h3 class="place-card-title">ดอยเสมอดาว</h3>
+                <p class="place-card-desc">จุดชมทะเลหมอกที่สวยที่สุดในน่าน</p>
+            </div>
+            <div class="place-card-footer">
+                <span class="place-card-location">📍 อ.นาน้อย</span>
+                <span class="place-card-rating">⭐ 4.9</span>
+            </div>
+        </article>
+
+        <article class="place-card">
+            <div class="place-card-image">🍜</div>
+            <div class="place-card-content">
+                <span class="place-card-category">อาหาร</span>
+                <h3 class="place-card-title">ถนนคนเดินน่าน</h3>
+                <p class="place-card-desc">ตลาดอาหารท้องถิ่นและของฝากมากมาย</p>
+            </div>
+            <div class="place-card-footer">
+                <span class="place-card-location">📍 อ.เมือง</span>
+                <span class="place-card-rating">⭐ 4.5</span>
+            </div>
+        </article>
+
+        <article class="place-card">
+            <div class="place-card-image">🏛️</div>
+            <div class="place-card-content">
+                <span class="place-card-category">วัด</span>
+                <h3 class="place-card-title">วัดพระธาตุแช่แห้ง</h3>
+                <p class="place-card-desc">พระธาตุประจำปีเกิดปีเถาะ</p>
+            </div>
+            <div class="place-card-footer">
+                <span class="place-card-location">📍 อ.เมือง</span>
+                <span class="place-card-rating">⭐ 4.7</span>
+            </div>
+        </article>
+
+        <article class="place-card">
+            <div class="place-card-image">🚤</div>
+            <div class="place-card-content">
+                <span class="place-card-category">ธรรมชาติ</span>
+                <h3 class="place-card-title">แก่งหลวง</h3>
+                <p class="place-card-desc">ล่องแก่งกลางผืนป่าอันสวยงาม</p>
+            </div>
+            <div class="place-card-footer">
+                <span class="place-card-location">📍 อ.เวียงสา</span>
+                <span class="place-card-rating">⭐ 4.6</span>
+            </div>
+        </article>
+
+        <article class="place-card">
+            <div class="place-card-image">🏨</div>
+            <div class="place-card-content">
+                <span class="place-card-category">ที่พัก</span>
+                <h3 class="place-card-title">บ้านมณีพฤกษ์</h3>
+                <p class="place-card-desc">ที่พักสไตล์ล้านนากลางธรรมชาติ</p>
+            </div>
+            <div class="place-card-footer">
+                <span class="place-card-location">📍 อ.ปัว</span>
+                <span class="place-card-rating">⭐ 4.8</span>
+            </div>
+        </article>
+
+    </main>
+
+    <!-- JavaScript -->
+    <script type="module">
+        import { $, $$, on, delegate } from './js/utils/dom.js';
+
+        // Navbar Toggle (Mobile)
+        const toggle = $('#navbar-toggle');
+        const menu = $('#navbar-menu');
+
+        if (toggle && menu) {
+            on(toggle, 'click', () => {
+                menu.classList.toggle('open');
+            });
+        }
+
+        // Category Filter
+        delegate(document.body, 'click', '.category-btn', (e, target) => {
+            $$('.category-btn').forEach(btn => btn.classList.remove('active'));
+            target.classList.add('active');
+
+            const category = target.dataset.category;
+            console.log('Filter:', category);
+            // TODO: Filter places
+        });
+
+        // Search
+        const searchInput = $('#search-input');
+        if (searchInput) {
+            on(searchInput, 'input', (e) => {
+                const query = e.target.value;
+                console.log('Search:', query);
+                // TODO: Search places
+            });
+        }
+
+        // Init
+        console.log('📍 หน้าสถานที่');
+    </script>
+</body>
+
+</html>

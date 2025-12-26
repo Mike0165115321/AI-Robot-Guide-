@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="th">
+<!--
+    # AI Robot Guide - น้องน่าน
+    หน้าเกี่ยวกับโปรเจกต์
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="เกี่ยวกับโปรเจกต์ AI Robot Guide - น้องน่าน">
+
+    <title>เกี่ยวกับ - น้องน่าน AI Guide</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/navbar.css">
+</head>
+
+<body class="page-with-navbar">
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <a href="index.html" class="navbar-brand">
+            🤖 น้องน่าน
+        </a>
+
+        <button class="navbar-toggle" id="navbar-toggle" aria-label="Toggle menu">
+            ☰
+        </button>
+
+        <div class="navbar-menu" id="navbar-menu">
+            <a href="index.html" class="navbar-link">
+                <span class="icon">🏠</span>
+                <span>หน้าหลัก</span>
+            </a>
+            <a href="places.html" class="navbar-link">
+                <span class="icon">📍</span>
+                <span>สถานที่</span>
+            </a>
+            <a href="chat.html" class="navbar-link">
+                <span class="icon">💬</span>
+                <span>พูดคุย</span>
+            </a>
+            <a href="about.html" class="navbar-link active">
+                <span class="icon">ℹ️</span>
+                <span>เกี่ยวกับ</span>
+            </a>
+        </div>
+
+        <div class="navbar-actions">
+            <button class="navbar-settings" id="btn-settings" title="ตั้งค่า">
+                ⚙️
+            </button>
+        </div>
+    </nav>
+
+    <!-- CONTENT -->
+    <main class="main-content" style="max-width: 800px; margin: 0 auto;">
+
+        <!-- Header -->
+        <section style="text-align: center; margin-bottom: var(--space-8);">
+            <h1 style="font-size: 2.5rem; margin-bottom: var(--space-4);">
+                🤖 น้องน่าน
+            </h1>
+            <p class="text-muted" style="font-size: var(--font-size-lg);">
+                AI Guide ประจำจังหวัดน่าน
+            </p>
+        </section>
+
+        <!-- About Section -->
+        <section class="card" style="margin-bottom: var(--space-6);">
+            <h2 style="margin-bottom: var(--space-4);">📖 เกี่ยวกับโปรเจกต์</h2>
+            <p>
+                <strong>น้องน่าน</strong> เป็น AI Avatar ที่พัฒนาขึ้นเพื่อให้บริการข้อมูลการท่องเที่ยว
+                จังหวัดน่าน โดยใช้เทคโนโลยี AI ล่าสุดในการตอบคำถามและแนะนำสถานที่ท่องเที่ยว
+            </p>
+            <p>โปรเจกต์นี้พัฒนาด้วย:</p>
+            <ul style="list-style: disc; margin-left: 20px; color: var(--color-text-muted);">
+                <li>Frontend: Vanilla JS ES6+, HTML5, CSS3</li>
+                <li>Backend: Python FastAPI</li>
+                <li>AI: Gemini 2.5 + Llama 3</li>
+                <li>RAG: Qdrant + MongoDB</li>
+            </ul>
+        </section>
+
+        <!-- Features -->
+        <section class="card" style="margin-bottom: var(--space-6);">
+            <h2 style="margin-bottom: var(--space-4);">✨ ความสามารถ</h2>
+            <div
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4);">
+                <div style="text-align: center; padding: var(--space-4);">
+                    <div style="font-size: 2rem; margin-bottom: var(--space-2);">💬</div>
+                    <h3 style="font-size: var(--font-size-base);">พูดคุย</h3>
+                    <p class="text-muted" style="font-size: var(--font-size-sm); margin: 0;">ถามตอบด้วยภาษาไทย</p>
+                </div>
+                <div style="text-align: center; padding: var(--space-4);">
+                    <div style="font-size: 2rem; margin-bottom: var(--space-2);">🎤</div>
+                    <h3 style="font-size: var(--font-size-base);">เสียง</h3>
+                    <p class="text-muted" style="font-size: var(--font-size-sm); margin: 0;">รองรับ STT/TTS</p>
+                </div>
+                <div style="text-align: center; padding: var(--space-4);">
+                    <div style="font-size: 2rem; margin-bottom: var(--space-2);">📍</div>
+                    <h3 style="font-size: var(--font-size-base);">สถานที่</h3>
+                    <p class="text-muted" style="font-size: var(--font-size-sm); margin: 0;">ค้นหาที่เที่ยว</p>
+                </div>
+                <div style="text-align: center; padding: var(--space-4);">
+                    <div style="font-size: 2rem; margin-bottom: var(--space-2);">🤖</div>
+                    <h3 style="font-size: var(--font-size-base);">Avatar</h3>
+                    <p class="text-muted" style="font-size: var(--font-size-sm); margin: 0;">หุ่นยนต์ 3D</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact -->
+        <section class="card">
+            <h2 style="margin-bottom: var(--space-4);">📞 ติดต่อ</h2>
+            <p class="text-muted">
+                พัฒนาโดย MikeDev Team<br>
+                GitHub: <a href="https://github.com/Mike0165115321/AI-Robot-Guide-"
+                    style="color: var(--color-primary);">AI-Robot-Guide</a>
+            </p>
+        </section>
+
+    </main>
+
+    <!-- JavaScript -->
+    <script type="module">
+        import { $, on } from './js/utils/dom.js';
+
+        // Navbar Toggle
+        const toggle = $('#navbar-toggle');
+        const menu = $('#navbar-menu');
+        if (toggle && menu) {
+            on(toggle, 'click', () => menu.classList.toggle('open'));
+        }
+
+        console.log('ℹ️ หน้าเกี่ยวกับ');
+    </script>
+</body>
+
+</html>
