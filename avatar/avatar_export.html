@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>น้องน่าน Avatar Sandbox 🤖</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <style>
+        /* ==========================================
+           CSS VARIABLES - MOOD SYSTEM
+           ========================================== */
+        :root {
+            --color-robot-white: #fcfcfc;
+            --color-robot-dark: #2c2f33;
+
+            /* Mood-driven colors (updated by JS) */
+            --mood-eye-color: #40c4ff;
+            --mood-accent-color: #00e5ff;
+            --mood-glow: rgba(64, 196, 255, 0.5);
+
+            /* Transitions */
+            --transition-mood: 0.5s ease;
+        }
+
+        /* ==========================================
+           BASE STYLES
+           ========================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Kanit', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            overflow: hidden;
+        }
+
+        /* ==========================================
+           CONTROL PANEL
+           ========================================== */
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-panel h3 {
+            color: white;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+
+        .mood-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .mood-btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 20px;
+            font-family: 'Kanit', sans-serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .mood-btn:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .mood-btn.active {
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+
+        .skin-btn {
+            padding: 6px 10px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            font-family: 'Kanit', sans-serif;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .skin-btn:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .skin-btn.active {
+            background: var(--mood-accent-color, rgba(64, 196, 255, 0.3));
+            border-color: var(--mood-eye-color, #40c4ff);
+            box-shadow: 0 0 10px var(--mood-glow, rgba(64, 196, 255, 0.5));
+        }
+
+        .mood-btn[data-mood="normal"] {
+            border: 2px solid #40c4ff;
+        }
+
+        .mood-btn[data-mood="speaking"] {
+            border: 2px solid #4ade80;
+        }
+
+        .mood-btn[data-mood="thinking"] {
+            border: 2px solid #fbbf24;
+        }
+
+        .mood-btn[data-mood="listening"] {
+            border: 2px solid #f472b6;
+        }
+
+        .mood-btn[data-mood="happy"] {
+            border: 2px solid #34d399;
+        }
+
+        .mood-btn[data-mood="curious"] {
+            border: 2px solid #a78bfa;
+        }
+
+        .mood-btn[data-mood="sleepy"] {
+            border: 2px solid #64748b;
+        }
+
+        /* ==========================================
+           ROBOT CONTAINER
+           ========================================== */
+        .robot-container {
+            position: relative;
+            width: 350px;
+            height: 450px;
+            perspective: 1200px;
+            transform-style: preserve-3d;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            padding-bottom: 20px;
+            /* Allow walking animation */
+            transition: transform 0.8s ease-in-out;
+        }
+
+        /* Walking animation */
+        .robot-container.walking {
+            animation: robot-walk 8s ease-in-out infinite;
+        }
+
+        @keyframes robot-walk {
+            0% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(80px);
+            }
+
+            50% {
+                transform: translateX(0);
+            }
+
+            75% {
+                transform: translateX(-80px);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        /* Roaming animation - more random movement */
+        .robot-container.roaming {
+            animation: robot-roam 12s ease-in-out infinite;
+        }
+
+        @keyframes robot-roam {
+            0% {
+                transform: translateX(0) scale(1);
+            }
+
+            15% {
+                transform: translateX(60px) scale(1.02);
+            }
+
+            30% {
+                transform: translateX(30px) scale(1);
+            }
+
+            45% {
+                transform: translateX(-70px) scale(0.98);
+            }
+
+            60% {
+                transform: translateX(-40px) scale(1);
+            }
+
+            75% {
+                transform: translateX(50px) scale(1.01);
+            }
+
+            100% {
+                transform: translateX(0) scale(1);
+            }
+        }
+
+        /* Shadow */
+        .robot-container::before {
+            content: '';
+            position: absolute;
+            bottom: 50px;
+            width: 120px;
+            height: 8px;
+            background: radial-gradient(ellipse, rgba(0, 0, 0, 0.4), transparent);
+            border-radius: 50%;
+            filter: blur(5px);
+            z-index: 1;
+        }
+
+        /* ==========================================
+           ROBOT BODY
+           ========================================== */
+        .robot-body {
+            position: absolute;
+            bottom: 60px;
+            width: 200px;
+            height: 240px;
+            background: radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.7) 0%, transparent 40%),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.4) 0%, transparent 15%),
+                var(--color-robot-white);
+            border-radius: 40% 40% 60% 60% / 65% 65% 55% 55%;
+            z-index: 3;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2),
+                inset 0 0 60px rgba(0, 0, 0, 0.05);
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-12px);
+            }
+        }
+
+        .body-accent {
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 70px;
+            background: linear-gradient(180deg, var(--mood-accent-color), var(--mood-eye-color));
+            border-radius: 0 0 70% 70% / 0 0 100px 100px;
+            z-index: 4;
+            box-shadow: 0 5px 20px var(--mood-glow);
+            transition: background var(--transition-mood), box-shadow var(--transition-mood);
+        }
+
+        .robot-name {
+            position: absolute;
+            top: 130px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #555;
+            font-size: 20px;
+            font-weight: 700;
+            z-index: 5;
+            letter-spacing: 2px;
+            opacity: 0.8;
+        }
+
+        /* ==========================================
+           ROBOT HEAD
+           ========================================== */
+        .robot-neck {
+            position: absolute;
+            top: -125px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 55px;
+            height: 18px;
+            background-color: var(--color-robot-white);
+            border-radius: 50%;
+            z-index: 4;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .robot-head {
+            position: absolute;
+            top: -130px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle at 50% 15%, rgba(255, 255, 255, 0.9) 0%, transparent 40%),
+                var(--color-robot-white);
+            border-radius: 50%;
+            z-index: 6;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15),
+                inset 0 0 50px rgba(0, 0, 0, 0.05);
+            animation: head-bob 6s ease-in-out infinite;
+            transform-origin: center bottom;
+        }
+
+        @keyframes head-bob {
+
+            0%,
+            100% {
+                transform: translateX(-50%) rotate(0deg);
+            }
+
+            25% {
+                transform: translateX(-50%) rotate(-1deg);
+            }
+
+            75% {
+                transform: translateX(-50%) rotate(1deg);
+            }
+        }
+
+        .head-top-accent {
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 95px;
+            height: 50px;
+            background: linear-gradient(180deg, var(--mood-accent-color), var(--mood-eye-color));
+            border-radius: 100px / 55px;
+            z-index: 7;
+            box-shadow: 0 0 25px var(--mood-glow);
+            transition: background var(--transition-mood), box-shadow var(--transition-mood);
+        }
+
+        /* ==========================================
+           ROBOT FACE
+           ========================================== */
+        .robot-face {
+            position: absolute;
+            top: 55px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 140px;
+            height: 95px;
+            background: radial-gradient(ellipse at center, #1a1a2e, var(--color-robot-dark));
+            border-radius: 50% / 45px;
+            z-index: 8;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 10px;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.9);
+            overflow: hidden;
+        }
+
+        /* ==========================================
+           EYES (Mood Reactive)
+           ========================================== */
+        .robot-eye {
+            width: 42px;
+            height: 32px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, white, var(--mood-eye-color));
+            box-shadow: 0 0 10px var(--mood-eye-color),
+                0 0 25px var(--mood-eye-color),
+                0 0 45px var(--mood-glow),
+                inset 0 0 10px rgba(255, 255, 255, 0.9);
+            transition: background var(--transition-mood),
+                box-shadow var(--transition-mood),
+                transform 0.2s,
+                width 0.3s,
+                height 0.3s;
+            animation: eye-pulse 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes eye-pulse {
+            from {
+                box-shadow: 0 0 10px var(--mood-eye-color), 0 0 20px var(--mood-glow);
+            }
+
+            to {
+                box-shadow: 0 0 15px var(--mood-eye-color), 0 0 35px var(--mood-glow);
+            }
+        }
+
+        .robot-eye.blink {
+            height: 3px !important;
+            transition: height 0.08s;
+        }
+
+        /* ==========================================
+           LISTENING MODE - ENHANCED
+           ========================================== */
+
+        /* Focused eyes with bright center dot */
+        .mood-listening .robot-eye {
+            height: 12px;
+            width: 45px;
+            position: relative;
+            animation: listening-focus 1s ease-in-out infinite alternate;
+        }
+
+        .mood-listening .robot-eye::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px white, 0 0 20px var(--mood-eye-color);
+            animation: focus-dot 0.8s ease-in-out infinite alternate;
+        }
+
+        @keyframes listening-focus {
+            from {
+                box-shadow: 0 0 15px var(--mood-eye-color), 0 0 30px var(--mood-glow);
+            }
+
+            to {
+                box-shadow: 0 0 25px var(--mood-eye-color), 0 0 50px var(--mood-glow);
+            }
+        }
+
+        @keyframes focus-dot {
+            from {
+                transform: translate(-50%, -50%) scale(0.8);
+                opacity: 0.7;
+            }
+
+            to {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 1;
+            }
+        }
+
+        /* Head tilt when listening */
+        .mood-listening~.robot-head,
+        .mood-listening.robot-face {
+            animation: head-listen-tilt 3s ease-in-out infinite;
+        }
+
+        @keyframes head-listen-tilt {
+
+            0%,
+            100% {
+                transform: translateX(-50%) rotate(-3deg);
+            }
+
+            50% {
+                transform: translateX(-50%) rotate(3deg);
+            }
+        }
+
+        /* Antenna glow pulse */
+        .mood-listening~.head-top-accent,
+        .robot-face.mood-listening~.head-top-accent {
+            animation: antenna-pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes antenna-pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 25px var(--mood-glow), 0 0 50px var(--mood-glow);
+                filter: brightness(1);
+            }
+
+            50% {
+                box-shadow: 0 0 40px var(--mood-glow), 0 0 80px var(--mood-glow);
+                filter: brightness(1.3);
+            }
+        }
+
+        /* Audio wave rings - hidden by default */
+        .audio-waves {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .audio-waves .wave {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid var(--mood-eye-color);
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .wave-1 {
+            width: 120%;
+            height: 120%;
+        }
+
+        .wave-2 {
+            width: 150%;
+            height: 150%;
+        }
+
+        .wave-3 {
+            width: 180%;
+            height: 180%;
+        }
+
+        /* Audio waves DISABLED - too unnatural looking */
+        /* Kept in code for future use if needed */
+        .mood-listening~.audio-waves .wave,
+        .robot-head:has(.mood-listening) .audio-waves .wave {
+            opacity: 0 !important;
+            /* Disabled */
+        }
+
+        .mood-listening~.audio-waves .wave-1,
+        .robot-head:has(.mood-listening) .wave-1 {
+            animation: wave-expand 2s ease-out infinite;
+        }
+
+        .mood-listening~.audio-waves .wave-2,
+        .robot-head:has(.mood-listening) .wave-2 {
+            animation: wave-expand 2s ease-out infinite 0.4s;
+        }
+
+        .mood-listening~.audio-waves .wave-3,
+        .robot-head:has(.mood-listening) .wave-3 {
+            animation: wave-expand 2s ease-out infinite 0.8s;
+        }
+
+        @keyframes wave-expand {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 0;
+            }
+        }
+
+        /* Glowing ears - hidden by default */
+        .robot-ear {
+            position: absolute;
+            width: 15px;
+            height: 25px;
+            background: var(--mood-eye-color);
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.3s, box-shadow 0.3s;
+            z-index: 5;
+        }
+
+        .left-ear {
+            left: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .right-ear {
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Show ears only in listening mode */
+        .mood-listening~.robot-ear,
+        .robot-head:has(.mood-listening) .robot-ear {
+            opacity: 1;
+            animation: ear-pulse 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes ear-pulse {
+            from {
+                box-shadow: 0 0 10px var(--mood-eye-color), 0 0 20px var(--mood-glow);
+                transform: translateY(-50%) scale(1);
+            }
+
+            to {
+                box-shadow: 0 0 20px var(--mood-eye-color), 0 0 40px var(--mood-glow);
+                transform: translateY(-50%) scale(1.15);
+            }
+        }
+
+        .mood-thinking .robot-eye {
+            opacity: 0;
+            transform: scale(0.5);
+        }
+
+        .mood-sleepy .robot-eye {
+            height: 6px;
+            opacity: 0.4;
+            animation: sleepy-droop 2s ease-in-out infinite;
+        }
+
+        @keyframes sleepy-droop {
+
+            0%,
+            100% {
+                height: 6px;
+                transform: translateY(0);
+            }
+
+            50% {
+                height: 4px;
+                transform: translateY(2px);
+            }
+        }
+
+        .mood-curious .robot-eye {
+            width: 50px;
+            height: 40px;
+            animation: curious-look 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes curious-look {
+            from {
+                transform: translateX(-3px);
+            }
+
+            to {
+                transform: translateX(3px);
+            }
+        }
+
+        .mood-happy .robot-eye {
+            height: 20px;
+            border-radius: 50% 50% 20% 20%;
+            animation: happy-bounce 0.6s ease-in-out infinite;
+        }
+
+        @keyframes happy-bounce {
+
+            0%,
+            100% {
+                transform: translateY(0) scale(1);
+            }
+
+            50% {
+                transform: translateY(-5px) scale(1.1);
+            }
+        }
+
+        /* Happy smile */
+        .mood-happy .robot-mouth {
+            opacity: 1;
+            width: 45px;
+            height: 20px;
+            border-radius: 0 0 50% 50%;
+            background: linear-gradient(180deg, #f75d5d, #ff8a8a);
+        }
+
+        /* Sleepy yawn mouth */
+        .mood-sleepy .robot-mouth {
+            opacity: 0.6;
+            width: 25px;
+            height: 15px;
+            border-radius: 50%;
+        }
+
+        /* ==========================================
+           MOUTH
+           ========================================== */
+        .robot-mouth {
+            position: absolute;
+            bottom: 12px;
+            width: 35px;
+            height: 8px;
+            background: linear-gradient(90deg, #ff6b6b, #f75d5d);
+            border-radius: 4px;
+            opacity: 0;
+            transform-origin: center;
+            transition: opacity 0.3s, transform 0.2s;
+        }
+
+        .robot-mouth.speaking {
+            opacity: 1;
+            animation: mouth-talk 0.18s infinite alternate ease-in-out;
+        }
+
+        @keyframes mouth-talk {
+            0% {
+                transform: scaleY(0.6) scaleX(1);
+            }
+
+            100% {
+                transform: scaleY(1.4) scaleX(1.15);
+            }
+        }
+
+        /* Thinking dots - CENTER position */
+        .thinking-dots {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .mood-thinking .thinking-dots {
+            opacity: 1;
+        }
+
+        .mood-thinking .robot-eye {
+            display: none;
+        }
+
+        .thinking-dots span {
+            width: 12px;
+            height: 12px;
+            background: var(--mood-eye-color);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--mood-eye-color);
+            animation: dot-bounce 1.4s infinite ease-in-out;
+        }
+
+        .thinking-dots span:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .thinking-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .thinking-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes dot-bounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+
+            40% {
+                transform: scale(1.3);
+                opacity: 1;
+            }
+        }
+
+        /* Question mark for CURIOUS mode - Thought bubble floating on side */
+        .question-mark {
+            position: absolute;
+            top: -50px;
+            right: -45px;
+            font-size: 38px;
+            font-weight: bold;
+            color: var(--mood-eye-color);
+            text-shadow: 0 0 15px var(--mood-glow), 0 0 30px var(--mood-glow);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 100;
+        }
+
+        .mood-curious .question-mark {
+            opacity: 1;
+            animation: question-float 2s ease-in-out infinite;
+        }
+
+        /* Eyes visible for curious - big curious eyes */
+        .mood-curious .robot-eye {
+            width: 48px;
+            height: 35px;
+        }
+
+        @keyframes question-float {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(-8deg);
+            }
+
+            50% {
+                transform: translateY(-10px) rotate(8deg);
+            }
+        }
+
+        /* ==========================================
+           ARMS
+           ========================================== */
+        .robot-arm {
+            position: absolute;
+            width: 50px;
+            height: 130px;
+            background: linear-gradient(180deg, var(--color-robot-white), #e8e8e8);
+            border-radius: 30px;
+            z-index: 2;
+            transform-origin: 50% 10%;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.4s ease;
+        }
+
+        .robot-arm::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 45px;
+            background: linear-gradient(180deg, #e8e8e8, var(--color-robot-white));
+            border-radius: 30px;
+            box-shadow: inset 0 5px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .left-arm {
+            top: 25px;
+            left: -10px;
+            transform: rotate(-5deg);
+        }
+
+        .right-arm {
+            top: 25px;
+            right: -10px;
+            transform: rotate(5deg);
+        }
+
+        /* Arm states */
+        .arm-idle {
+            animation: arm-idle 4s ease-in-out infinite;
+        }
+
+        @keyframes arm-idle {
+
+            0%,
+            100% {
+                transform: rotate(-5deg);
+            }
+
+            50% {
+                transform: rotate(-8deg);
+            }
+        }
+
+        .right-arm.arm-idle {
+            animation: arm-idle-right 4s ease-in-out infinite;
+        }
+
+        @keyframes arm-idle-right {
+
+            0%,
+            100% {
+                transform: rotate(5deg);
+            }
+
+            50% {
+                transform: rotate(8deg);
+            }
+        }
+
+        .arm-speaking {
+            animation: arm-talk 0.5s ease-in-out infinite alternate !important;
+        }
+
+        @keyframes arm-talk {
+            0% {
+                transform: rotate(-40deg) translateY(-10px);
+            }
+
+            100% {
+                transform: rotate(-15deg) translateY(5px);
+            }
+        }
+
+        .right-arm.arm-speaking {
+            animation: arm-talk-right 0.5s ease-in-out infinite alternate !important;
+        }
+
+        @keyframes arm-talk-right {
+            0% {
+                transform: rotate(40deg) translateY(-10px);
+            }
+
+            100% {
+                transform: rotate(15deg) translateY(5px);
+            }
+        }
+
+        .arm-listening {
+            transform: rotate(-50deg) translateY(-15px) !important;
+        }
+
+        .right-arm.arm-listening {
+            transform: rotate(50deg) translateY(-15px) !important;
+        }
+
+        .arm-thinking {
+            transform: rotate(-25deg) !important;
+        }
+
+        .right-arm.arm-thinking {
+            transform: rotate(25deg) !important;
+        }
+
+        /* Curious: Just normal arms for now */
+        .arm-curious {
+            transform: rotate(-5deg) !important;
+        }
+
+        .right-arm.arm-curious {
+            transform: rotate(5deg) !important;
+        }
+
+        /* Info panel */
+        .info-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 12px 25px;
+            border-radius: 30px;
+            color: white;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-panel strong {
+            color: var(--mood-eye-color);
+            transition: color var(--transition-mood);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <h3>🎨 เปลี่ยนอารมณ์ (Mood)</h3>
+        <div class="mood-buttons">
+            <button class="mood-btn active" data-mood="normal">😊 ปกติ</button>
+            <button class="mood-btn" data-mood="speaking">🗣️ พูด</button>
+            <button class="mood-btn" data-mood="thinking">🤔 คิด</button>
+            <button class="mood-btn" data-mood="listening">👂 ฟัง</button>
+            <button class="mood-btn" data-mood="happy">😄 ดีใจ</button>
+            <button class="mood-btn" data-mood="curious">🧐 สงสัย</button>
+            <button class="mood-btn" data-mood="sleepy">😴 ง่วง</button>
+        </div>
+
+        <h3 style="margin-top: 15px;">🎭 เปลี่ยน Skin</h3>
+        <div class="skin-buttons" style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <button class="skin-btn active" data-skin="NanRobot">🤖 น่าน</button>
+            <button class="skin-btn" data-skin="GoldenNan">🌟 ทอง</button>
+            <button class="skin-btn" data-skin="NightNan">🌙 กลางคืน</button>
+            <button class="skin-btn" data-skin="SakuraNan">🌸 ซากุระ</button>
+            <button class="skin-btn" data-skin="CyberNan">🎮 ไซเบอร์</button>
+            <button class="skin-btn" data-skin="ForestNan">🌲 ป่า</button>
+            <button class="skin-btn" data-skin="OceanNan">🌊 ทะเล</button>
+            <button class="skin-btn" data-skin="SunsetNan">🌅 ตะวันตก</button>
+            <button class="skin-btn" data-skin="FestivalNan">🎉 เทศกาล</button>
+        </div>
+    </div>
+
+    <!-- ROBOT -->
+    <div class="robot-container" id="robot-master-container">
+        <div class="robot-body">
+            <div class="body-accent"></div>
+            <div class="robot-neck"></div>
+            <div class="robot-head">
+                <div class="head-top-accent"></div>
+                <!-- Audio wave rings for listening -->
+                <div class="audio-waves">
+                    <div class="wave wave-1"></div>
+                    <div class="wave wave-2"></div>
+                    <div class="wave wave-3"></div>
+                </div>
+                <!-- Glowing ears -->
+                <div class="robot-ear left-ear"></div>
+                <div class="robot-ear right-ear"></div>
+                <div class="robot-face" id="robot-face">
+                    <div class="robot-eye left" id="eye-left"></div>
+                    <div class="robot-eye right" id="eye-right"></div>
+                    <div class="robot-mouth"></div>
+                    <div class="thinking-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="question-mark">?</div>
+                </div>
+            </div>
+            <span class="robot-name">น่าน</span>
+            <div class="robot-arm left-arm" id="left-arm"></div>
+            <div class="robot-arm right-arm" id="right-arm"></div>
+        </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="info-panel">
+        สถานะ: <strong id="mood-display">ปกติ</strong> | รอ 8 วินาทีเพื่อดู Idle Animation
+    </div>
+
+    <!-- External JS -->
+    <script src="avatar_enhanced.js"></script>
+
+    <!-- UI Bindings -->
+    <script>
+        document.querySelectorAll('.mood-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mood = btn.dataset.mood;
+
+                // First, stop any speaking animation
+                if (NanAvatar.mouth) {
+                    NanAvatar.mouth.classList.remove('speaking');
+                }
+
+                // Set the new mood
+                NanAvatar.setMood(mood);
+
+                // Update active state
+                document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Update display
+                document.getElementById('mood-display').textContent = btn.textContent;
+
+                // Enable speaking mouth animation only for speaking mood
+                if (mood === 'speaking' && NanAvatar.mouth) {
+                    NanAvatar.mouth.classList.add('speaking');
+                }
+
+                console.log(`🎯 Button clicked: ${mood}`);
+            });
+        });
+
+        // ==========================================
+        // SKIN SELECTOR
+        // ==========================================
+        const SKINS = {
+            NanRobot: {
+                normal: { eye: '#40c4ff', accent: '#00e5ff', glow: 'rgba(64, 196, 255, 0.5)' },
+                speaking: { eye: '#4ade80', accent: '#22c55e', glow: 'rgba(74, 222, 128, 0.6)' },
+                thinking: { eye: '#fbbf24', accent: '#f59e0b', glow: 'rgba(251, 191, 36, 0.5)' },
+                listening: { eye: '#f472b6', accent: '#ec4899', glow: 'rgba(244, 114, 182, 0.5)' },
+                happy: { eye: '#34d399', accent: '#10b981', glow: 'rgba(52, 211, 153, 0.6)' },
+                curious: { eye: '#a78bfa', accent: '#8b5cf6', glow: 'rgba(167, 139, 250, 0.5)' },
+                sleepy: { eye: '#64748b', accent: '#475569', glow: 'rgba(100, 116, 139, 0.3)' }
+            },
+            GoldenNan: {
+                normal: { eye: '#ffd700', accent: '#ffb800', glow: 'rgba(255, 215, 0, 0.5)' },
+                speaking: { eye: '#ffe066', accent: '#ffc107', glow: 'rgba(255, 193, 7, 0.6)' },
+                thinking: { eye: '#f0c14b', accent: '#d4a017', glow: 'rgba(212, 160, 23, 0.5)' },
+                listening: { eye: '#ffdf6f', accent: '#e6b800', glow: 'rgba(230, 184, 0, 0.5)' },
+                happy: { eye: '#fff176', accent: '#fdd835', glow: 'rgba(253, 216, 53, 0.6)' },
+                curious: { eye: '#ffcc80', accent: '#ffa726', glow: 'rgba(255, 167, 38, 0.5)' },
+                sleepy: { eye: '#c9a227', accent: '#9a7b0a', glow: 'rgba(154, 123, 10, 0.3)' }
+            },
+            NightNan: {
+                normal: { eye: '#8b9dc3', accent: '#6a7fdb', glow: 'rgba(106, 127, 219, 0.5)' },
+                speaking: { eye: '#a8c0ff', accent: '#8fadff', glow: 'rgba(143, 173, 255, 0.6)' },
+                thinking: { eye: '#c4b7ff', accent: '#9d8cff', glow: 'rgba(157, 140, 255, 0.5)' },
+                listening: { eye: '#e0b3ff', accent: '#c87dff', glow: 'rgba(200, 125, 255, 0.5)' },
+                happy: { eye: '#b8d4ff', accent: '#96c3ff', glow: 'rgba(150, 195, 255, 0.6)' },
+                curious: { eye: '#dbb3ff', accent: '#bb8cff', glow: 'rgba(187, 140, 255, 0.5)' },
+                sleepy: { eye: '#5c6378', accent: '#3d4555', glow: 'rgba(61, 69, 85, 0.3)' }
+            },
+            SakuraNan: {
+                normal: { eye: '#ffb6c1', accent: '#ff91a4', glow: 'rgba(255, 182, 193, 0.5)' },
+                speaking: { eye: '#ffc1cc', accent: '#ff8fa3', glow: 'rgba(255, 143, 163, 0.6)' },
+                thinking: { eye: '#e8b4d8', accent: '#d18ec4', glow: 'rgba(209, 142, 196, 0.5)' },
+                listening: { eye: '#ffaec9', accent: '#ff85a1', glow: 'rgba(255, 133, 161, 0.5)' },
+                happy: { eye: '#ffd1dc', accent: '#ffb3c6', glow: 'rgba(255, 179, 198, 0.6)' },
+                curious: { eye: '#e8a4c4', accent: '#d77fa1', glow: 'rgba(215, 127, 161, 0.5)' },
+                sleepy: { eye: '#b8a0a8', accent: '#8f7880', glow: 'rgba(143, 120, 128, 0.3)' }
+            },
+            CyberNan: {
+                normal: { eye: '#00ffff', accent: '#ff00ff', glow: 'rgba(0, 255, 255, 0.7)' },
+                speaking: { eye: '#00ff9f', accent: '#00ffff', glow: 'rgba(0, 255, 159, 0.7)' },
+                thinking: { eye: '#ff00ff', accent: '#bf00ff', glow: 'rgba(255, 0, 255, 0.6)' },
+                listening: { eye: '#ff3366', accent: '#ff0055', glow: 'rgba(255, 51, 102, 0.6)' },
+                happy: { eye: '#39ff14', accent: '#00ff00', glow: 'rgba(57, 255, 20, 0.7)' },
+                curious: { eye: '#ffff00', accent: '#ff9900', glow: 'rgba(255, 255, 0, 0.6)' },
+                sleepy: { eye: '#4a5568', accent: '#2d3748', glow: 'rgba(74, 85, 104, 0.4)' }
+            },
+            ForestNan: {
+                normal: { eye: '#4ade80', accent: '#22c55e', glow: 'rgba(74, 222, 128, 0.5)' },
+                speaking: { eye: '#86efac', accent: '#4ade80', glow: 'rgba(134, 239, 172, 0.6)' },
+                thinking: { eye: '#a3e635', accent: '#84cc16', glow: 'rgba(163, 230, 53, 0.5)' },
+                listening: { eye: '#6ee7b7', accent: '#34d399', glow: 'rgba(110, 231, 183, 0.5)' },
+                happy: { eye: '#bef264', accent: '#a3e635', glow: 'rgba(190, 242, 100, 0.6)' },
+                curious: { eye: '#fde047', accent: '#facc15', glow: 'rgba(253, 224, 71, 0.5)' },
+                sleepy: { eye: '#6b7280', accent: '#4b5563', glow: 'rgba(107, 114, 128, 0.3)' }
+            },
+            OceanNan: {
+                normal: { eye: '#38bdf8', accent: '#0ea5e9', glow: 'rgba(56, 189, 248, 0.5)' },
+                speaking: { eye: '#7dd3fc', accent: '#38bdf8', glow: 'rgba(125, 211, 252, 0.6)' },
+                thinking: { eye: '#22d3ee', accent: '#06b6d4', glow: 'rgba(34, 211, 238, 0.5)' },
+                listening: { eye: '#67e8f9', accent: '#22d3ee', glow: 'rgba(103, 232, 249, 0.5)' },
+                happy: { eye: '#a5f3fc', accent: '#67e8f9', glow: 'rgba(165, 243, 252, 0.6)' },
+                curious: { eye: '#c4b5fd', accent: '#a78bfa', glow: 'rgba(196, 181, 253, 0.5)' },
+                sleepy: { eye: '#64748b', accent: '#475569', glow: 'rgba(100, 116, 139, 0.3)' }
+            },
+            SunsetNan: {
+                normal: { eye: '#fb923c', accent: '#f97316', glow: 'rgba(251, 146, 60, 0.5)' },
+                speaking: { eye: '#fdba74', accent: '#fb923c', glow: 'rgba(253, 186, 116, 0.6)' },
+                thinking: { eye: '#c084fc', accent: '#a855f7', glow: 'rgba(192, 132, 252, 0.5)' },
+                listening: { eye: '#f472b6', accent: '#ec4899', glow: 'rgba(244, 114, 182, 0.5)' },
+                happy: { eye: '#fcd34d', accent: '#fbbf24', glow: 'rgba(252, 211, 77, 0.6)' },
+                curious: { eye: '#e879f9', accent: '#d946ef', glow: 'rgba(232, 121, 249, 0.5)' },
+                sleepy: { eye: '#78716c', accent: '#57534e', glow: 'rgba(120, 113, 108, 0.3)' }
+            },
+            FestivalNan: {
+                normal: { eye: '#f43f5e', accent: '#e11d48', glow: 'rgba(244, 63, 94, 0.6)' },
+                speaking: { eye: '#8b5cf6', accent: '#7c3aed', glow: 'rgba(139, 92, 246, 0.6)' },
+                thinking: { eye: '#06b6d4', accent: '#0891b2', glow: 'rgba(6, 182, 212, 0.6)' },
+                listening: { eye: '#10b981', accent: '#059669', glow: 'rgba(16, 185, 129, 0.6)' },
+                happy: { eye: '#eab308', accent: '#ca8a04', glow: 'rgba(234, 179, 8, 0.7)' },
+                curious: { eye: '#ec4899', accent: '#db2777', glow: 'rgba(236, 72, 153, 0.6)' },
+                sleepy: { eye: '#6b7280', accent: '#4b5563', glow: 'rgba(107, 114, 128, 0.3)' }
+            }
+        };
+
+        let currentSkin = 'NanRobot';
+        NanAvatar.moodColors = SKINS[currentSkin];
+
+        document.querySelectorAll('.skin-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const skinName = btn.dataset.skin;
+
+                if (SKINS[skinName]) {
+                    currentSkin = skinName;
+                    NanAvatar.moodColors = SKINS[skinName];
+
+                    // Re-apply current mood with new skin colors
+                    NanAvatar.setMood(NanAvatar.currentMood);
+
+                    // Update active state
+                    document.querySelectorAll('.skin-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    console.log(`🎭 Skin changed to: ${skinName}`);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

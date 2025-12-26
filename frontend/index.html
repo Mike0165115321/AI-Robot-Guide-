@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="th">
+<!--
+    # AI Robot Guide - น้องน่าน
+    หน้าหลัก Avatar + Chat
+    Vanilla JS ES6+ / No Frameworks
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="น้องน่าน - AI Guide ประจำจังหวัดน่าน">
+
+    <title>น้องน่าน - AI Robot Guide จังหวัดน่าน</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+
+    <!-- GSAP for animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+</head>
+
+<body>
+
+    <!-- Main App Container -->
+    <div id="app" class="app-split">
+
+        <!-- Left: Avatar Section -->
+        <main class="main-content flex items-center justify-center">
+            <div id="avatar-container">
+                <!-- Avatar จะถูก load เข้ามาที่นี่ -->
+                <p class="text-muted">กำลังโหลด Avatar...</p>
+            </div>
+        </main>
+
+        <!-- Right: Chat Sidebar -->
+        <aside class="sidebar">
+            <header class="sidebar-header">
+                <h2 class="text-primary">💬 พูดคุยกับน้องน่าน</h2>
+            </header>
+
+            <div id="chat-box" class="sidebar-content chat-container">
+                <div id="chat-messages" class="chat-messages">
+                    <!-- Chat messages จะถูกเพิ่มที่นี่ -->
+                </div>
+            </div>
+
+            <footer class="sidebar-footer">
+                <div class="chat-input-container">
+                    <input type="text" id="chat-input" class="input" placeholder="พิมพ์ข้อความ..." autocomplete="off">
+                    <button id="btn-send" class="btn btn-primary btn-icon" title="ส่ง">
+                        📤
+                    </button>
+                    <button id="btn-voice" class="btn btn-secondary btn-icon" title="พูด">
+                        🎤
+                    </button>
+                </div>
+            </footer>
+        </aside>
+
+    </div>
+
+    <!-- Control Panel (Dev) -->
+    <div id="dev-panel" class="card" style="position: fixed; bottom: 20px; left: 20px; z-index: 100;">
+        <p class="text-muted" style="font-size: 12px; margin-bottom: 8px;">🛠️ Dev Controls</p>
+        <div class="flex gap-2 flex-wrap">
+            <button class="btn btn-ghost btn-sm" data-mood="normal">😊 ปกติ</button>
+            <button class="btn btn-ghost btn-sm" data-mood="speaking">🗣️ พูด</button>
+            <button class="btn btn-ghost btn-sm" data-mood="thinking">🤔 คิด</button>
+            <button class="btn btn-ghost btn-sm" data-mood="listening">👂 ฟัง</button>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script type="module" src="js/app.js"></script>
+</body>
+
+</html>
