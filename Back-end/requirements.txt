@@ -30,7 +30,10 @@ requests==2.32.5
 schedule==1.2.2
 sentence-transformers==5.1.2
 torch==2.8.0
-uvicorn==0.35.0
+uvicorn
+pyjwt
+passlib
+bcrypt==0.35.0
 websockets==15.0.1
 yt-dlp==2025.11.12
 
@@ -38,3 +41,8 @@ yt-dlp==2025.11.12
 gnews>=0.3.7
 ddgs>=6.0.0
 apscheduler>=3.10.0
+beautifulsoup4>=4.12.0
+lxml>=5.1.0
+newspaper3k>=0.2.8
+lxml_html_clean>=0.1.0
+newspaper3k>=0.2.8

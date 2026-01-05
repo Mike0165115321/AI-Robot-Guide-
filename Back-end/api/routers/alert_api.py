@@ -125,8 +125,10 @@ async def send_test_alert(request: TestAlertRequest):
         "lat": request.lat,
         "lon": request.lon,
         "valid_until": datetime.now(timezone.utc).isoformat(),
-        "action_recommendation": "info_only",
-        "original_source": "test"
+        # Improved Mock Data
+        "action_recommendation": "โปรดหลีกเลี่ยงเส้นทางดังกล่าวและขับขี่ด้วยความระมัดระวัง" if request.severity >= 3 else "ติดตามข่าวสารอย่างใกล้ชิด",
+        "original_source": "Test System",
+        "original_body": f"รายงานเหตุการณ์: {request.summary} บริเวณ {request.location_name or 'พื้นที่จังหวัดน่าน'} เจ้าหน้าที่กำลังเร่งดำเนินการตรวจสอบและแก้ไข ขอให้ประชาชนในพื้นที่โปรดระมัดระวัง"
     }
     
     await alert_manager.broadcast_alert(test_alert)
@@ -197,7 +199,7 @@ async def get_alerts_from_db(limit: int = 50, min_severity: int = 1, skip: int =
     try:
         from core.services.alert_storage_service import alert_storage_service
         
-        alerts = await alert_storage_service.get_recent_alerts(
+        alerts, total_count = await alert_storage_service.get_recent_alerts(
             limit=limit,
             min_severity=min_severity,
             skip=skip
@@ -206,6 +208,7 @@ async def get_alerts_from_db(limit: int = 50, min_severity: int = 1, skip: int =
         return {
             "success": True,
             "count": len(alerts),
+            "total": total_count,
             "alerts": alerts
         }
     except Exception as e:

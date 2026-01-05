@@ -16,6 +16,8 @@ from core.document_processor import DocumentProcessor
 from ..dependencies import get_mongo_manager, get_qdrant_manager, get_analytics_service
 from core.services.analytics_service import AnalyticsService
 from core.services.image_sync_service import ImageSyncService
+from api.routers.auth_api import get_current_user
+from core.database.admin_logger import log_admin_action
 
 router = APIRouter(tags=["Admin"])
 
@@ -39,7 +41,8 @@ def _find_first_image_for_prefix(prefix: str) -> str | None:
 @router.post("/locations/upload-image/", tags=["Admin :: Image Upload"])
 async def upload_location_image(
     image_prefix: str = Query(..., description="Prefix ที่ตรงกับ 'slug' ของสถานที่"),
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    user=Depends(get_current_user)
 ):
     if not image_prefix.strip():
         raise HTTPException(status_code=400, detail="Image Prefix (slug) is required.")
@@ -81,7 +84,8 @@ async def upload_location_image(
 
 @router.post("/sync-images", tags=["Admin :: Image Sync"])
 async def sync_images(
-    db: MongoDBManager = Depends(get_mongo_manager)
+    db: MongoDBManager = Depends(get_mongo_manager),
+    user=Depends(get_current_user)
 ):
     """
     🔄 สแกนไฟล์รูปภาพจาก /static/images/ และซิงค์ข้อมูลลง MongoDB
@@ -206,7 +210,8 @@ async def get_available_fields(
 async def create_location(
     location_data: LocationBase,
     db: MongoDBManager = Depends(get_mongo_manager),
-    vector_db: QdrantManager = Depends(get_qdrant_manager)
+    vector_db: QdrantManager = Depends(get_qdrant_manager),
+    user=Depends(get_current_user)
 ):
     logging.info(f"กำลังพยายามสร้างสถานที่ใหม่ด้วย Slug: {location_data.slug}")
     try:
@@ -237,6 +242,15 @@ async def create_location(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create location in database: {e}"
         )
+    
+    # Audit Log
+    log_admin_action(
+        user_username=user.username,
+        action="CREATE_LOCATION",
+        target_slug=location_data.slug,
+        details=location_data.model_dump()
+    )
+
     # 🔄 [SYNC] MongoDB -> Qdrant (Create)
     # ส่วนนี้คือการนำข้อมูลที่เพิ่งสร้างใน MongoDB ไปสร้าง Vector ลง Qdrant ทันที
     # เพื่อให้สามารถค้นหาแบบ Semantic Search ได้ทันทีโดยไม่ต้องรอ Sync รอบใหญ่
@@ -392,7 +406,8 @@ async def update_location_by_slug(
     slug: str,
     location_update: LocationBase,
     db: MongoDBManager = Depends(get_mongo_manager),
-    vector_db: QdrantManager = Depends(get_qdrant_manager)
+    vector_db: QdrantManager = Depends(get_qdrant_manager),
+    user=Depends(get_current_user)
 ):
     logging.info(f"กำลังพยายามอัปเดตสถานที่ด้วย Slug: {slug}")
     if location_update.slug != slug:
@@ -400,6 +415,10 @@ async def update_location_by_slug(
                             detail="Slug in URL parameter does not match slug in request body.")
     update_data = location_update.model_dump(exclude_unset=True)
     logging.debug(f"ข้อมูลอัปเดตสำหรับ Slug '{slug}': {update_data}")
+    
+    # Fetch old data for audit log (Audit diff could be implemented here)
+    old_data = await asyncio.to_thread(db.get_location_by_slug, slug)
+
     mongo_id = None
     updated_location = None
     try:
@@ -425,6 +444,15 @@ async def update_location_by_slug(
         updated_model = LocationInDB(**updated_location, preview_image_url=preview_url)
         
         mongo_id = str(updated_model.mongo_id)
+
+        # Audit Log
+        log_admin_action(
+            user_username=user.username,
+            action="UPDATE_LOCATION",
+            target_slug=slug,
+            details={"update_data": update_data, "old_summary": old_data.get("summary") if old_data else None}
+        )
+
         # 🔄 [SYNC] MongoDB -> Qdrant (Update)
         # ส่วนนี้คือการอัปเดตข้อมูล Vector ใน Qdrant เมื่อมีการแก้ไขข้อมูลใน MongoDB
         # เช่น ถ้ามีการแก้ชื่อ หรือสรุปข้อมูล ก็ต้องอัปเดต Vector ใหม่ด้วย เพื่อให้ผลการค้นหายังคงถูกต้อง
@@ -474,7 +502,8 @@ async def update_location_by_slug(
 async def delete_location_by_slug(
     slug: str,
     db: MongoDBManager = Depends(get_mongo_manager),
-    vector_db: QdrantManager = Depends(get_qdrant_manager)
+    vector_db: QdrantManager = Depends(get_qdrant_manager),
+    user=Depends(get_current_user)
 ):
     logging.info(f"กำลังพยายามลบสถานที่ด้วย Slug: {slug}")
     mongo_id = None
@@ -504,6 +533,13 @@ async def delete_location_by_slug(
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                                 detail=f"Location {slug} found but could not be deleted from MongoDB.")
         logging.info(f"✅ ลบสถานที่ {slug} (mongo_id: {mongo_id}) ออกจาก MongoDB สำเร็จ")
+        
+        # Audit Log
+        log_admin_action(
+            user_username=user.username,
+            action="DELETE_LOCATION",
+            target_slug=slug
+        )
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:

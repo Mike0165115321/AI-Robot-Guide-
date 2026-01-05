@@ -27,40 +27,8 @@
 <body class="page-with-navbar">
 
     <!-- NAVBAR -->
-    <nav class="navbar">
-        <a href="index.html" class="navbar-brand">
-            🤖 น้องน่าน
-        </a>
-
-        <button class="navbar-toggle" id="navbar-toggle" aria-label="Toggle menu">
-            ☰
-        </button>
-
-        <div class="navbar-menu" id="navbar-menu">
-            <a href="index.html" class="navbar-link">
-                <span class="icon">🏠</span>
-                <span>หน้าหลัก</span>
-            </a>
-            <a href="places.html" class="navbar-link active">
-                <span class="icon">📍</span>
-                <span>สถานที่</span>
-            </a>
-            <a href="chat.html" class="navbar-link">
-                <span class="icon">💬</span>
-                <span>พูดคุย</span>
-            </a>
-            <a href="about.html" class="navbar-link">
-                <span class="icon">ℹ️</span>
-                <span>เกี่ยวกับ</span>
-            </a>
-        </div>
-
-        <div class="navbar-actions">
-            <button class="navbar-settings" id="btn-settings" title="ตั้งค่า">
-                ⚙️
-            </button>
-        </div>
-    </nav>
+    <!-- NAVBAR -->
+    <div id="navbar-container"></div>
 
     <!-- HEADER -->
     <header class="page-header">
@@ -87,125 +55,51 @@
 
     <!-- PLACES GRID -->
     <main class="places-grid" id="places-grid">
-        <!-- Places จะถูก render ที่นี่ -->
-
-        <!-- Sample Cards (จะแทนที่ด้วยข้อมูลจริงจาก API) -->
-        <article class="place-card">
-            <div class="place-card-image">🏛️</div>
-            <div class="place-card-content">
-                <span class="place-card-category">วัด</span>
-                <h3 class="place-card-title">วัดภูมินทร์</h3>
-                <p class="place-card-desc">วัดเก่าแก่ที่มีภาพจิตรกรรมฝาผนัง "ปู่ม่าน ญ่าม่าน" ที่โด่งดัง</p>
-            </div>
-            <div class="place-card-footer">
-                <span class="place-card-location">📍 อ.เมือง</span>
-                <span class="place-card-rating">⭐ 4.8</span>
-            </div>
-        </article>
-
-        <article class="place-card">
-            <div class="place-card-image">🌄</div>
-            <div class="place-card-content">
-                <span class="place-card-category">ธรรมชาติ</span>
-                <h3 class="place-card-title">ดอยเสมอดาว</h3>
-                <p class="place-card-desc">จุดชมทะเลหมอกที่สวยที่สุดในน่าน</p>
-            </div>
-            <div class="place-card-footer">
-                <span class="place-card-location">📍 อ.นาน้อย</span>
-                <span class="place-card-rating">⭐ 4.9</span>
-            </div>
-        </article>
-
-        <article class="place-card">
-            <div class="place-card-image">🍜</div>
-            <div class="place-card-content">
-                <span class="place-card-category">อาหาร</span>
-                <h3 class="place-card-title">ถนนคนเดินน่าน</h3>
-                <p class="place-card-desc">ตลาดอาหารท้องถิ่นและของฝากมากมาย</p>
-            </div>
-            <div class="place-card-footer">
-                <span class="place-card-location">📍 อ.เมือง</span>
-                <span class="place-card-rating">⭐ 4.5</span>
-            </div>
-        </article>
-
-        <article class="place-card">
-            <div class="place-card-image">🏛️</div>
-            <div class="place-card-content">
-                <span class="place-card-category">วัด</span>
-                <h3 class="place-card-title">วัดพระธาตุแช่แห้ง</h3>
-                <p class="place-card-desc">พระธาตุประจำปีเกิดปีเถาะ</p>
-            </div>
-            <div class="place-card-footer">
-                <span class="place-card-location">📍 อ.เมือง</span>
-                <span class="place-card-rating">⭐ 4.7</span>
-            </div>
-        </article>
-
-        <article class="place-card">
-            <div class="place-card-image">🚤</div>
-            <div class="place-card-content">
-                <span class="place-card-category">ธรรมชาติ</span>
-                <h3 class="place-card-title">แก่งหลวง</h3>
-                <p class="place-card-desc">ล่องแก่งกลางผืนป่าอันสวยงาม</p>
-            </div>
-            <div class="place-card-footer">
-                <span class="place-card-location">📍 อ.เวียงสา</span>
-                <span class="place-card-rating">⭐ 4.6</span>
-            </div>
-        </article>
-
-        <article class="place-card">
-            <div class="place-card-image">🏨</div>
-            <div class="place-card-content">
-                <span class="place-card-category">ที่พัก</span>
-                <h3 class="place-card-title">บ้านมณีพฤกษ์</h3>
-                <p class="place-card-desc">ที่พักสไตล์ล้านนากลางธรรมชาติ</p>
-            </div>
-            <div class="place-card-footer">
-                <span class="place-card-location">📍 อ.ปัว</span>
-                <span class="place-card-rating">⭐ 4.8</span>
-            </div>
-        </article>
-
+        <div class="loading-state" style="grid-column:1/-1;text-align:center;padding:50px;">
+            <div class="spinner"></div>
+            <p>กำลังโหลดข้อมูลสถานที่... ⏳</p>
+        </div>
     </main>
 
+    <!-- PLACE DETAIL MODAL -->
+    <div id="place-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close">&times;</button>
+            <div class="modal-body">
+                <div class="modal-image-container" id="modal-image"></div>
+                <div class="modal-info-container">
+                    <div class="modal-header">
+                        <span class="modal-category" id="modal-category"></span>
+                        <h2 class="modal-title" id="modal-title"></h2>
+                    </div>
+                    <p class="modal-desc" id="modal-desc"></p>
+                    <div class="modal-footer">
+                        <span class="modal-location" id="modal-location"></span>
+
+                        <div class="modal-controls" style="display:flex;gap:10px;width:100%;">
+                            <button id="modal-prev-btn" class="btn btn-secondary" style="flex:1;">⬅️ ก่อนหน้า</button>
+                            <button id="modal-next-btn" class="btn btn-secondary" style="flex:1;">ถัดไป ➡️</button>
+                        </div>
+
+                        <div style="display:flex;gap:10px;width:100%;margin-top:10px;">
+                            <button class="modal-close-btn btn btn-ghost" style="flex:1;">🔙 ย้อนกลับ</button>
+                            <button id="modal-nav-btn" class="btn btn-primary btn-lg btn-navigate-large"
+                                style="flex:2;">
+                                🧭 นำทางไปที่นี่
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript -->
+    <script type="module" src="./js/places_app.js"></script>
     <script type="module">
-        import { $, $$, on, delegate } from './js/utils/dom.js';
+        console.log('📍 หน้าสถานที่ Init');
+    </script>
 
-        // Navbar Toggle (Mobile)
-        const toggle = $('#navbar-toggle');
-        const menu = $('#navbar-menu');
-
-        if (toggle && menu) {
-            on(toggle, 'click', () => {
-                menu.classList.toggle('open');
-            });
-        }
-
-        // Category Filter
-        delegate(document.body, 'click', '.category-btn', (e, target) => {
-            $$('.category-btn').forEach(btn => btn.classList.remove('active'));
-            target.classList.add('active');
-
-            const category = target.dataset.category;
-            console.log('Filter:', category);
-            // TODO: Filter places
-        });
-
-        // Search
-        const searchInput = $('#search-input');
-        if (searchInput) {
-            on(searchInput, 'input', (e) => {
-                const query = e.target.value;
-                console.log('Search:', query);
-                // TODO: Search places
-            });
-        }
-
-        // Init
-        console.log('📍 หน้าสถานที่');
     </script>
 </body>
 

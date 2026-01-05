@@ -54,13 +54,13 @@ class Settings:
     WAQI_API_KEY: str | None = os.getenv("WAQI_API_KEY")  # World Air Quality Index
 
     API_HOST: str = os.getenv("API_HOST", "127.0.0.1")
-    API_PORT: int = int(os.getenv("API_PORT", 9090))
+    API_PORT: int = int(os.getenv("API_PORT", 8014))
 
     # Path Configuration (Computed relative to this file: Back-end/core/config.py)
     # config.py is in Back-end/core, so parent.parent.parent is the root
     from pathlib import Path
     PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent.parent
-    FRONTEND_DIR: Path = PROJECT_ROOT / "apps" / "web-cloud"
+    FRONTEND_DIR: Path = PROJECT_ROOT / "frontend"
     IMG_DIR: Path = PROJECT_ROOT / "Back-end" / "static" / "images"
 
 settings = Settings()

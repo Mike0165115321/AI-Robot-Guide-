@@ -27,40 +27,7 @@
 <body class="page-with-navbar">
 
     <!-- NAVBAR -->
-    <nav class="navbar">
-        <a href="index.html" class="navbar-brand">
-            🤖 น้องน่าน
-        </a>
-
-        <button class="navbar-toggle" id="navbar-toggle" aria-label="Toggle menu">
-            ☰
-        </button>
-
-        <div class="navbar-menu" id="navbar-menu">
-            <a href="index.html" class="navbar-link">
-                <span class="icon">🏠</span>
-                <span>หน้าหลัก</span>
-            </a>
-            <a href="places.html" class="navbar-link">
-                <span class="icon">📍</span>
-                <span>สถานที่</span>
-            </a>
-            <a href="chat.html" class="navbar-link active">
-                <span class="icon">💬</span>
-                <span>พูดคุย</span>
-            </a>
-            <a href="about.html" class="navbar-link">
-                <span class="icon">ℹ️</span>
-                <span>เกี่ยวกับ</span>
-            </a>
-        </div>
-
-        <div class="navbar-actions">
-            <button class="navbar-settings" id="btn-settings" title="ตั้งค่า">
-                ⚙️
-            </button>
-        </div>
-    </nav>
+    <div id="navbar-container"></div>
 
     <!-- CHAT PAGE -->
     <main class="chat-page">
@@ -116,22 +83,16 @@
     <script type="module">
         import { $, on } from './js/utils/dom.js';
         import { api } from './js/api/client.js';
+        import { renderNavbar } from './js/components/Navbar.js';
+
+        // Init Navbar
+        renderNavbar('navbar-container', 'chat');
 
         // State
         let isListening = false;
 
         // Elements
         const messagesContainer = $('#chat-messages');
-        const chatInput = $('#chat-input');
-        const btnSend = $('#btn-send');
-        const btnVoice = $('#btn-voice');
-
-        // Navbar Toggle
-        const toggle = $('#navbar-toggle');
-        const menu = $('#navbar-menu');
-        if (toggle && menu) {
-            on(toggle, 'click', () => menu.classList.toggle('open'));
-        }
 
         // Add Message
         function addMessage(text, sender = 'bot') {

@@ -107,7 +107,7 @@ class AlertStorageService:
         limit: int = 50, 
         min_severity: int = 1,
         skip: int = 0
-    ) -> List[Dict]:
+    ) -> tuple[List[Dict], int]:
         """
         ดึง alerts ล่าสุด
         
@@ -119,6 +119,10 @@ class AlertStorageService:
         try:
             collection = await self._get_collection()
             
+            total_count = collection.count_documents(
+                {"severity_score": {"$gte": min_severity}}
+            )
+            
             cursor = collection.find(
                 {"severity_score": {"$gte": min_severity}}
             ).sort("created_at", -1).skip(skip).limit(limit)
@@ -128,7 +132,7 @@ class AlertStorageService:
                 doc["_id"] = str(doc["_id"])
                 alerts.append(doc)
             
-            return alerts
+            return alerts, total_count
             
         except Exception as e:
             logger.error(f"❌ [AlertStorage] ดึง alerts ล้มเหลว: {e}")

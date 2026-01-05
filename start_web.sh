@@ -42,9 +42,9 @@ elif [ -d "Back-end/venv" ]; then
 fi
 
 # 3. Start Python Backend
-echo -e "\n${GREEN}🐍 Starting Python Backend (port 9090)...${NC}"
+echo -e "\n${GREEN}🐍 Starting Python Backend (port 8014)...${NC}"
 cd Back-end
-python3 -m uvicorn api.main:app --host 0.0.0.0 --port 9090 --reload &
+python3 -m uvicorn api.main:app --host 0.0.0.0 --port 8014 --reload &
 BACKEND_PID=$!
 cd ..
 
@@ -54,9 +54,9 @@ sleep 3
 echo -e "\n${BLUE}══════════════════════════════════════════════════════════${NC}"
 echo -e "${BLUE}    ✅ Web Development Mode Ready!${NC}"
 echo -e "${BLUE}══════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}📍 Frontend:  ${NC}http://localhost:9090"
-echo -e "${GREEN}📍 API Docs:  ${NC}http://localhost:9090/docs"
-echo -e "${GREEN}📍 Admin:     ${NC}http://localhost:9090/admin"
+echo -e "${GREEN}📍 Frontend:  ${NC}http://localhost:8014"
+echo -e "${GREEN}📍 API Docs:  ${NC}http://localhost:8014/docs"
+echo -e "${GREEN}📍 Admin:     ${NC}http://localhost:8014/admin"
 echo -e "${BLUE}══════════════════════════════════════════════════════════${NC}"
 echo -e "${YELLOW}Press Ctrl+C to stop${NC}"
 

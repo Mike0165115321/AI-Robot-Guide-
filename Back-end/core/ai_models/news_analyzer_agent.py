@@ -102,6 +102,7 @@ severity_score: 1=ทั่วไป, 2=น่าสนใจ, 3=สำคัญ
             if result and result.get("is_relevant", False):
                 # เพิ่มข้อมูลต้นฉบับ
                 result["original_title"] = news_item.get("title", "")
+                result["original_body"] = news_item.get("body", "")
                 result["original_url"] = news_item.get("url", "")
                 result["original_source"] = news_item.get("source", "")
                 result["analyzed_at"] = datetime.now(timezone.utc).isoformat()
@@ -228,6 +229,7 @@ severity_score: 1=ทั่วไป, 2=น่าสนใจ, 3=สำคัญ
                 result = {
                     **item,
                     "original_title": original.get("title", ""),
+                    "original_body": original.get("body", ""),
                     "original_url": original.get("url", ""),
                     "original_source": original.get("source", ""),
                     "analyzed_at": now.isoformat(),

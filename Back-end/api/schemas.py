@@ -21,6 +21,7 @@ class LocationBase(BaseModel):
     details: List[Detail] = Field(default_factory=list)
     keywords: List[str] = Field(default_factory=list)
     related_info: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    location_data: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Latitude and Longitude")
     sources: List[SourceItem] = Field(default_factory=list)
     metadata: Optional[AdminLocationMetadata] = None
 
@@ -38,6 +39,7 @@ class LocationAdminSummary(BaseModel):
     category: Optional[str] = None
     topic: Optional[str] = None
     summary: Optional[str] = None
+    location_data: Optional[Dict[str, Any]] = None
     keywords: List[str] = Field(default_factory=list)
     metadata: Optional[AdminLocationMetadata] = None
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, arbitrary_types_allowed=True)

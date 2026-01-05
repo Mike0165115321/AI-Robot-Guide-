@@ -6,8 +6,8 @@ const isLocalDev = window.location.hostname === 'localhost' || window.location.h
 
 // สำหรับ Production: ใช้ same origin (relative URL)
 // สำหรับ Development: ใช้ localhost:9090
-const API_HOST = isLocalDev ? '127.0.0.1' : window.location.hostname;
-const API_PORT = isLocalDev ? 9090 : window.location.port || (window.location.protocol === 'https:' ? 443 : 80);
+const API_HOST = isLocalDev ? 'localhost' : window.location.hostname;
+const API_PORT = isLocalDev ? 8014 : window.location.port || (window.location.protocol === 'https:' ? 443 : 80);
 
 // ถ้า production บน same origin ให้ใช้ '' แทน full URL
 const API_BASE_URL = isLocalDev

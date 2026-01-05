@@ -4,10 +4,10 @@
 
 export const CONFIG = {
     // API Endpoints
-    API_BASE_URL: 'http://localhost:9090/api',
+    API_BASE_URL: 'http://localhost:8014/api',
 
-    // WebSocket
-    WS_URL: 'ws://localhost:9090/ws',
+    // WebSocket (Base URL)
+    WS_URL: 'ws://localhost:8014/api',
 
     // Avatar
     AVATAR_PATH: '../avatar/',

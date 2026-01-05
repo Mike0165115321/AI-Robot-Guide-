@@ -182,7 +182,7 @@ async function deleteLocation(slug, silent = false) {
     if (!silent && !confirm(`คุณแน่ใจหรือไม่ว่าจะลบรายการ "${slug}"?`)) return false;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/locations/${slug}`, { method: 'DELETE' });
+        const response = await fetch(`${API_BASE_URL}/api/admin/locations/${slug}`, { method: 'DELETE', credentials: 'include' });
         if (response.status === 204) {
             if (!silent) {
                 alert(`ลบข้อมูล "${slug}" เรียบร้อยแล้ว!`);
@@ -461,7 +461,8 @@ async function handleAddLocationSubmit(event) {
         try {
             const imageResponseQuery = await fetch(`${API_BASE_URL}/api/admin/locations/upload-image/?image_prefix=${slug}`, {
                 method: 'POST',
-                body: imageFormData
+                body: imageFormData,
+                credentials: 'include'
             });
 
             if (!imageResponseQuery.ok) {
@@ -514,7 +515,8 @@ async function handleAddLocationSubmit(event) {
         const response = await fetch(`${API_BASE_URL}/api/admin/locations/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newLocationData)
+            body: JSON.stringify(newLocationData),
+            credentials: 'include'
         });
         if (response.status === 201 || response.ok) {
             alert('เพิ่มข้อมูลสถานที่เรียบร้อยแล้ว!');
@@ -571,7 +573,8 @@ async function handleEditFormSubmit(event) {
         try {
             const imageResponse = await fetch(`${API_BASE_URL}/api/admin/locations/upload-image/?image_prefix=${slug}`, {
                 method: 'POST',
-                body: imageFormData
+                body: imageFormData,
+                credentials: 'include'
             });
 
             if (!imageResponse.ok) {
@@ -626,7 +629,8 @@ async function handleEditFormSubmit(event) {
         const response = await fetch(`${API_BASE_URL}/api/admin/locations/${slug}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedData)
+            body: JSON.stringify(updatedData),
+            credentials: 'include'
         });
         if (response.ok) {
             alert(`อัปเดตข้อมูล "${slug}" เรียบร้อยแล้ว!`);
@@ -654,7 +658,27 @@ async function handleEditFormSubmit(event) {
 //  EVENT LISTENERS
 // ==========================================================
 
+// API_BASE_URL is set globally by config.js (loaded before this script)
+
+/* [Auth Guard] - Verify Session via Cookie */
+async function verifySession() {
+    if (window.location.pathname.includes('login.html')) return;
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/auth/me`, { credentials: 'include' });
+        if (!response.ok) {
+            console.warn("Unauthorized access. Redirecting to login.");
+            window.location.href = 'login.html';
+        }
+    } catch (e) {
+        console.error("Auth check failed:", e);
+        window.location.href = 'login.html';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Check Auth immediately
+    verifySession();
+
     locationsTableBody = document.querySelector('#locations-table tbody');
     addLocationForm = document.getElementById('add-location-form');
     editModal = document.getElementById('edit-modal');

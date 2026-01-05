@@ -26,40 +26,8 @@
 <body class="page-with-navbar">
 
     <!-- NAVBAR -->
-    <nav class="navbar">
-        <a href="index.html" class="navbar-brand">
-            🤖 น้องน่าน
-        </a>
-
-        <button class="navbar-toggle" id="navbar-toggle" aria-label="Toggle menu">
-            ☰
-        </button>
-
-        <div class="navbar-menu" id="navbar-menu">
-            <a href="index.html" class="navbar-link">
-                <span class="icon">🏠</span>
-                <span>หน้าหลัก</span>
-            </a>
-            <a href="places.html" class="navbar-link">
-                <span class="icon">📍</span>
-                <span>สถานที่</span>
-            </a>
-            <a href="chat.html" class="navbar-link">
-                <span class="icon">💬</span>
-                <span>พูดคุย</span>
-            </a>
-            <a href="about.html" class="navbar-link active">
-                <span class="icon">ℹ️</span>
-                <span>เกี่ยวกับ</span>
-            </a>
-        </div>
-
-        <div class="navbar-actions">
-            <button class="navbar-settings" id="btn-settings" title="ตั้งค่า">
-                ⚙️
-            </button>
-        </div>
-    </nav>
+    <!-- NAVBAR -->
+    <div id="navbar-container"></div>
 
     <!-- CONTENT -->
     <main class="main-content" style="max-width: 800px; margin: 0 auto;">
@@ -133,13 +101,9 @@
     <!-- JavaScript -->
     <script type="module">
         import { $, on } from './js/utils/dom.js';
+        import { renderNavbar } from './js/components/Navbar.js';
 
-        // Navbar Toggle
-        const toggle = $('#navbar-toggle');
-        const menu = $('#navbar-menu');
-        if (toggle && menu) {
-            on(toggle, 'click', () => menu.classList.toggle('open'));
-        }
+        renderNavbar('navbar-container', 'about');
 
         console.log('ℹ️ หน้าเกี่ยวกับ');
     </script>

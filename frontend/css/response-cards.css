@@ -1,0 +1,59 @@
+/* Response Cards */
+.response-card {
+    background: rgba(30, 41, 59, 0.7);
+    /* Slate-800 with opacity */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 16px;
+    margin-top: 16px;
+    backdrop-filter: blur(10px);
+    color: #e2e8f0;
+    /* Slate-200 */
+}
+
+.response-card h3 {
+    color: #2dd4bf;
+    /* Teal-400 */
+    font-size: 1.25rem;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(45, 212, 191, 0.3);
+    padding-bottom: 8px;
+}
+
+.response-card img {
+    width: 100%;
+    border-radius: 12px;
+    margin-top: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    object-fit: cover;
+    max-height: 200px;
+}
+
+.response-card p {
+    line-height: 1.6;
+    font-size: 0.95rem;
+    color: #cbd5e1;
+    /* Slate-300 */
+}
+
+/* Specific Card Types */
+.card-location .location-meta {
+    display: flex;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-top: 8px;
+}
+
+.card-weather {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.card-weather .temp {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #fbbf24;
+    /* Amber-400 */
+}

@@ -351,8 +351,25 @@
     <div class="bg-grid"></div>
 
     <!-- NAVBAR -->
-    <!-- NAVBAR -->
-    <div id="navbar-container"></div>
+    <nav class="navbar">
+        <a href="index.html" class="navbar-brand">🤖 น้องน่าน</a>
+        <div class="navbar-menu" id="navbar-menu">
+            <a href="index.html" class="navbar-link active"><span class="icon">🏠</span><span>หน้าหลัก</span></a>
+            <a href="places.html" class="navbar-link"><span class="icon">📍</span><span>สถานที่</span></a>
+            <a href="chat.html" class="navbar-link"><span class="icon">💬</span><span>พูดคุย</span></a>
+            <a href="about.html" class="navbar-link"><span class="icon">ℹ️</span><span>เกี่ยวกับ</span></a>
+        </div>
+
+        <!-- Hamburger Dropdown -->
+        <div class="dropdown-wrapper">
+            <button class="navbar-toggle" id="navbar-toggle">☰</button>
+            <div class="dropdown-menu" id="dropdown-menu">
+                <a href="admin/" class="dropdown-item">📊 จัดการข้อมูล</a>
+                <a href="admin/locations.html" class="dropdown-item">🗺️ สถานที่ทั้งหมด</a>
+                <a href="admin/settings.html" class="dropdown-item">⚙️ ตั้งค่าระบบ</a>
+            </div>
+        </div>
+    </nav>
 
     <!-- MAIN -->
     <main class="main-container">

@@ -18,7 +18,7 @@ from core.ai_models.youtube_handler import youtube_handler_instance
 from core.config import settings
 from utils.file_cleaner import start_background_cleanup
 from api.dependencies import get_rag_orchestrator 
-from api.routers import admin_api, chat_api, avatar_api, import_api, sheets_api, analytics_api, line_webhook, alert_api
+from api.routers import admin_api, chat_api, avatar_api, import_api, sheets_api, analytics_api, line_webhook, alert_api, auth_api
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("uvicorn").propagate = False
@@ -109,6 +109,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_api.router) # Auth API
 app.include_router(admin_api.router, prefix="/api/admin") 
 app.include_router(chat_api.router, prefix="/api/chat")   
 app.include_router(avatar_api.router, prefix="/api/avatar")
@@ -198,6 +199,16 @@ if not FRONTEND_DIR.is_dir():
     logging.critical(f"❌ ข้อผิดพลาดร้ายแรง: ไม่พบโฟลเดอร์ frontend ที่ {FRONTEND_DIR}")
 
 app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="assets")
+app.mount("/css", StaticFiles(directory=FRONTEND_DIR / "css"), name="css")
+app.mount("/js", StaticFiles(directory=FRONTEND_DIR / "js"), name="js")
+app.mount("/avatar", StaticFiles(directory=settings.PROJECT_ROOT / "avatar"), name="avatar")
+
+# Mount Admin Assets
+admin_assets_dir = FRONTEND_DIR / "admin" / "assets"
+if admin_assets_dir.is_dir():
+    app.mount("/admin/assets", StaticFiles(directory=admin_assets_dir), name="admin_assets")
+
+
 templates = Jinja2Templates(directory=str(FRONTEND_DIR))
 
 
@@ -207,8 +218,11 @@ async def serve_frontend(request: Request, full_path: str):
     path_map = {
         "": "index.html",
         "chat": "chat.html",
-        "admin": "admin.html",
-        "import": "import.html",
+        "admin": "admin/index.html",
+        "admin/": "admin/index.html",
+        "admin/index.html": "admin/index.html",
+        "admin/admin.html": "admin/index.html", # Alias for legacy link
+        "import": "admin/import.html",
         "robot_avatar": "robot_avatar.html",
         "travel_mode": "travel_mode.html",
         "alerts": "alerts.html"
