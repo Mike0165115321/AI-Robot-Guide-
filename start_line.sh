@@ -14,7 +14,7 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Configuration
-BACKEND_PORT=9090
+BACKEND_PORT=8014
 NGROK_API_URL="http://127.0.0.1:4040/api/tunnels"
 ENV_FILE="Back-end/.env"
 
