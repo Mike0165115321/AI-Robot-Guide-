@@ -106,26 +106,35 @@ class AlertStorageService:
         self, 
         limit: int = 50, 
         min_severity: int = 1,
-        skip: int = 0
+        skip: int = 0,
+        search_query: Optional[str] = None,
+        category: Optional[str] = None
     ) -> tuple[List[Dict], int]:
         """
-        ดึง alerts ล่าสุด
-        
-        Args:
-            limit: จำนวนสูงสุด
-            min_severity: ระดับความสำคัญขั้นต่ำ
-            skip: จำนวนที่ข้าม (สำหรับ pagination)
+        ดึง alerts ล่าสุด พร้อม filter
         """
         try:
             collection = await self._get_collection()
             
-            total_count = collection.count_documents(
-                {"severity_score": {"$gte": min_severity}}
-            )
+            # Base Filter
+            query_filter = {"severity_score": {"$gte": min_severity}}
             
-            cursor = collection.find(
-                {"severity_score": {"$gte": min_severity}}
-            ).sort("created_at", -1).skip(skip).limit(limit)
+            # Search Filter (Regex)
+            if search_query:
+                regex = {"$regex": search_query, "$options": "i"}
+                query_filter["$or"] = [
+                    {"summary": regex},
+                    {"original_body": regex},
+                    {"location_name": regex}
+                ]
+            
+            # Category Filter
+            if category and category != "all":
+                query_filter["category"] = category
+            
+            total_count = collection.count_documents(query_filter)
+            
+            cursor = collection.find(query_filter).sort("created_at", -1).skip(skip).limit(limit)
             
             alerts = []
             for doc in cursor:
@@ -136,7 +145,7 @@ class AlertStorageService:
             
         except Exception as e:
             logger.error(f"❌ [AlertStorage] ดึง alerts ล้มเหลว: {e}")
-            return []
+            return [], 0
     
     async def get_alerts_by_date(
         self, 

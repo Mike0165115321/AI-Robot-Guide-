@@ -241,11 +241,31 @@ export const responseRenderer = {
         let recommendation = data.action_recommendation || 'โปรดระมัดระวังและติดตามข่าวสารอย่างใกล้ชิด';
         if (recommendation === 'info_only') recommendation = 'ติดตามข่าวสารอย่างใกล้ชิด';
 
+        // Determine Header Style based on Severity
+        const severity = data.severity_score || 1;
+        let headerTitle = '📰 ข่าวสาร';
+        let headerColor = '#10b981'; // Green
+        let headerIcon = '📰';
+
+        if (severity >= 4) {
+            headerTitle = '⚠️ แจ้งเตือนภัย';
+            headerColor = '#ef4444'; // Red
+            headerIcon = '⚠️';
+        } else if (severity === 3) {
+            headerTitle = '📢 น่าสนใจ';
+            headerColor = '#f59e0b'; // Yellow/Orange
+            headerIcon = '📢';
+        }
+
+        // Date Handling
+        const dateSource = data.timestamp || data.created_at || Date.now();
+        const timeStr = new Date(dateSource).toLocaleString('th-TH');
+
         return `
             <div class="response-card card-alert-detail">
                 <div style="border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
-                    <h3 style="color:#ef4444;margin:0;">⚠️ แจ้งเตือนภัย</h3>
-                    <span style="font-size:0.8rem;opacity:0.7;">${new Date(data.broadcasted_at || Date.now()).toLocaleString('th-TH')}</span>
+                    <h3 style="color:${headerColor};margin:0;">${headerIcon} ${headerTitle}</h3>
+                    <span style="font-size:0.8rem;opacity:0.7;">${timeStr}</span>
                 </div>
                 
                 <h2 style="font-size:1.2rem;margin-bottom:10px;">${data.summary}</h2>

@@ -177,7 +177,7 @@
 
         /* Walking animation */
         .robot-container.walking {
-            animation: robot-walk 8s ease-in-out infinite;
+            /* animation: robot-walk 8s ease-in-out infinite; */
         }
 
         @keyframes robot-walk {
@@ -204,7 +204,7 @@
 
         /* Roaming animation - more random movement */
         .robot-container.roaming {
-            animation: robot-roam 12s ease-in-out infinite;
+            /* animation: robot-roam 12s ease-in-out infinite; */
         }
 
         @keyframes robot-roam {
@@ -1211,6 +1211,36 @@
             if (data.type === 'changeMood' && data.mood) {
                 NanAvatar.setMood(data.mood);
                 console.log(`😊 [postMessage] Mood changed to: ${data.mood}`);
+            }
+
+            // Trigger Action
+            if (data.type === 'triggerAction' && data.action) {
+                console.log(`🎬 [postMessage] Trigger Action: ${data.action}`);
+                switch (data.action) {
+                    case 'wave': NanAvatar.waveHand(); break;
+                    case 'tilt': NanAvatar.tiltHead(); break;
+                    case 'yawn': NanAvatar.yawn(); break;
+                    case 'nod': NanAvatar.tiltHead(); break; // Fallback
+                    case 'shake': NanAvatar.tiltHead(); break; // Fallback
+                    default: console.warn('Unknown action:', data.action);
+                }
+            }
+
+            // Pause Idle (during TTS playback)
+            if (data.type === 'pauseIdle') {
+                if (NanAvatar.idleTimer) {
+                    clearTimeout(NanAvatar.idleTimer);
+                    NanAvatar.idleTimer = null;
+                }
+                NanAvatar.isIdlePaused = true;
+                console.log('⏸️ [postMessage] Idle behaviors paused');
+            }
+
+            // Resume Idle (after TTS ends)
+            if (data.type === 'resumeIdle') {
+                NanAvatar.isIdlePaused = false;
+                NanAvatar.resetIdleTimer();
+                console.log('▶️ [postMessage] Idle behaviors resumed');
             }
         });
     </script>

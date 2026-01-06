@@ -255,6 +255,39 @@
             color: #9ca3af;
             font-size: 1rem;
         }
+
+        /* Filter Chips Styles */
+        .filter-chips::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .filter-chips::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .filter-chip {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            white-space: nowrap;
+            font-family: 'Kanit', sans-serif;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .filter-chip:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .filter-chip.active {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+        }
     </style>
 </head>
 
@@ -272,6 +305,28 @@
         <p style="color: #9ca3af; font-size: 1.1rem; max-width: 600px; margin: 0 auto;">
             ติดตามสถานการณ์ล่าสุดในจังหวัดน่าน แบบ Real-time</p>
     </header>
+
+    <!-- SEARCH & FILTER BAR -->
+    <section class="filter-section"
+        style="max-width: 1200px; margin: 0 auto; padding: 20px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between;">
+
+        <!-- Search -->
+        <div class="search-container" style="flex: 1; min-width: 300px; position: relative;">
+            <input type="text" id="alert-search" placeholder="🔍 ค้นหาข่าวสาร..."
+                style="width: 100%; padding: 12px 20px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white; font-family: 'Kanit', sans-serif;">
+        </div>
+
+        <!-- Filter Chips -->
+        <div class="filter-chips" id="filter-chips"
+            style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px;">
+            <button class="filter-chip active" data-category="all">ทั้งหมด</button>
+            <button class="filter-chip" data-category="disaster">🚨 ภัยพิบัติ</button>
+            <button class="filter-chip" data-category="health">😷 สุขภาพ</button>
+            <button class="filter-chip" data-category="traffic">🚗 จราจร</button>
+            <button class="filter-chip" data-category="general">📢 ข่าวทั่วไป</button>
+            <button class="filter-chip" data-category="event">🎉 กิจกรรม</button>
+        </div>
+    </section>
 
     <!-- ALERTS GRID -->
     <main class="alerts-grid" id="alerts-grid">

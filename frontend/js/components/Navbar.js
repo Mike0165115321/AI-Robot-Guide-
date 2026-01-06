@@ -29,19 +29,10 @@ export function renderNavbar(containerId = 'navbar-container', activePage = '') 
     ];
 
     // Detect if we are in a subdirectory (like /admin/)
-    // Simple heuristic: count depth or check specific folder
-    // Since we are in frontend/js/components/ imported by file, relative paths depend on the HOSTING page.
-    // If hosting page is /admin/index.html, then 'index.html' means /admin/index.html, which is WRONG for Home.
-    // We need to go up: '../index.html'.
-
-    // Check if we are in /admin/
     const isInAdmin = window.location.pathname.includes('/admin/');
     const prefix = isInAdmin ? '../' : '';
 
     const adjustLink = (link) => {
-        // If we are in Admin, and link is 'admin/index.html', we should just go to './index.html' or 'index.html'
-        // If we are in Admin, and link is 'index.html', we should go to '../index.html'
-
         if (isInAdmin) {
             if (link.startsWith('admin/')) {
                 return link.replace('admin/', '');
@@ -50,6 +41,8 @@ export function renderNavbar(containerId = 'navbar-container', activePage = '') 
         }
         return link;
     };
+
+
 
     const navHtml = `
     <nav class="navbar">
@@ -85,6 +78,8 @@ function initNavbarLogic() {
     const navMenu = document.getElementById('navbar-menu');
     const dropMenu = document.getElementById('dropdown-menu');
 
+
+
     if (!toggle) return;
 
     toggle.addEventListener('click', (e) => {
@@ -106,3 +101,5 @@ function initNavbarLogic() {
         }
     });
 }
+
+

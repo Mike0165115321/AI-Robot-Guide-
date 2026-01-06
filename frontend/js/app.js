@@ -9,10 +9,11 @@ import avatarService from './services/avatarService.js';
 import speechService from './services/speechService.js';
 import responseRenderer from './components/responseRenderer.js';
 import alertService from './services/alertService.js';
-import { renderInline } from './services/markdownService.js';
+import { renderMarkdown, renderInline } from './services/markdownService.js';
 import { renderNavbar } from './components/Navbar.js';
 import { fabManager } from './components/FabManager.js';
 import { getFullImageUrl } from './config.js';
+import aiModeManager from './services/aiModeManager.js';
 
 // ==========================================
 // STATE
@@ -20,7 +21,8 @@ import { getFullImageUrl } from './config.js';
 const state = {
     sessionId: localStorage.getItem('session_id') || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     isRecording: false,
-    isLoading: false
+    isLoading: false,
+    isSpeaking: false
 };
 
 // Save session ID
@@ -58,6 +60,9 @@ function initServices() {
     // 4. Listeners
     avatarService.onMessage((data) => handleAvatarMessage(data));
     alertService.onAlert((data) => handleAlertMessage(data));
+
+    // 5. Init UI State
+    updateAIModeButton();
 }
 
 function loadAvatar() {
@@ -82,6 +87,12 @@ function bindEvents() {
 
     const btnVoice = $('#btn-voice');
     if (btnVoice) on(btnVoice, 'click', handleVoice);
+
+    const btnMode = $('#btn-ai-mode');
+    if (btnMode) on(btnMode, 'click', () => {
+        aiModeManager.toggle();
+        updateAIModeButton();
+    });
 
     // Clean input on focus
     if (input) on(input, 'focus', () => {
@@ -129,6 +140,13 @@ async function handleSend() {
     updateSpeech('กำลังคิดคำตอบ... 🤔');
     showLoading();
 
+    // 🛑 Pause Idle Behaviors during entire thinking + speaking flow
+    sendAvatarCommand({ type: 'pauseIdle' });
+    state.isSpeaking = true;  // Use this flag for the whole flow
+
+    // Trigger Avatar Thinking Mood
+    setAvatarMood('thinking');
+
     try {
         // Send to Backend
         // 1. Send text to Chat API (triggers RAG)
@@ -146,11 +164,19 @@ async function handleSend() {
         } else {
             updateSpeech('ขอโทษค่ะ เกิดข้อผิดพลาด 😓');
             console.error(response.error);
+            // Resume idle on error
+            state.isSpeaking = false;
+            sendAvatarCommand({ type: 'resumeIdle' });
+            setAvatarMood('normal');
         }
 
     } catch (err) {
         console.error(err);
         updateSpeech('เชื่อมต่อไม่ได้ค่ะ 🔌');
+        // Resume idle on error
+        state.isSpeaking = false;
+        sendAvatarCommand({ type: 'resumeIdle' });
+        setAvatarMood('normal');
     } finally {
         hideLoading();
     }
@@ -160,56 +186,69 @@ function handleBackendResponse(data) {
     // data.answer = Text response
     // data.action = Special action (SHOW_SONG_CHOICES, SHOW_MAP_EMBED, etc.)
     // data.action_payload = Rich data (songs, map, etc.)
+    // data.avatar_mood = Mood string (e.g. 'happy')
+    // data.avatar_action = Action string (e.g. 'wave')
 
+    // 🔊 TTS & Avatar Mood Management
+    // If there is an answer, we speak it and manage mood via TTS events
     if (data.answer) {
-        updateSpeech(data.answer); // Basic text update
+        speakText(data.answer, data.avatar_mood || 'normal');
+    } else {
+        // If no text to speak, just set the mood directly
+        if (data.avatar_mood) setAvatarMood(data.avatar_mood);
     }
 
-    // Handle special actions
-    if (data.action) {
-        switch (data.action) {
-            case 'SHOW_SONG_CHOICES':
-                // แสดงรายการเพลงให้เลือก
-                if (data.action_payload && data.action_payload.length > 0) {
-                    const musicHtml = renderMusicList(data.action_payload);
-                    showPanel(musicHtml);
-                }
-                break;
-
-            case 'SHOW_MAP_EMBED':
-                // แสดงแผนที่
-                if (data.action_payload) {
-                    const mapHtml = responseRenderer.renderMapEmbed(data.action_payload);
-                    showPanel(mapHtml);
-                }
-                break;
-
-            case 'PROMPT_FOR_SONG_INPUT':
-                // ถามว่าอยากฟังเพลงอะไร - ไม่ต้องทำอะไรเพิ่ม, ข้อความแสดงแล้ว
-                break;
-
-            default:
-                console.log('Unknown action:', data.action);
+    // Trigger Action if present
+    if (data.avatar_action) {
+        const avatarFrame = document.querySelector('#avatar-wrapper iframe');
+        if (avatarFrame && avatarFrame.contentWindow) {
+            avatarFrame.contentWindow.postMessage({ type: 'triggerAction', action: data.avatar_action }, '*');
         }
     }
 
-    // Show image gallery if available
-    if (data.image_gallery && data.image_gallery.length > 0) {
-        // แปลง image URLs ให้เป็น full URL ก่อนแสดงผล
-        const fullUrls = data.image_gallery.map(url => getFullImageUrl(url));
-        const galleryHtml = responseRenderer.renderGallery(fullUrls);
-        showPanel(galleryHtml);
-    } else if (data.image_url) {
-        // Show single image if gallery is empty
-        const fullUrl = getFullImageUrl(data.image_url);
-        // Reuse renderGallery for single image or create a simple img tag
-        const html = `<div class="image-gallery"><img src="${fullUrl}" alt="รูปภาพประกอบ" loading="lazy" onclick="window.open('${fullUrl}', '_blank')"></div>`;
-        showPanel(html);
+    // 📝 Prepare Content for Panel (The Board)
+    let panelHtml = '';
+
+    // 1. Add Text Answer to Panel
+    if (data.answer) {
+        panelHtml += `<div class="response-text" style="font-size: 1.1rem; line-height: 1.6; color: var(--color-text); margin-bottom: 20px;">
+            ${renderMarkdown(data.answer)}
+        </div>`;
+
+        // Update Speech Bubble with Summary (Truncated)
+        // User requested removal of speech bubble
+        // const summary = data.answer.length > 100 ? data.answer.substring(0, 80) + '...' : data.answer;
+        // updateSpeech(summary);
     }
 
-    // Original payload handling
+    // 2. Add Images / Gallery
+    if (data.image_gallery && data.image_gallery.length > 0) {
+        const fullUrls = data.image_gallery.map(url => getFullImageUrl(url));
+        panelHtml += responseRenderer.renderGallery(fullUrls);
+    } else if (data.image_url) {
+        const fullUrl = getFullImageUrl(data.image_url);
+        panelHtml += `<div class="image-gallery"><img src="${fullUrl}" alt="รูปภาพประกอบ" loading="lazy" onclick="window.open('${fullUrl}', '_blank')"></div>`;
+    }
+
+    // 3. Add Special Actions / Payloads
+    if (data.action) {
+        switch (data.action) {
+            case 'SHOW_SONG_CHOICES':
+                if (data.action_payload) panelHtml += renderMusicList(data.action_payload);
+                break;
+            case 'SHOW_MAP_EMBED':
+                if (data.action_payload) panelHtml += responseRenderer.renderMapEmbed(data.action_payload);
+                break;
+        }
+    }
+
     if (data.payload) {
-        renderPayload(data.payload);
+        panelHtml += responseRenderer.render(data.payload);
+    }
+
+    // 🚀 SHOW PANEL if there is content
+    if (panelHtml) {
+        showPanel(panelHtml);
     }
 }
 
@@ -301,6 +340,26 @@ function handleAvatarMessage(data) {
     // Handle other avatar events
 }
 
+function updateAIModeButton() {
+    const btn = $('#btn-ai-mode');
+    if (!btn) return;
+
+    const info = aiModeManager.getModeInfo();
+    btn.innerText = info.icon;
+    btn.title = info.description;
+
+    // Update Styles
+    if (info.mode === 'fast') {
+        btn.style.background = 'rgba(251, 191, 36, 0.2)'; // Yellow tint
+        btn.style.color = '#fbbf24';
+        btn.style.borderColor = '#fbbf24';
+    } else {
+        btn.style.background = 'rgba(139, 92, 246, 0.2)'; // Purple tint
+        btn.style.color = '#a78bfa';
+        btn.style.borderColor = '#a78bfa';
+    }
+}
+
 // ==========================================
 // UI HELPERS
 // ==========================================
@@ -312,6 +371,9 @@ function updateSpeech(text) {
         // Simple fade effect
         speechText.style.opacity = 0;
         setTimeout(() => speechText.style.opacity = 1, 50);
+    } else {
+        // Fallback or do nothing since user requested removal
+        console.log('Bot says:', text);
     }
 }
 
@@ -475,6 +537,156 @@ function showToastAlert(alert) {
 
     // Also, if severe, speak it?
     if (alert.severity_score >= 4) {
+        speakText(`แจ้งเตือน: ${alert.summary}`, 'normal');
         updateSpeech(`⚠️ แจ้งเตือน: ${alert.summary}`);
+    }
+}
+
+// ==========================================
+// 🔊 SPEECH SYNTHESIS (Backend TTS)
+// ==========================================
+const audioPlayer = new Audio();
+
+function speakText(text, finalMood = 'normal') {
+    if (!text) {
+        setAvatarMood(finalMood);
+        return;
+    }
+
+    // Stop previous audio
+    audioPlayer.pause();
+    audioPlayer.currentTime = 0;
+
+    // Show loading message - don't set speaking mood yet!
+    // Let avatar do normal behaviors while waiting
+    showAvatarMessage('กำลังพยายามอธิบายเป็นคำพูด รอสักครู่นะคะ... 🎤');
+
+    console.log('🗣️ Requesting TTS from Backend...');
+
+    fetch('/api/chat/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text })
+    })
+        .then(response => {
+            console.log('📡 TTS Response status:', response.status);
+            if (!response.ok) throw new Error(`TTS Fetch failed: ${response.status}`);
+            return response.blob();
+        })
+        .then(blob => {
+            console.log('🎵 TTS Audio blob received:', blob.size, 'bytes');
+            const audioUrl = URL.createObjectURL(blob);
+            audioPlayer.src = audioUrl;
+
+            // When audio ACTUALLY starts playing - NOW set speaking mood
+            audioPlayer.onplay = () => {
+                console.log('🗣️ Audio started playing - setting speaking mood');
+                hideAvatarMessage();  // Hide "รอแปบ" message
+                state.isSpeaking = true;
+                sendAvatarCommand({ type: 'pauseIdle' });
+                setAvatarMood('speaking');
+            };
+
+            // Keep reinforcing speaking mood during playback
+            audioPlayer.ontimeupdate = () => {
+                if (!audioPlayer.paused && !audioPlayer.ended) {
+                    setAvatarMood('speaking');
+                }
+            };
+
+            audioPlayer.onended = () => {
+                console.log('✅ TTS Finished - resetting to', finalMood);
+                hideAvatarMessage();
+                state.isSpeaking = false;
+                sendAvatarCommand({ type: 'resumeIdle' });
+                setAvatarMood(finalMood);
+                URL.revokeObjectURL(audioUrl);
+            };
+
+            audioPlayer.onerror = (e) => {
+                console.error('❌ Audio Error:', e);
+                state.isSpeaking = false;
+                sendAvatarCommand({ type: 'resumeIdle' });
+                setAvatarMood(finalMood);
+            };
+
+            // Try to play
+            console.log('▶️ Attempting to play audio...');
+            const playPromise = audioPlayer.play();
+            if (playPromise !== undefined) {
+                playPromise
+                    .then(() => console.log('✅ Audio play() succeeded'))
+                    .catch(e => {
+                        console.warn("⚠️ Autoplay prevented:", e.message);
+                        // Show user needs to interact first
+                        setAvatarMood(finalMood);
+                    });
+            }
+        })
+        .catch(err => {
+            console.error('❌ TTS Network Error:', err);
+            setAvatarMood(finalMood);
+        });
+}
+
+function setAvatarMood(mood) {
+    const avatarFrame = document.querySelector('#avatar-wrapper iframe');
+    if (!avatarFrame) {
+        console.warn('⚠️ [Avatar] iframe not found');
+        return;
+    }
+    if (!avatarFrame.contentWindow) {
+        console.warn('⚠️ [Avatar] iframe contentWindow not ready');
+        return;
+    }
+    console.log(`🎭 [Avatar] Sending mood: ${mood}`);
+    avatarFrame.contentWindow.postMessage({ type: 'changeMood', mood: mood }, '*');
+}
+
+function sendAvatarCommand(command) {
+    const avatarFrame = document.querySelector('#avatar-wrapper iframe');
+    if (avatarFrame && avatarFrame.contentWindow) {
+        avatarFrame.contentWindow.postMessage(command, '*');
+        console.log(`📤 [Avatar] Sent command:`, command);
+    }
+}
+
+// ==========================================
+// AVATAR MESSAGE BUBBLE (above avatar head)
+// ==========================================
+function showAvatarMessage(text) {
+    let bubble = document.getElementById('avatar-loading-message');
+    if (!bubble) {
+        bubble = document.createElement('div');
+        bubble.id = 'avatar-loading-message';
+        bubble.style.cssText = `
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(45, 212, 191, 0.9);
+            color: #0f172a;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            z-index: 1000;
+            animation: pulse 1.5s ease-in-out infinite;
+            box-shadow: 0 4px 15px rgba(45, 212, 191, 0.3);
+        `;
+        const wrapper = document.querySelector('#avatar-wrapper');
+        if (wrapper) {
+            wrapper.style.position = 'relative';
+            wrapper.appendChild(bubble);
+        }
+    }
+    bubble.textContent = text;
+    bubble.style.display = 'block';
+}
+
+function hideAvatarMessage() {
+    const bubble = document.getElementById('avatar-loading-message');
+    if (bubble) {
+        bubble.style.display = 'none';
     }
 }

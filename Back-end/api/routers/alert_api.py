@@ -187,14 +187,22 @@ async def clear_alert_history():
 # ====== MongoDB Endpoints ======
 
 @router.get("/db/recent")
-async def get_alerts_from_db(limit: int = 50, min_severity: int = 1, skip: int = 0):
+async def get_alerts_from_db(
+    limit: int = 50, 
+    min_severity: int = 1, 
+    skip: int = 0,
+    search: Optional[str] = None,
+    category: Optional[str] = None
+):
     """
-    ดึง alerts จาก MongoDB (persisted)
+    ดึง alerts จาก MongoDB (persisted) พร้อม filter
     
     Args:
         limit: จำนวนสูงสุด
         min_severity: ระดับความสำคัญขั้นต่ำ
         skip: จำนวนที่ข้าม (สำหรับ pagination)
+        search: คำค้นหา
+        category: หมวดหมู่
     """
     try:
         from core.services.alert_storage_service import alert_storage_service
@@ -202,7 +210,9 @@ async def get_alerts_from_db(limit: int = 50, min_severity: int = 1, skip: int =
         alerts, total_count = await alert_storage_service.get_recent_alerts(
             limit=limit,
             min_severity=min_severity,
-            skip=skip
+            skip=skip,
+            search_query=search,
+            category=category
         )
         
         return {

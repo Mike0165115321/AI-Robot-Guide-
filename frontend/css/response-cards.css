@@ -26,7 +26,8 @@
     margin-top: 12px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     object-fit: cover;
-    max-height: 200px;
+    max-height: 400px;
+    /* Increased from 200px */
 }
 
 .response-card p {
@@ -56,4 +57,163 @@
     font-weight: bold;
     color: #fbbf24;
     /* Amber-400 */
+}
+
+/* ==========================================
+   MARKDOWN STYLING FOR RESPONSE TEXT
+   ========================================== */
+
+/* Bold Text - Accent Color */
+.response-text strong,
+.response-card strong,
+.presentation-panel strong {
+    color: #2dd4bf;
+    /* Teal-400 */
+    font-weight: 600;
+}
+
+/* Italic Text */
+.response-text em,
+.response-card em,
+.presentation-panel em {
+    color: #f472b6;
+    /* Pink-400 */
+    font-style: italic;
+}
+
+/* Unordered Lists */
+.response-text ul,
+.response-card ul,
+.presentation-panel ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 12px 0;
+}
+
+.response-text ul li,
+.response-card ul li,
+.presentation-panel ul li {
+    position: relative;
+    padding-left: 24px;
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+.response-text ul li::before,
+.response-card ul li::before,
+.presentation-panel ul li::before {
+    content: '▹';
+    position: absolute;
+    left: 0;
+    color: #2dd4bf;
+    /* Teal-400 */
+    font-size: 1rem;
+}
+
+/* Ordered Lists */
+.response-text ol,
+.response-card ol,
+.presentation-panel ol {
+    counter-reset: list-counter;
+    list-style: none;
+    padding-left: 0;
+    margin: 12px 0;
+}
+
+.response-text ol li,
+.response-card ol li,
+.presentation-panel ol li {
+    counter-increment: list-counter;
+    position: relative;
+    padding-left: 32px;
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+.response-text ol li::before,
+.response-card ol li::before,
+.presentation-panel ol li::before {
+    content: counter(list-counter);
+    position: absolute;
+    left: 0;
+    background: linear-gradient(135deg, #3b82f6, #2dd4bf);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: bold;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Headers in Response */
+.response-text h1,
+.response-card h1,
+.presentation-panel h1 {
+    font-size: 1.5rem;
+    color: #60a5fa;
+    /* Blue-400 */
+    margin: 16px 0 8px;
+    border-bottom: 2px solid rgba(96, 165, 250, 0.3);
+    padding-bottom: 8px;
+}
+
+.response-text h2,
+.response-card h2,
+.presentation-panel h2 {
+    font-size: 1.25rem;
+    color: #a78bfa;
+    /* Purple-400 */
+    margin: 14px 0 6px;
+}
+
+.response-text h3,
+.response-card h3,
+.presentation-panel h3 {
+    font-size: 1.1rem;
+    color: #2dd4bf;
+    /* Teal-400 */
+    margin: 12px 0 4px;
+}
+
+/* Inline Code */
+.response-text code,
+.response-card code,
+.presentation-panel code {
+    background: rgba(139, 92, 246, 0.2);
+    color: #c4b5fd;
+    /* Purple-300 */
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+/* Horizontal Rule */
+.response-text hr,
+.response-card hr,
+.presentation-panel hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.5), transparent);
+    margin: 16px 0;
+}
+
+/* Links */
+.response-text a,
+.response-card a,
+.presentation-panel a {
+    color: #60a5fa;
+    /* Blue-400 */
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.response-text a:hover,
+.response-card a:hover,
+.presentation-panel a:hover {
+    color: #2dd4bf;
+    /* Teal-400 */
 }

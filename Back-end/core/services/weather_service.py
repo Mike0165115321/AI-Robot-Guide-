@@ -36,30 +36,83 @@ class WeatherService:
     async def get_current_weather(self, lat: float = None, lon: float = None) -> Optional[Dict]:
         """
         ดึงสภาพอากาศปัจจุบัน
-        
-        Args:
-            lat: ละติจูด (default: น่าน)
-            lon: ลองจิจูด (default: น่าน)
-            
-        Returns:
-            Weather data dict or None
+        Priority: TMD -> OpenWeatherMap -> OpenMeteo (Fallback)
         """
         lat = lat or self.NAN_LAT
         lon = lon or self.NAN_LON
         
-        # ลอง TMD ก่อน
+        # 1. ลอง TMD (แม่นยำสุดในไทย)
         if self.tmd_api_key:
             result = await self._fetch_tmd(lat, lon)
             if result:
                 return result
                 
-        # Fallback ไป OpenWeatherMap
+        # 2. ลอง OpenWeatherMap (ถ้ามี Key)
         if self.openweather_api_key:
-            return await self._fetch_openweather(lat, lon)
+            result = await self._fetch_openweather(lat, lon)
+            if result:
+                return result
+
+        # 3. Fallback: OpenMeteo (ฟรี, ไม่ต้องใช้ Key)
+        logger.info("ℹ️ [Weather] ใช้ OpenMeteo (Fallback)...")
+        return await self._fetch_openmeteo(lat, lon)
+
+    async def _fetch_openmeteo(self, lat: float, lon: float) -> Optional[Dict]:
+        """ดึงข้อมูลจาก OpenMeteo (Free, No Key)"""
+        try:
+            url = "https://api.open-meteo.com/v1/forecast"
+            params = {
+                "latitude": lat,
+                "longitude": lon,
+                "current": "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m",
+                "timezone": "auto"
+            }
             
-        logger.warning("⚠️ [Weather] ไม่มี API Key - กรุณาตั้งค่า TMD_API_KEY หรือ OPENWEATHER_API_KEY")
-        return None
-    
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params) as response:
+                    if response.status != 200:
+                        logger.error(f"❌ [OpenMeteo] API error: {response.status}")
+                        return None
+                        
+                    data = await response.json()
+                    current = data.get("current", {})
+                    
+                    # Map WMO Weather Code to description
+                    # https://open-meteo.com/en/docs
+                    wmo_code = current.get("weather_code", 0)
+                    description = self._map_wmo_code(wmo_code)
+                    
+                    result = {
+                        "source": "openmeteo",
+                        "location": "น่าน", # OpenMeteo ไม่คืนชื่อสถานที่
+                        "temperature": current.get("temperature_2m"),
+                        "feels_like": current.get("apparent_temperature"),
+                        "humidity": current.get("relative_humidity_2m"),
+                        "description": description,
+                        "wind_speed": current.get("wind_speed_10m"),
+                        "fetched_at": datetime.now(timezone.utc).isoformat()
+                    }
+                    
+                    logger.info(f"✅ [OpenMeteo] อุณหภูมิ: {result['temperature']}°C, {result['description']}")
+                    return result
+                    
+        except Exception as e:
+            logger.error(f"❌ [OpenMeteo] ข้อผิดพลาด: {e}")
+            return None
+
+    def _map_wmo_code(self, code: int) -> str:
+        """แปลง WMO Weather Code เป็นคำอธิบายไทย"""
+        mapping = {
+            0: "ท้องฟ้าแจ่มใส",
+            1: "มีเมฆบางส่วน", 2: "มีเมฆเป็นส่วนมาก", 3: "มีเมฆมาก",
+            45: "มีหมอก", 48: "มีหมอกลงจัด",
+            51: "ฝนตกปรอยๆ", 53: "ฝนตกปานกลาง", 55: "ฝนตกหนัก",
+            61: "ฝนตกเล็กน้อย", 63: "ฝนตกปานกลาง", 65: "ฝนตกหนัก",
+            80: "ฝนตกปรอยๆ", 81: "ฝนตกปานกลาง", 82: "ฝนตกหนัก",
+            95: "ฝนฟ้าคะนอง", 96: "ฝนฟ้าคะนองและมีลูกเห็บ", 99: "ฝนฟ้าคะนองรุนแรง"
+        }
+        return mapping.get(code, "ไม่มีข้อมูล")
+
     async def _fetch_openweather(self, lat: float, lon: float) -> Optional[Dict]:
         """ดึงข้อมูลจาก OpenWeatherMap"""
         try:

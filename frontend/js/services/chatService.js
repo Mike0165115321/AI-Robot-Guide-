@@ -1,6 +1,6 @@
-
 import api from '../api/client.js';
 import { CONFIG } from '../config.js';
+import aiModeManager from './aiModeManager.js';
 
 class ChatService {
     /**
@@ -14,7 +14,7 @@ class ChatService {
             return await api.post(CONFIG.ENDPOINTS.chat, {
                 query: text,
                 session_id: sessionId,
-                ai_mode: 'fast', // Default mode
+                ai_mode: aiModeManager.getMode(),
                 frontend_intent: 'GENERAL'
             });
         } catch (error) {

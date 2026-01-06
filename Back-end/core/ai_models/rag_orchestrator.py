@@ -631,6 +631,32 @@ class RAGOrchestrator:
             **kwargs
         )
 
+        # 🆕 [Smart Avatar] Extract Mood & Action Tags from LLM Response
+        # Pattern: [MOOD: happy], [ACTION: wave]
+        if response.get("answer"):
+            text = response["answer"]
+            mood = "normal"
+            action = None
+            
+            # Extract MOOD
+            mood_match = re.search(r'\[MOOD:\s*(\w+)\]', text, re.IGNORECASE)
+            if mood_match:
+                mood = mood_match.group(1).lower()
+                text = text.replace(mood_match.group(0), "").strip()
+            
+            # Extract ACTION
+            action_match = re.search(r'\[ACTION:\s*(\w+)\]', text, re.IGNORECASE)
+            if action_match:
+                action = action_match.group(1).lower()
+                text = text.replace(action_match.group(0), "").strip()
+                
+            response["answer"] = text
+            response["avatar_mood"] = mood
+            response["avatar_action"] = action
+            
+            if mood != "normal" or action:
+                logging.info(f"🎭 [Avatar] Detected Mood: {mood} | Action: {action}")
+
         end_time = time.perf_counter()
         processing_time = round(end_time - start_time, 2)
         response["processing_time"] = processing_time

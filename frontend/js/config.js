@@ -4,13 +4,14 @@
 
 export const CONFIG = {
     // API Endpoints
-    API_BASE_URL: 'http://localhost:8014/api',
+    API_BASE_URL: '/api',
 
     // WebSocket Base URL
-    WS_BASE_URL: 'ws://localhost:8014',
+    // Use current host for WS to avoid hardcoding
+    WS_BASE_URL: `ws://${window.location.host}`,
 
     // Static files URL (for images)
-    STATIC_URL: 'http://localhost:8014/static/images',
+    STATIC_URL: '/static/images',
 
     // Avatar
     AVATAR_PATH: '../avatar/',
@@ -40,7 +41,8 @@ export function getFullImageUrl(imagePath) {
         return imagePath;
     }
     if (imagePath.startsWith('/')) {
-        return `http://localhost:8014${imagePath}`;
+        // Return relative path as-is
+        return imagePath;
     }
     // Relative path - add static URL
     return `${CONFIG.STATIC_URL}/${imagePath}`;

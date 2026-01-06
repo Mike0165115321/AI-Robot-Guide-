@@ -8,22 +8,66 @@ const ITEMS_PER_PAGE = 12;
 let currentPage = 1;
 let totalAlerts = 0;
 
+let currentSearch = '';
+let currentCategory = 'all';
+let searchTimeout;
+
 document.addEventListener('DOMContentLoaded', () => {
     renderNavbar('navbar-container', 'alerts');
     loadAlerts(currentPage);
     initModal();
+    initFilters();
 });
+
+function initFilters() {
+    // Search Input
+    const searchInput = $('#alert-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                currentSearch = e.target.value.trim();
+                currentPage = 1;
+                loadAlerts(1);
+            }, 500); // Debounce 500ms
+        });
+    }
+
+    // Filter Chips
+    const chips = $$('.filter-chip');
+    chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            // Remove active class from all
+            chips.forEach(c => c.classList.remove('active'));
+            // Add active to clicked
+            chip.classList.add('active');
+
+            // Update state
+            currentCategory = chip.dataset.category;
+            currentPage = 1;
+            loadAlerts(1);
+        });
+    });
+}
 
 async function loadAlerts(page = 1) {
     currentPage = page;
     const grid = $('#alerts-grid');
 
+    // Show loading state
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:50px;"><div class="spinner"></div><p>กำลังค้นหาข้อมูล... ⏳</p></div>';
+
     // Calculate skip
     const skip = (page - 1) * ITEMS_PER_PAGE;
 
     try {
-        // Fetch with pagination
-        const response = await fetch(`${CONFIG.API_BASE_URL}/alerts/db/recent?limit=${ITEMS_PER_PAGE}&skip=${skip}`);
+        // Build URL parameters
+        let url = `${CONFIG.API_BASE_URL}/alerts/db/recent?limit=${ITEMS_PER_PAGE}&skip=${skip}`;
+        if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
+        if (currentCategory && currentCategory !== 'all') url += `&category=${encodeURIComponent(currentCategory)}`;
+
+        // Fetch with pagination parameters
+        const response = await fetch(url);
         const data = await response.json();
 
         if (data.success) {
@@ -111,7 +155,9 @@ function createAlertCard(alert) {
     const severityClass = `severity-${severityIdx}`;
 
     // Date Formatting
-    const timeStr = new Date(alert.broadcasted_at || Date.now()).toLocaleString('th-TH', {
+    // Date Formatting - Prioritize original news timestamp -> created_at -> current time
+    const dateSource = alert.timestamp || alert.created_at || Date.now();
+    const timeStr = new Date(dateSource).toLocaleString('th-TH', {
         dateStyle: 'short',
         timeStyle: 'short'
     });

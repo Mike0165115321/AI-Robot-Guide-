@@ -1,5 +1,8 @@
 import logging
 from fastapi import APIRouter, HTTPException, Depends, status, File, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
+import os
+import glob
 import json
 from ..schemas import ChatQuery, ChatResponse 
 from core.ai_models.rag_orchestrator import RAGOrchestrator
@@ -12,11 +15,85 @@ from core.ai_models.speech_handler import speech_handler_instance
 
 def construct_full_image_url(image_path: str | None) -> str | None:
     if not image_path: return None
+    
+    # 🧹 Sanitize: If DB has hardcoded localhost/127.0.0.1 (even with wrong port like 9090), strip it!
+    if 'static/images' in image_path:
+        # Extract just the filename or path after static/images
+        filename = image_path.split('static/images/')[-1]
+        return f"/static/images/{filename}"
+
     if image_path.startswith(('http://', 'https://')):
         return image_path
+    
     if image_path.startswith('/'):
-        return f"http://{settings.API_HOST}:{settings.API_PORT}{image_path}"
-    return image_path
+        return image_path
+    
+    # Default to static/images if just a filename is provided
+    # 🔍 Check if file exists, if not try to find best match
+    
+    # 1. Check exact match
+    full_path = settings.STATIC_DIR / "images" / image_path
+    if full_path.exists():
+         return f"/static/images/{image_path}" # Rel Path
+         
+    # 2. Try extensions
+    stem = full_path.stem
+    for ext in ['.jpg', '.png', '.jpeg', '.webp']:
+        p = settings.STATIC_DIR / "images" / f"{stem}{ext}"
+        if p.exists():
+            return f"/static/images/{p.name}" # Rel Path
+
+    # 3. Fuzzy search (Smart Match)
+    # Use glob to find files containing the stem name
+    # e.g. 'aom-dao' -> matches 'aom-dao-restaurant-01.jpg'
+    pattern = str(settings.STATIC_DIR / "images" / f"*{stem}*")
+    matches = glob.glob(pattern)
+    if matches:
+         # Sort by length to find the most specific or shortest match? 
+         # Usually the first match is fine, or we can pick the shortest valid one.
+         best_match = min(matches, key=len) 
+         return f"/static/images/{os.path.basename(best_match)}" # Rel Path
+    
+    # Return original relative path as fallback
+    return f"/static/images/{image_path}"
+
+def sanitize_response_images(result: dict) -> dict:
+    """
+    Helper function to sanitize all image URLs in a ChatResponse dict.
+    Applies construct_full_image_url to:
+    - image_url
+    - image_gallery
+    - sources (image_urls key)
+    """
+    if not result: return result
+    
+    # 0. Sanitize content in Markdown Answer (The missing piece!)
+    if result.get("answer"):
+        import re
+        # Regex to find any http(s)://.../static/images/... and replace with /static/images/...
+        # This catches 127.0.0.1:9090, localhost:8014, or any other hardcoded host
+        result["answer"] = re.sub(
+            r'http[s]?://[^/]+/static/images/', 
+            '/static/images/', 
+            result["answer"]
+        )
+
+    # 1. Main Image
+    if result.get("image_url"):
+        result["image_url"] = construct_full_image_url(result["image_url"])
+
+    # 2. Image Gallery
+    if result.get("image_gallery"):
+        raw_gallery = result.get("image_gallery", [])
+        result["image_gallery"] = [construct_full_image_url(url) for url in raw_gallery if url]
+
+    # 3. Sources
+    if result.get("sources"):
+        for source in result["sources"]:
+            raw_urls = source.get("image_urls", []) 
+            source["image_urls"] = [construct_full_image_url(url) for url in raw_urls if url]
+            
+    return result
 
 router = APIRouter(tags=["Text Chat"])
 
@@ -42,14 +119,13 @@ async def handle_audio_chat(
         if not result or "answer" not in result:
             raise HTTPException(status_code=500, detail="AI failed to generate a response.")
 
-        result["image_url"] = construct_full_image_url(result.get("image_url"))
-        if result.get("image_gallery"):
-            raw_gallery = result.get("image_gallery", [])
-            result["image_gallery"] = [construct_full_image_url(url) for url in raw_gallery if url]
-        if result.get("sources"):
-            for source in result["sources"]:
-                raw_urls = source.get("image_urls", []) 
-                source["image_urls"] = [construct_full_image_url(url) for url in raw_urls if url]
+        if not result or "answer" not in result:
+            raise HTTPException(status_code=500, detail="AI failed to generate a response.")
+
+        # ✅ Sanitize Images
+        result = sanitize_response_images(result)
+        
+        result["transcribed_query"] = transcribed_text
         
         result["transcribed_query"] = transcribed_text
         
@@ -69,13 +145,14 @@ async def handle_text_chat(
     try:
         query_data = query.query 
         session_id = query.session_id 
+        ai_mode = query.ai_mode or "fast"  # 🆕 Read ai_mode from request
         
         result = None
         user_intent = None # To track for analytics
 
         if isinstance(query_data, dict) and (action := query_data.get("action")):
             # 🚀 [แก้ไข] เพิ่มการ log session_id
-            logging.info(f"⚡️ [API-Text] ได้รับ EXPLICIT ACTION: '{action}' | Session: '{session_id}'")
+            logging.info(f"⚡️ [API-Text] ได้รับ EXPLICIT ACTION: '{action}' | Session: '{session_id}' | Mode: {ai_mode}")
             
             if action == "GET_DIRECTIONS":
                 entity_slug = query_data.get("entity_slug")
@@ -92,11 +169,12 @@ async def handle_text_chat(
                 result = {"answer": "ขออภัยค่ะ ไม่รู้จักคำสั่ง Action นี้ค่ะ", "action": None}
 
         elif isinstance(query_data, str):
-            logging.info(f"💬 [API-Text] ได้รับ IMPLICIT query: '{query_data}' | Session: '{session_id}'")
+            logging.info(f"💬 [API-Text] ได้รับ IMPLICIT query: '{query_data}' | Session: '{session_id}' | Mode: {ai_mode}")
             result = await orchestrator.answer_query(
                 query=query_data, 
                 mode='text', 
-                session_id=session_id 
+                session_id=session_id,
+                ai_mode=ai_mode  # 🆕 Pass ai_mode to orchestrator! 
             )
         else:
             raise HTTPException(status_code=400, detail="Invalid query format.")
@@ -104,18 +182,9 @@ async def handle_text_chat(
         if not result or "answer" not in result:
             raise HTTPException(status_code=500, detail="AI failed to generate a response.")
         
-        result["image_url"] = construct_full_image_url(result.get("image_url"))
+        # ✅ Sanitize Images (Fix connection refused 9090 issues)
+        result = sanitize_response_images(result)
 
-        if result.get("image_gallery"):
-            raw_gallery = result.get("image_gallery", [])
-            logging.info(f"🖼️ [DEBUG] RAW image_gallery: {raw_gallery[:3]}")  # Debug: show first 3
-            result["image_gallery"] = [construct_full_image_url(url) for url in raw_gallery if url]
-            logging.info(f"🖼️ [DEBUG] CONVERTED image_gallery: {result['image_gallery'][:3]}")  # Debug
-
-        if result.get("sources"):
-            for source in result["sources"]:
-                raw_urls = source.get("image_urls", []) 
-                source["image_urls"] = [construct_full_image_url(url) for url in raw_urls if url]
         logging.info(f"✅ [API-Text] กำลังส่งคำตอบกลับไปยังไคลเอนต์")
         
         # 📊 Async Log to Analytics
@@ -279,6 +348,29 @@ async def get_navigation(
         logging.error(f"❌ [HTTP Nav] ข้อผิดพลาด: {e}")
         return {"success": False, "error": str(e)}
 
+# 🆕 TTS Endpoint
+class TTSRequest(BaseModel):
+    text: str
+
+@router.post("/tts")
+async def text_to_speech(request: TTSRequest):
+    """
+    🗣️ Generate TTS audio stream from text
+    """
+    try:
+        if not request.text:
+             raise HTTPException(status_code=400, detail="Text is required")
+             
+        logging.info(f"🗣️ [API-TTS] Requesting TTS for: {request.text[:50]}...")
+        
+        return StreamingResponse(
+            speech_handler_instance.synthesize_speech_stream(request.text),
+            media_type="audio/mpeg"
+        )
+    except Exception as e:
+        logging.error(f"❌ [API-TTS] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator)):
@@ -309,6 +401,9 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                         slug=slug,
                         entity_query=entity_query
                     )
+                    # ✅ Sanitize Images for WS too!
+                    result = sanitize_response_images(result)
+                    
                     await websocket.send_json(result)
                 except Exception as e:
                     logging.error(f"❌ [WS] ข้อผิดพลาดในการประมวลผลข้อความ: {e}")
@@ -323,6 +418,9 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                     if transcribed_text:
                         logging.info(f"👂 [WS] ถอดเสียง: {transcribed_text}")
                         result = await orchestrator.answer_query(transcribed_text, mode='text')
+                        # ✅ Sanitize Images for Audio/WS
+                        result = sanitize_response_images(result)
+                        
                         result["transcribed_query"] = transcribed_text
                         await websocket.send_json(result)
                     else:

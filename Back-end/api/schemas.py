@@ -50,6 +50,8 @@ class LocationAdminSummaryWithImage(LocationAdminSummary):
 class ChatQuery(BaseModel):
     query: str | Dict[str, Any] = Field(..., description="Query string or action object")
     session_id: Optional[str] = None
+    ai_mode: Optional[str] = Field("fast", description="AI mode: 'fast' (Llama) or 'detailed' (Gemini)")
+    frontend_intent: Optional[str] = Field("GENERAL", description="Frontend intent hint")
 
 class ActionPayloadPrompt(BaseModel): placeholder: str
 

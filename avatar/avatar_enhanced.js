@@ -40,11 +40,11 @@ class NanAvatarController {
 
         // Idle behavior animations
         this.idleBehaviors = [
-            () => this.lookAround(),
+            // () => this.lookAround(), // Disabled by user request
             () => this.yawn(),
             () => this.waveHand(),
             () => this.tiltHead(),
-            () => this.startRoaming()
+            // () => this.startRoaming() // Disabled by user request
         ];
 
         this.isRoaming = false;
@@ -111,8 +111,20 @@ class NanAvatarController {
         // Update arm animations
         this.updateArmState(mood);
 
+        // Sync Mouth State (Fix: Ensure mouth moves when speaking)
+        if (this.mouth) {
+            if (mood === 'speaking') {
+                this.mouth.classList.add('speaking');
+                console.log('👄 Mouth: Added speaking class', this.mouth.classList);
+            } else {
+                this.mouth.classList.remove('speaking');
+            }
+        } else {
+            console.warn('❌ Mouth element not found!');
+        }
+
         // Eye tracking only for certain moods
-        this.isEyeTrackingEnabled = ['normal', 'listening', 'curious', 'happy'].includes(mood);
+        this.isEyeTrackingEnabled = ['normal', 'listening', 'curious', 'happy', 'speaking'].includes(mood);
 
         console.log(`🎨 Mood changed to: ${mood}`);
     }
@@ -127,8 +139,9 @@ class NanAvatarController {
 
         switch (mood) {
             case 'speaking':
-                this.leftArm.classList.add('arm-speaking');
-                this.rightArm.classList.add('arm-speaking');
+                // User requested NO arm movement during speaking
+                this.leftArm.classList.add('arm-idle');
+                this.rightArm.classList.add('arm-idle');
                 break;
             case 'thinking':
                 this.leftArm.classList.add('arm-thinking');
@@ -219,6 +232,11 @@ class NanAvatarController {
     resetIdleTimer() {
         if (this.idleTimer) clearTimeout(this.idleTimer);
 
+        // Don't do anything if idle is paused (during TTS/thinking)
+        if (this.isIdlePaused) {
+            return;
+        }
+
         // Only reset to normal if mood was set by IDLE BEHAVIOR (not user click)
         // We track this with a flag
         if (this.isIdleMood) {
@@ -230,6 +248,18 @@ class NanAvatarController {
     }
 
     triggerIdleBehavior() {
+        // Don't trigger if paused (during TTS playback)
+        if (this.isIdlePaused) {
+            return;
+        }
+
+        // Don't interrupt speaking or if validation is running
+        if (this.currentMood === 'speaking' || this.currentMood === 'listening') {
+            // Reschedule check
+            this.idleTimer = setTimeout(() => this.triggerIdleBehavior(), 2000);
+            return;
+        }
+
         // Mark that this mood was set by idle behavior
         this.isIdleMood = true;
 
@@ -268,7 +298,9 @@ class NanAvatarController {
                 .to({}, { duration: 1.5 }) // Hold yawn
                 .to(this.eyes, { scaleY: 1, duration: 0.4, ease: 'power2.out' })
                 .to(this.mouth, { scaleY: 1, scaleX: 1, opacity: 0, duration: 0.3 }, '<')
-                .add(() => this.setMood('normal'));
+                .add(() => {
+                    if (!this.isIdlePaused) this.setMood('normal');
+                });
         }
     }
 
@@ -300,7 +332,9 @@ class NanAvatarController {
                     .to(head, { rotation: 8, duration: 0.4, ease: 'power2.out' })
                     .to({}, { duration: 1 })
                     .to(head, { rotation: 0, duration: 0.3, ease: 'power2.in' })
-                    .add(() => this.setMood('normal'));
+                    .add(() => {
+                        if (!this.isIdlePaused) this.setMood('normal');
+                    });
             }
         }
     }
