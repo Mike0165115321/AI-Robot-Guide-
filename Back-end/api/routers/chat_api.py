@@ -108,7 +108,9 @@ async def handle_text_chat(
 
         if result.get("image_gallery"):
             raw_gallery = result.get("image_gallery", [])
+            logging.info(f"🖼️ [DEBUG] RAW image_gallery: {raw_gallery[:3]}")  # Debug: show first 3
             result["image_gallery"] = [construct_full_image_url(url) for url in raw_gallery if url]
+            logging.info(f"🖼️ [DEBUG] CONVERTED image_gallery: {result['image_gallery'][:3]}")  # Debug
 
         if result.get("sources"):
             for source in result["sources"]:

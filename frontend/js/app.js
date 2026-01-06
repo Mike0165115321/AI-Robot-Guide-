@@ -9,7 +9,10 @@ import avatarService from './services/avatarService.js';
 import speechService from './services/speechService.js';
 import responseRenderer from './components/responseRenderer.js';
 import alertService from './services/alertService.js';
-import { renderNavbar } from './components/Navbar.js'; // Import component
+import { renderInline } from './services/markdownService.js';
+import { renderNavbar } from './components/Navbar.js';
+import { fabManager } from './components/FabManager.js';
+import { getFullImageUrl } from './config.js';
 
 // ==========================================
 // STATE
@@ -42,7 +45,17 @@ function initServices() {
     // 2. Connect Alert WebSocket
     alertService.connect();
 
-    // 3. Listengers
+    // 3. Initialize FAB Manager
+    fabManager.init({
+        onSendMessage: (text) => {
+            // ส่งข้อความจาก FAB widgets ไปที่ chat
+            const input = $('#query-input');
+            if (input) input.value = text;
+            handleSend();
+        }
+    });
+
+    // 4. Listeners
     avatarService.onMessage((data) => handleAvatarMessage(data));
     alertService.onAlert((data) => handleAlertMessage(data));
 }
@@ -90,6 +103,20 @@ function bindEvents() {
     delegate(document.body, 'click', '.skin-btn', (e, target) => {
         changeSkin(target);
     });
+
+    // Music play button
+    delegate(document.body, 'click', '.play-song-btn', (e, target) => {
+        const videoId = target.dataset.videoId;
+        const title = target.dataset.title;
+        if (videoId) {
+            playYouTubeVideo(videoId, title);
+        }
+    });
+
+    // Close panel button
+    delegate(document.body, 'click', '.close-panel-btn', () => {
+        hidePanel();
+    });
 }
 
 async function handleSend() {
@@ -131,59 +158,133 @@ async function handleSend() {
 
 function handleBackendResponse(data) {
     // data.answer = Text response
-    // data.payload = Rich data (cards, location, etc.)
+    // data.action = Special action (SHOW_SONG_CHOICES, SHOW_MAP_EMBED, etc.)
+    // data.action_payload = Rich data (songs, map, etc.)
 
     if (data.answer) {
         updateSpeech(data.answer); // Basic text update
-        // The avatar will speak it if connected via WS or if we synthesize it here.
-        // Let's assume Avatar WS handles the speech/animation syncing.
-        // If not, we might need to send text to avatar iframe.
     }
 
-    // Show Rich Content (Cards)
+    // Handle special actions
+    if (data.action) {
+        switch (data.action) {
+            case 'SHOW_SONG_CHOICES':
+                // แสดงรายการเพลงให้เลือก
+                if (data.action_payload && data.action_payload.length > 0) {
+                    const musicHtml = renderMusicList(data.action_payload);
+                    showPanel(musicHtml);
+                }
+                break;
+
+            case 'SHOW_MAP_EMBED':
+                // แสดงแผนที่
+                if (data.action_payload) {
+                    const mapHtml = responseRenderer.renderMapEmbed(data.action_payload);
+                    showPanel(mapHtml);
+                }
+                break;
+
+            case 'PROMPT_FOR_SONG_INPUT':
+                // ถามว่าอยากฟังเพลงอะไร - ไม่ต้องทำอะไรเพิ่ม, ข้อความแสดงแล้ว
+                break;
+
+            default:
+                console.log('Unknown action:', data.action);
+        }
+    }
+
+    // Show image gallery if available
+    if (data.image_gallery && data.image_gallery.length > 0) {
+        // แปลง image URLs ให้เป็น full URL ก่อนแสดงผล
+        const fullUrls = data.image_gallery.map(url => getFullImageUrl(url));
+        const galleryHtml = responseRenderer.renderGallery(fullUrls);
+        showPanel(galleryHtml);
+    }
+
+    // Original payload handling
     if (data.payload) {
         renderPayload(data.payload);
     }
+}
+
+/**
+ * Render music list from search results
+ */
+function renderMusicList(songs) {
+    return `
+        <div class="music-results">
+            <h3 style="margin-bottom: 15px;">🎵 เลือกเพลงที่ต้องการฟัง</h3>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                ${songs.slice(0, 5).map((song, idx) => `
+                    <div class="song-item" style="display: flex; gap: 12px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; align-items: center;">
+                        <img src="${song.thumbnail}" alt="${song.title}" style="width: 80px; height: 60px; object-fit: cover; border-radius: 6px;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.title}</div>
+                            <div style="font-size: 0.8rem; opacity: 0.7;">${song.duration || ''}</div>
+                        </div>
+                        <button class="play-song-btn" data-video-id="${song.video_id}" data-title="${song.title}" 
+                            style="background: #1db954; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; color: white; font-size: 1rem;">
+                            ▶
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+            <button class="close-panel-btn" style="margin-top: 15px; background: none; border: 1px solid rgba(255,255,255,0.2); padding: 8px 20px; border-radius: 20px; color: white; cursor: pointer;">
+                ปิด
+            </button>
+        </div>
+    `;
 }
 
 async function handleVoice() {
     const btnVoice = $('#btn-voice');
 
     if (!state.isRecording) {
-        // Start Recording
-        const success = await speechService.startRecording();
+        // เริ่ม VAD Mode (ตรวจจับเสียงอัตโนมัติ)
+        const success = await speechService.startVAD({
+            onStatusUpdate: (status) => {
+                updateSpeech(status);
+            },
+            onSpeechEnd: async (audioBlob) => {
+                // เมื่อพูดจบ (ตรวจจับ silence)
+                state.isRecording = false;
+                btnVoice.classList.remove('recording');
+                updateSpeech('กำลังประมวลผลเสียง... 🔄');
+                showLoading();
+
+                try {
+                    const response = await chatService.sendAudio(audioBlob, state.sessionId);
+                    if (response.success) {
+                        handleBackendResponse(response.data);
+                    } else {
+                        updateSpeech('ขอโทษค่ะ ฟังไม่ทัน 😓');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    updateSpeech('มีปัญหาในการส่งเสียงค่ะ 🔌');
+                } finally {
+                    hideLoading();
+                }
+            },
+            onVolumeChange: (volume) => {
+                // Optional: แสดง volume indicator
+                // updateVolumeBar(volume);
+            }
+        });
+
         if (success) {
             state.isRecording = true;
-            btnVoice.classList.add('recording'); // CSS class for red pulse or similar
+            btnVoice.classList.add('recording');
             updateSpeech('กำลังฟังค่ะ... 👂');
         } else {
             updateSpeech('เปิดไมค์ไม่ได้ค่ะ 🎤❌');
         }
     } else {
-        // Stop Recording
+        // หยุด VAD
+        speechService.stopVAD(true); // interrupted = true
         state.isRecording = false;
         btnVoice.classList.remove('recording');
-        updateSpeech('กำลังประมวลผลเสียง... 🔄');
-        showLoading();
-
-        try {
-            const audioBlob = await speechService.stopRecording();
-            if (audioBlob) {
-                // Send to Audio API
-                const response = await chatService.sendAudio(audioBlob, state.sessionId);
-
-                if (response.success) {
-                    handleBackendResponse(response.data);
-                } else {
-                    updateSpeech('ขอโทษค่ะ ฟังไม่ทัน 😓');
-                }
-            }
-        } catch (err) {
-            console.error(err);
-            updateSpeech('มีปัญหาในการส่งเสียงค่ะ 🔌');
-        } finally {
-            hideLoading();
-        }
+        updateSpeech('หยุดฟังแล้วค่ะ');
     }
 }
 
@@ -200,7 +301,8 @@ function handleAvatarMessage(data) {
 function updateSpeech(text) {
     const speechText = $('#speech-text');
     if (speechText) {
-        speechText.textContent = text;
+        // ใช้ Markdown renderer สำหรับแสดงข้อความจาก AI
+        speechText.innerHTML = renderInline(text);
         // Simple fade effect
         speechText.style.opacity = 0;
         setTimeout(() => speechText.style.opacity = 1, 50);
@@ -240,6 +342,32 @@ function hidePanel() {
         avatarSection.classList.add('centered');
     }
     updateSpeech('มีอะไรให้ช่วยอีกไหมคะ? 😊');
+}
+
+/**
+ * Play YouTube video in panel
+ */
+function playYouTubeVideo(videoId, title) {
+    const playerHtml = `
+        <div class="music-player">
+            <h3 style="margin-bottom: 15px;">🎵 กำลังเล่น</h3>
+            <p style="margin-bottom: 10px; opacity: 0.8; font-size: 0.9rem;">${title || 'เพลง'}</p>
+            <div class="video-wrapper" style="position: relative; padding-bottom: 56.25%; height: 0; border-radius: 12px; overflow: hidden;">
+                <iframe 
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                    src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen>
+                </iframe>
+            </div>
+            <button class="close-panel-btn" style="margin-top: 15px; background: none; border: 1px solid rgba(255,255,255,0.2); padding: 8px 20px; border-radius: 20px; color: white; cursor: pointer;">
+                ปิด
+            </button>
+        </div>
+    `;
+    showPanel(playerHtml);
+    updateSpeech(`กำลังเล่นเพลงให้ฟังค่ะ 🎧`);
 }
 
 function changeSkin(btn) {

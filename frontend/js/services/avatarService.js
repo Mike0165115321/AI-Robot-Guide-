@@ -15,7 +15,7 @@ class AvatarService {
             return;
         }
 
-        const wsUrl = `${CONFIG.WS_URL}/avatar/ws?client_id=${sessionId}`;
+        const wsUrl = `${CONFIG.WS_BASE_URL}/api/avatar/ws?client_id=${sessionId}`;
         console.log(`🔌 Connecting to Avatar WS: ${wsUrl}`);
 
         this.ws = new WebSocket(wsUrl);

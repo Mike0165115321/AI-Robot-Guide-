@@ -16,7 +16,7 @@ class AlertService {
         }
 
         // URL Should be: ws://localhost:8014/api/alerts/ws
-        const wsUrl = `${CONFIG.WS_URL}/alerts/ws`;
+        const wsUrl = `${CONFIG.WS_BASE_URL}/api/alerts/ws`;
         console.log(`🔔 Connecting to Alert WS: ${wsUrl}`);
 
         this.ws = new WebSocket(wsUrl);

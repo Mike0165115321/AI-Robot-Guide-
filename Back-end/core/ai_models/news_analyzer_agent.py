@@ -165,13 +165,28 @@ severity_score: 1=ทั่วไป, 2=น่าสนใจ, 3=สำคัญ
         import re
         
         # ลบ trailing commas ก่อน ] หรือ }
-        json_str = re.sub(r',\s*([\]}])', r'\1', json_str)
+        json_str = re.sub(r',\s*([\]\}])', r'\1', json_str)
         
         # ลบ newlines และ extra spaces ใน strings ถ้ามี
         json_str = json_str.replace('\n', ' ').replace('\r', '')
         
         # ลบ ... (ellipsis) ที่ LLM บางทีใส่มา
         json_str = json_str.replace('...', '')
+        
+        # แก้ไข truncated JSON - ถ้า string ไม่ปิด
+        # นับ quotes และเติมให้ครบถ้าไม่ balanced
+        quote_count = json_str.count('"') - json_str.count('\\"')
+        if quote_count % 2 != 0:
+            # หา position ของ quote สุดท้าย และปิดมัน
+            json_str += '"'
+        
+        # ถ้ายังไม่สมบูรณ์ ลอง fix brackets
+        open_brackets = json_str.count('[') - json_str.count(']')
+        open_braces = json_str.count('{') - json_str.count('}')
+        
+        # เติม closing brackets/braces ที่ขาด
+        json_str += ']' * open_brackets
+        json_str += '}' * open_braces
         
         return json_str.strip()
     
@@ -202,8 +217,8 @@ severity_score: 1=ทั่วไป, 2=น่าสนใจ, 3=สำคัญ
         prompt = self.BATCH_ANALYSIS_PROMPT.format(news_list=news_list_str)
         
         try:
-            # เรียก Gemini 1 ครั้ง
-            response = await self._call_llm(prompt, max_tokens=2048)
+            # เรียก Gemini 1 ครั้ง (เพิ่ม max_tokens เพื่อป้องกัน JSON ถูกตัด)
+            response = await self._call_llm(prompt, max_tokens=4096)
             
             # Parse JSON Array
             parsed = self._parse_json_response(response)
