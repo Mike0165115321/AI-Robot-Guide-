@@ -199,6 +199,12 @@ function handleBackendResponse(data) {
         const fullUrls = data.image_gallery.map(url => getFullImageUrl(url));
         const galleryHtml = responseRenderer.renderGallery(fullUrls);
         showPanel(galleryHtml);
+    } else if (data.image_url) {
+        // Show single image if gallery is empty
+        const fullUrl = getFullImageUrl(data.image_url);
+        // Reuse renderGallery for single image or create a simple img tag
+        const html = `<div class="image-gallery"><img src="${fullUrl}" alt="รูปภาพประกอบ" loading="lazy" onclick="window.open('${fullUrl}', '_blank')"></div>`;
+        showPanel(html);
     }
 
     // Original payload handling
