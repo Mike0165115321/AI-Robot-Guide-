@@ -127,14 +127,37 @@ async def handle_audio_chat(
         
         result["transcribed_query"] = transcribed_text
         
-        result["transcribed_query"] = transcribed_text
+        # 🆕 Add avatar_mood based on action/content
+        result["avatar_mood"] = _determine_avatar_mood(result)
         
-        logging.info(f"✅ [API-Audio] กำลังส่งคำตอบกลับไปยังไคลเอนต์")
+        logging.info(f"✅ [API-Audio] กำลังส่งคำตอบกลับไปยังไคลเอนต์ (Mood: {result.get('avatar_mood')})")
         return result
     
     except Exception as e:
         logging.error(f"❌ [API-Audio] เกิดข้อผิดพลาดที่ไม่คาดคิด: {e}", exc_info=True)
         return ChatResponse(answer="ขออภัยค่ะ เกิดข้อผิดพลาดร้ายแรงในการประมวลผลเสียงค่ะ")
+
+@router.post("/stt")
+async def speech_to_text_only(
+    file: UploadFile = File(...)
+):
+    """
+    🎤 Pure STT Endpoint: Returns transcribed text only.
+    """
+    try:
+        logging.info(f"🎤 [API-STT] Received audio for transcription: {file.filename}")
+        audio_bytes = await file.read()
+        transcribed_text = await speech_handler_instance.transcribe_audio_bytes(audio_bytes)
+        
+        if not transcribed_text:
+            return {"text": ""}
+            
+        logging.info(f"📝 [API-STT] Transcribed: '{transcribed_text}'")
+        return {"text": transcribed_text}
+        
+    except Exception as e:
+        logging.error(f"❌ [API-STT] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/", response_model=ChatResponse)
 async def handle_text_chat(
@@ -199,6 +222,9 @@ async def handle_text_chat(
             topic=topic,
             location_title=location_title
         )
+
+        # 🆕 Add avatar_mood for REST API responses too
+        result["avatar_mood"] = _determine_avatar_mood(result)
 
         return result
     
@@ -371,10 +397,13 @@ async def text_to_speech(request: TTSRequest):
         logging.error(f"❌ [API-TTS] Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator = Depends(get_rag_orchestrator)):
     await websocket.accept()
+    
+    # 🆕 State tracking per connection (ย้ายมาจาก avatar_api.py)
+    current_ai_mode = 'fast'
+    
     try:
         while True:
             data = await websocket.receive()
@@ -383,7 +412,17 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                 try:
                     query_data = json.loads(data["text"])
                     query_text = query_data.get("query", "")
-                    ai_mode = query_data.get("ai_mode", "fast")  # fast | detailed
+                    
+                    # 🔄 Update mode if provided (ย้ายมาจาก avatar_api.py)
+                    if "ai_mode" in query_data:
+                        current_ai_mode = query_data["ai_mode"]
+                    
+                    # 🆕 Handle SET_MODE action (ย้ายมาจาก avatar_api.py)
+                    if query_data.get("action") == "SET_MODE":
+                        logging.info(f"🔄 [WS] อัปเดตโหมดเป็น: {current_ai_mode}")
+                        await websocket.send_json({"status": "ok", "ai_mode": current_ai_mode})
+                        continue
+                    
                     # 🆕 รับ intent จาก Frontend - ไม่ต้องใช้ LLM วิเคราะห์
                     intent = query_data.get("intent", "GENERAL")  # GENERAL | MUSIC | NAVIGATION | FAQ
                     
@@ -391,12 +430,12 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                     slug = query_data.get("slug")
                     entity_query = query_data.get("entity_query") # manual query text if slug is missing
                     
-                    logging.info(f"💬 [WS] ข้อความ: {query_text} | โหมด: {ai_mode} | เจตนา: {intent} | Slug: {slug}")
+                    logging.info(f"💬 [WS] ข้อความ: {query_text} | โหมด: {current_ai_mode} | เจตนา: {intent} | Slug: {slug}")
                     
                     result = await orchestrator.answer_query(
                         query_text, 
                         mode='text', 
-                        ai_mode=ai_mode,
+                        ai_mode=current_ai_mode,
                         frontend_intent=intent,
                         slug=slug,
                         entity_query=entity_query
@@ -404,10 +443,13 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                     # ✅ Sanitize Images for WS too!
                     result = sanitize_response_images(result)
                     
+                    # 🆕 Add avatar_mood based on action/content (ย้ายมาจาก avatar_api.py)
+                    result["avatar_mood"] = _determine_avatar_mood(result)
+                    
                     await websocket.send_json(result)
                 except Exception as e:
                     logging.error(f"❌ [WS] ข้อผิดพลาดในการประมวลผลข้อความ: {e}")
-                    await websocket.send_json({"answer": "เกิดข้อผิดพลาดในการประมวลผลค่ะ"})
+                    await websocket.send_json({"answer": "เกิดข้อผิดพลาดในการประมวลผลค่ะ", "avatar_mood": "confused"})
 
             elif "bytes" in data:
                 try:
@@ -417,17 +459,20 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                     transcribed_text = await speech_handler_instance.transcribe_audio_bytes(audio_bytes)
                     if transcribed_text:
                         logging.info(f"👂 [WS] ถอดเสียง: {transcribed_text}")
-                        result = await orchestrator.answer_query(transcribed_text, mode='text')
+                        result = await orchestrator.answer_query(transcribed_text, mode='text', ai_mode=current_ai_mode)
                         # ✅ Sanitize Images for Audio/WS
                         result = sanitize_response_images(result)
                         
                         result["transcribed_query"] = transcribed_text
+                        # 🆕 Add avatar_mood for audio responses too
+                        result["avatar_mood"] = _determine_avatar_mood(result)
+                        
                         await websocket.send_json(result)
                     else:
-                        await websocket.send_json({"answer": "ขออภัยค่ะ ไม่ได้ยินเสียงเลย"})
+                        await websocket.send_json({"answer": "ขออภัยค่ะ ไม่ได้ยินเสียงเลย", "avatar_mood": "confused"})
                 except Exception as e:
                     logging.error(f"❌ [WS] ข้อผิดพลาดในการประมวลผลเสียง: {e}")
-                    await websocket.send_json({"answer": "เกิดข้อผิดพลาดในการประมวลผลเสียงค่ะ"})
+                    await websocket.send_json({"answer": "เกิดข้อผิดพลาดในการประมวลผลเสียงค่ะ", "avatar_mood": "confused"})
 
     except WebSocketDisconnect:
         logging.info("🔌 [WS] ไคลเอนต์ตัดการเชื่อมต่อ")
@@ -438,3 +483,25 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
             logging.error(f"❌ [WS] ข้อผิดพลาด Runtime: {e}")
     except Exception as e:
         logging.error(f"❌ [WS] ข้อผิดพลาดที่ไม่คาดคิด: {e}")
+
+
+def _determine_avatar_mood(result: dict) -> str:
+    """
+    🎭 กำหนด mood ของ Avatar ตามประเภทคำตอบ (ย้ายมาจาก avatar_api.py)
+    - MUSIC action → listening (ใส่หูฟัง)
+    - มีรูปภาพ → happy
+    - ปกติ → talking
+    """
+    action = result.get("action", "")
+    
+    # เพลง = กำลังฟัง
+    if action and "MUSIC" in action:
+        return "listening"
+    
+    # มีรูปภาพหรือ sources = มีความสุข
+    if result.get("image_url") or result.get("image_gallery") or result.get("sources"):
+        return "happy"
+    
+    # ปกติ = กำลังพูด
+    return "talking"
+

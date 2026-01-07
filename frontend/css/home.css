@@ -1,0 +1,494 @@
+/**
+ * # Home Page CSS
+ * สไตล์สำหรับหน้าหลัก (index.html)
+ */
+
+/* ==========================================
+   MAIN CONTAINER
+   ========================================== */
+.main-container {
+    position: relative;
+    width: 100vw;
+    height: calc(100vh - 60px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* ==========================================
+   PRESENTATION PANEL (ซ้าย)
+   ========================================== */
+.presentation-panel {
+    position: absolute;
+    left: 5%;
+    width: 55%;
+    max-width: 800px;
+    height: 75%;
+    background: var(--color-bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(15px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    padding: var(--space-6);
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(30px);
+    transition: all 0.5s ease;
+}
+
+.presentation-panel::-webkit-scrollbar {
+    display: none;
+}
+
+.presentation-panel.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.presentation-panel h3 {
+    color: var(--color-accent);
+    border-bottom: 2px solid var(--color-accent);
+    padding-bottom: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+
+.presentation-close {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background: var(--glass);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.presentation-close:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.presentation-panel ul {
+    padding-left: var(--space-4);
+}
+
+.presentation-panel li {
+    padding-left: var(--space-4);
+    margin-bottom: var(--space-2);
+    position: relative;
+}
+
+.presentation-panel li::before {
+    content: '▹';
+    position: absolute;
+    left: 0;
+    color: var(--color-accent);
+}
+
+/* ==========================================
+   AVATAR SECTION (ขวา)
+   ========================================== */
+.avatar-section {
+    position: absolute;
+    right: 10%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.6s ease;
+}
+
+.avatar-section.shifted {
+    right: 5%;
+}
+
+.avatar-section.centered {
+    right: 50%;
+    transform: translateX(50%);
+}
+
+#avatar-wrapper {
+    width: 320px;
+    height: 420px;
+}
+
+#avatar-wrapper iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: var(--radius-lg);
+}
+
+.avatar-speech {
+    max-width: 350px;
+    margin-bottom: var(--space-4);
+    padding: var(--space-3) var(--space-5);
+    background: var(--color-bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    text-align: center;
+}
+
+.avatar-name {
+    margin-top: var(--space-4);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--color-accent);
+    background: linear-gradient(135deg, var(--color-accent), var(--color-primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.avatar-subtitle {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--space-4);
+}
+
+/* ==========================================
+   SKIN CAROUSEL
+   ========================================== */
+.skin-carousel-wrapper {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    z-index: 50;
+    flex-direction: row-reverse;
+}
+
+.skin-toggle-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-full);
+    background: var(--color-bg-card);
+    border: 2px solid var(--glass-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.skin-toggle-btn:hover {
+    border-color: var(--color-accent);
+    box-shadow: var(--glow-accent);
+}
+
+.skin-toggle-btn.active {
+    background: rgba(45, 212, 191, 0.2);
+    border-color: var(--color-accent);
+}
+
+.skin-carousel {
+    display: flex;
+    align-items: center;
+    background: var(--color-bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-2) var(--space-3);
+    backdrop-filter: blur(10px);
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: all 0.4s ease;
+}
+
+.skin-carousel.open {
+    max-width: 320px;
+    opacity: 1;
+}
+
+.skin-list {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: scroll;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    max-width: 270px;
+    padding: 4px;
+}
+
+.skin-list::-webkit-scrollbar {
+    height: 4px;
+}
+
+.skin-list::-webkit-scrollbar-thumb {
+    background: var(--color-accent);
+    border-radius: 4px;
+}
+
+.skin-btn {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    border-radius: var(--radius-full);
+    background: var(--glass);
+    border: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.skin-btn:hover {
+    transform: scale(1.1);
+    border-color: var(--color-accent);
+    box-shadow: var(--glow-accent);
+}
+
+.skin-btn.active {
+    border-color: var(--color-accent);
+    background: rgba(45, 212, 191, 0.25);
+    box-shadow: var(--glow-accent);
+}
+
+/* ==========================================
+   INPUT BAR & WRAPPER
+   ========================================== */
+.input-area-wrapper {
+    position: fixed;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 60;
+    width: 95%;
+    max-width: 750px;
+}
+
+.input-bar {
+    flex: 1;
+    display: flex;
+    gap: var(--space-3);
+    background: var(--color-bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-3);
+    backdrop-filter: blur(10px);
+}
+
+.input-bar input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--color-text);
+    font-size: var(--font-size-base);
+    padding: var(--space-2) var(--space-4);
+    outline: none;
+}
+
+.input-bar input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.input-bar button {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all var(--transition-fast);
+}
+
+.btn-send {
+    background: var(--color-primary);
+    color: white;
+}
+
+.btn-mode {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+    border: 1px solid #fbbf24;
+}
+
+.btn-mode:hover {
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.4);
+}
+
+.input-bar button:hover {
+    transform: scale(1.05);
+    box-shadow: var(--glow-primary);
+}
+
+/* ==========================================
+   MODE SWITCHING
+   ========================================== */
+.input-mode {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex: 1;
+}
+
+.input-mode.hidden {
+    display: none;
+}
+
+.text-mode input {
+    flex: 1;
+}
+
+/* ==========================================
+   RAINBOW BUTTON (คุยกับน้องน่าน)
+   ========================================== */
+.btn-rainbow {
+    background: linear-gradient(135deg,
+            #ff6b6b, #ffa500, #ffd93d, #6bcf7f, #4ecdc4, #9b5de5, #f15bb5);
+    background-size: 300% 300%;
+    animation: rainbow-shift 3s ease infinite;
+    color: white;
+    font-weight: 600;
+    padding: 12px 20px;
+    border-radius: 50px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(155, 93, 229, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.btn-rainbow:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 30px rgba(155, 93, 229, 0.6);
+}
+
+.btn-rainbow.active {
+    animation: rainbow-shift 0.5s ease infinite;
+    box-shadow: 0 6px 30px rgba(239, 68, 68, 0.6);
+}
+
+@keyframes rainbow-shift {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* ==========================================
+   VOICE MODE INDICATOR
+   ========================================== */
+.voice-indicator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.voice-pulse {
+    width: 24px;
+    height: 24px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 0.7;
+    }
+}
+
+.voice-status {
+    color: var(--color-text);
+    font-size: 1rem;
+}
+
+.btn-stop-voice {
+    background: #374151;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    border: 1px solid #4b5563;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: auto;
+    height: auto;
+    font-size: 0.9rem;
+}
+
+.btn-stop-voice:hover {
+    background: #4b5563;
+}
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+@media (max-width: 768px) {
+    .presentation-panel {
+        left: 2%;
+        right: 2%;
+        width: auto;
+        height: 50%;
+        bottom: 100px;
+        top: auto;
+    }
+
+    .avatar-section {
+        right: 50%;
+        transform: translateX(50%);
+    }
+
+    .avatar-section.shifted {
+        transform: translateX(50%) scale(0.7);
+        top: 20px;
+    }
+
+    #avatar-wrapper {
+        width: 260px;
+        height: 340px;
+    }
+
+    .input-area-wrapper {
+        flex-direction: column;
+        gap: 10px;
+        width: 95%;
+    }
+
+    .input-bar {
+        width: 100%;
+    }
+
+    .btn-rainbow {
+        width: 100%;
+        justify-content: center;
+    }
+}

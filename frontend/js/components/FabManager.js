@@ -72,10 +72,10 @@ class FabManager {
             </div>
         `;
 
-        // Insert before input-bar
-        const inputBar = document.querySelector('.input-bar');
-        if (inputBar) {
-            inputBar.insertAdjacentHTML('beforebegin', html);
+        // Insert before input-area-wrapper (or input-bar as fallback)
+        const inputWrapper = document.querySelector('.input-area-wrapper') || document.querySelector('.input-bar');
+        if (inputWrapper) {
+            inputWrapper.insertAdjacentHTML('beforebegin', html);
         } else {
             document.body.insertAdjacentHTML('beforeend', html);
         }

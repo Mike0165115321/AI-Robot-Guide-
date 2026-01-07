@@ -15,8 +15,9 @@ class AvatarService {
             return;
         }
 
-        const wsUrl = `${CONFIG.WS_BASE_URL}/api/avatar/ws?client_id=${sessionId}`;
-        console.log(`🔌 Connecting to Avatar WS: ${wsUrl}`);
+        // 🔄 ใช้ chat/ws แทน avatar/ws (avatar_api ถูกรวมเข้า chat_api แล้ว)
+        const wsUrl = `${CONFIG.WS_BASE_URL}/api/chat/ws?client_id=${sessionId}`;
+        console.log(`🔌 Connecting to Chat WS: ${wsUrl}`);
 
         this.ws = new WebSocket(wsUrl);
 

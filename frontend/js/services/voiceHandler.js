@@ -21,11 +21,11 @@
 // =============================================
 const DEFAULT_CONFIG = {
     // Noise/Speech Detection
-    NOISE_FLOOR: 0.003,           // ระดับเสียงต่ำสุดที่ถือว่าเป็นเสียง
-    SPEECH_THRESHOLD: 0.40,       // ระดับที่ถือว่าเป็นคำพูด
-    AMPLIFICATION: 45,            // ขยายเสียงเพื่อตรวจจับง่ายขึ้น
-    SILENCE_DELAY_MS: 500,        // รอ 0.5 วินาทีหลังหยุดพูดก่อนจบ (เหมือนคุยกับคนจริง)
-    SPEECH_CONFIRMATION_FRAMES: 3, // ต้องตรวจจับเสียง 3 frames ติดต่อกันถึงจะเริ่มบันทึก
+    NOISE_FLOOR: 0.01,            // เพิ่ม Noise floor ให้สูงขึ้นนิดหน่อย
+    SPEECH_THRESHOLD: 0.25,       // ลด Threshold ลงให้พอดีกับ Amplification ใหม่
+    AMPLIFICATION: 2.0,           // ⚠️ ลดลงจาก 45 เพื่อแก้ปัญหา volume สูงเกินไป
+    SILENCE_DELAY_MS: 1500,       // รอ 1.5 วินาทีเพื่อให้แน่ใจว่าจบประโยคจริง
+    SPEECH_CONFIRMATION_FRAMES: 5, // เพิ่ม frames เพื่อความชัวร์ว่าเป็นเสียงพูดจริง
     MIN_BLOB_SIZE_BYTES: 1000,    // ขนาดไฟล์เสียงขั้นต่ำ (ป้องกันเสียงสั้นเกินไป)
     SMOOTHING_FACTOR: 0.2,        // ค่า smoothing สำหรับ volume
     MAX_RECORDING_MS: 15000       // บันทึกได้สูงสุด 15 วินาที

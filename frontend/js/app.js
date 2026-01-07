@@ -12,6 +12,7 @@ import alertService from './services/alertService.js';
 import { renderMarkdown, renderInline } from './services/markdownService.js';
 import { renderNavbar } from './components/Navbar.js';
 import { fabManager } from './components/FabManager.js';
+import { voiceModeManager } from './components/VoiceModeManager.js';
 import { getFullImageUrl } from './config.js';
 import aiModeManager from './services/aiModeManager.js';
 
@@ -22,7 +23,8 @@ const state = {
     sessionId: localStorage.getItem('session_id') || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     isRecording: false,
     isLoading: false,
-    isSpeaking: false
+    isSpeaking: false,
+    isVoiceMode: false  // 🆕 สำหรับสลับโหมดพิมพ์/พูด
 };
 
 // Save session ID
@@ -57,11 +59,40 @@ function initServices() {
         }
     });
 
-    // 4. Listeners
+    // 4. Initialize Voice Mode Manager
+    voiceModeManager.init({
+        onAudioSend: async (audioBlob) => {
+            console.log('🎤 Voice Mode: Sending audio for STT...');
+            // 1. Get Text from Audio
+            const text = await chatService.transcribeAudio(audioBlob);
+            console.log('📝 Transcribed:', text);
+
+            if (text) {
+                // 2. Put text in input (Visual feedback)
+                const input = $('#query-input');
+                if (input) input.value = text;
+
+                // 3. Trigger standard Chat Flow (Send -> AI -> TTS)
+                // Determine if we need to wait or just send immediately
+                // For a smooth experience, we send immediately
+                handleSend(text);
+
+                return { success: true, data: { answer: 'กำลังประมวลผลค่ะ...' } }; // Dummy success for VoiceManager
+            } else {
+                return { success: false, error: 'No speech detected' };
+            }
+        },
+        onModeChange: (mode) => {
+            state.isVoiceMode = (mode === 'voice');
+        },
+        showLoading: showLoading,
+        hideLoading: hideLoading
+    });
+    // 5. Listeners
     avatarService.onMessage((data) => handleAvatarMessage(data));
     alertService.onAlert((data) => handleAlertMessage(data));
 
-    // 5. Init UI State
+    // 6. Init UI State
     updateAIModeButton();
 }
 
@@ -85,8 +116,7 @@ function bindEvents() {
         if (e.key === 'Enter') handleSend();
     });
 
-    const btnVoice = $('#btn-voice');
-    if (btnVoice) on(btnVoice, 'click', handleVoice);
+    // Voice Mode is now handled by VoiceModeManager (initialized in initApp)
 
     const btnMode = $('#btn-ai-mode');
     if (btnMode) on(btnMode, 'click', () => {
@@ -130,14 +160,33 @@ function bindEvents() {
     });
 }
 
-async function handleSend() {
+async function handleSend(manualText = null) {
     const input = $('#query-input');
-    const text = input.value.trim();
+    // Use manualText if provided, otherwise read input. 
+    // IMPORTANT: If manualText is meant to be sent effectively, we should use it.
+    const text = (typeof manualText === 'string') ? manualText : input.value.trim();
+
     if (!text) return;
 
     // UI Updates
-    input.value = '';
-    updateSpeech('กำลังคิดคำตอบ... 🤔');
+    input.value = ''; // Clear input (or keep it? User might want to see it? Usually clear after send)
+    // If it's voice, we already put it in input in step 2. 
+    // Clearing it immediately might hide it before user sees it.
+    // Let's keep it cleared for standard chat behavior.
+    // Or better: update speech bubble instead of input?
+    // User said: "เอามาใส่ในช่องแชทอัตโนมัติ (ให้พี่เห็นเลยว่าพูดอะไรไป)"
+    // So we set it, BUT normal handleSend ALWAYS clears input.
+    // Maybe we set it, wait a bit, then clear? Or just let standard chat logic take over.
+    // Standard chat logic clears input.
+    // If we want user to see it *as history*, we need a history view.
+    // Currently there is no chat history view, only the "Speech Bubble" and "Panel".
+    // If we clear it, it's gone.
+    // But effectively handleSend clears it.
+
+    // Let's set the text in input just so handleSend can read it if we didn't pass it?
+    // No, we passed manualText.
+
+    updateSpeech(`🗣️ ${text}`); // Show what user said in speech bubble briefly?
     showLoading();
 
     // 🛑 Pause Idle Behaviors during entire thinking + speaking flow
@@ -151,6 +200,8 @@ async function handleSend() {
         // Send to Backend
         // 1. Send text to Chat API (triggers RAG)
         const response = await chatService.sendText(text, state.sessionId);
+
+        // ... rest of function ...
 
         // Note: The response comes back via HTTP (for text/cards) OR WebSocket (for avatar speech)
         // Usually, the Chat API returns the text answer and data cards immediately.
@@ -198,11 +249,15 @@ function handleBackendResponse(data) {
         if (data.avatar_mood) setAvatarMood(data.avatar_mood);
     }
 
-    // Trigger Action if present
+    // Trigger Action if present (or infer from mood)
     if (data.avatar_action) {
-        const avatarFrame = document.querySelector('#avatar-wrapper iframe');
-        if (avatarFrame && avatarFrame.contentWindow) {
-            avatarFrame.contentWindow.postMessage({ type: 'triggerAction', action: data.avatar_action }, '*');
+        sendAvatarCommand({ type: 'action', action: data.avatar_action });
+    } else {
+        // ✨ Add some randomness/life based on mood
+        if (data.avatar_mood === 'happy' && Math.random() > 0.7) {
+            sendAvatarCommand({ type: 'action', action: 'waveHand' });
+        } else if (data.avatar_mood === 'curious') {
+            sendAvatarCommand({ type: 'action', action: 'lookAround' });
         }
     }
 
@@ -281,57 +336,9 @@ function renderMusicList(songs) {
     `;
 }
 
-async function handleVoice() {
-    const btnVoice = $('#btn-voice');
 
-    if (!state.isRecording) {
-        // เริ่ม VAD Mode (ตรวจจับเสียงอัตโนมัติ)
-        const success = await speechService.startVAD({
-            onStatusUpdate: (status) => {
-                updateSpeech(status);
-            },
-            onSpeechEnd: async (audioBlob) => {
-                // เมื่อพูดจบ (ตรวจจับ silence)
-                state.isRecording = false;
-                btnVoice.classList.remove('recording');
-                updateSpeech('กำลังประมวลผลเสียง... 🔄');
-                showLoading();
+// Voice Mode is now handled by VoiceModeManager.js
 
-                try {
-                    const response = await chatService.sendAudio(audioBlob, state.sessionId);
-                    if (response.success) {
-                        handleBackendResponse(response.data);
-                    } else {
-                        updateSpeech('ขอโทษค่ะ ฟังไม่ทัน 😓');
-                    }
-                } catch (err) {
-                    console.error(err);
-                    updateSpeech('มีปัญหาในการส่งเสียงค่ะ 🔌');
-                } finally {
-                    hideLoading();
-                }
-            },
-            onVolumeChange: (volume) => {
-                // Optional: แสดง volume indicator
-                // updateVolumeBar(volume);
-            }
-        });
-
-        if (success) {
-            state.isRecording = true;
-            btnVoice.classList.add('recording');
-            updateSpeech('กำลังฟังค่ะ... 👂');
-        } else {
-            updateSpeech('เปิดไมค์ไม่ได้ค่ะ 🎤❌');
-        }
-    } else {
-        // หยุด VAD
-        speechService.stopVAD(true); // interrupted = true
-        state.isRecording = false;
-        btnVoice.classList.remove('recording');
-        updateSpeech('หยุดฟังแล้วค่ะ');
-    }
-}
 
 function handleAvatarMessage(data) {
     if (data.type === 'speech_start') {
@@ -543,104 +550,138 @@ function showToastAlert(alert) {
 }
 
 // ==========================================
-// 🔊 SPEECH SYNTHESIS (Backend TTS)
+// 🔊 AUDIO QUEUE SYSTEM (Streaming TTS)
 // ==========================================
 const audioPlayer = new Audio();
+let audioQueue = [];
+let isPlayingQueue = false;
 
-function speakText(text, finalMood = 'normal') {
+function stopSpeaking() {
+    audioQueue = [];
+    isPlayingQueue = false;
+    audioPlayer.pause();
+    audioPlayer.currentTime = 0;
+    state.isSpeaking = false;
+}
+
+async function speakText(text, finalMood = 'normal') {
+    // 1. Reset/Stop previous
+    stopSpeaking();
+
     if (!text) {
         setAvatarMood(finalMood);
         return;
     }
 
-    // Stop previous audio
-    audioPlayer.pause();
-    audioPlayer.currentTime = 0;
+    // 2. Pre-processing & Split
+    // Split by delimiters (.|?|!|newline) followed by space or end
+    // Clean markdown symbols to avoid saying "asterisk" etc
+    const cleanText = text.replace(/[*#`]/g, '');
+    const chunks = cleanText.match(/[^.!?\n]+[.!?\n]+|[^.!?\n]+$/g) || [cleanText];
 
-    // Show loading message - don't set speaking mood yet!
-    // Let avatar do normal behaviors while waiting
-    showAvatarMessage('กำลังพยายามอธิบายเป็นคำพูด รอสักครู่นะคะ... 🎤');
+    console.log(`🗣️ TTS Queue: Processing ${chunks.length} chunks`);
 
-    console.log('🗣️ Requesting TTS from Backend...');
+    // 3. Setup Queue (Convert to Objects)
+    audioQueue = chunks.map(t => ({ text: t.trim(), blob: null, promise: null }));
+    // Filter empty chunks
+    audioQueue = audioQueue.filter(item => item.text.length > 0);
 
-    fetch('/api/chat/tts', {
+    if (audioQueue.length === 0) return;
+
+    // 4. Start Queue
+    isPlayingQueue = true;
+    state.isSpeaking = true;
+    sendAvatarCommand({ type: 'pauseIdle' });
+    showAvatarMessage('กำลังพูด...');
+    voiceModeManager.pauseRecording(); // Stop VAD
+
+    playNextChunk(finalMood);
+}
+
+async function fetchTTSBlob(text) {
+    console.log('🗣️ Fetching TTS:', text.substring(0, 20) + '...');
+    const response = await fetch('/api/chat/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: text })
-    })
-        .then(response => {
-            console.log('📡 TTS Response status:', response.status);
-            if (!response.ok) throw new Error(`TTS Fetch failed: ${response.status}`);
-            return response.blob();
-        })
-        .then(blob => {
-            console.log('🎵 TTS Audio blob received:', blob.size, 'bytes');
-            const audioUrl = URL.createObjectURL(blob);
-            audioPlayer.src = audioUrl;
+    });
+    if (!response.ok) throw new Error(`TTS Error: ${response.status}`);
+    return await response.blob();
+}
 
-            // When audio ACTUALLY starts playing - NOW set speaking mood
-            audioPlayer.onplay = () => {
-                console.log('🗣️ Audio started playing - setting speaking mood');
-                hideAvatarMessage();  // Hide "รอแปบ" message
-                state.isSpeaking = true;
-                sendAvatarCommand({ type: 'pauseIdle' });
-                setAvatarMood('speaking');
-            };
+async function playNextChunk(finalMood) {
+    // Check if stopped or empty
+    if (!isPlayingQueue || audioQueue.length === 0) {
+        finishSpeaking(finalMood);
+        return;
+    }
 
-            // Keep reinforcing speaking mood during playback
-            audioPlayer.ontimeupdate = () => {
-                if (!audioPlayer.paused && !audioPlayer.ended) {
-                    setAvatarMood('speaking');
-                }
-            };
+    const currentItem = audioQueue[0]; // Peek
 
-            audioPlayer.onended = () => {
-                console.log('✅ TTS Finished - resetting to', finalMood);
-                hideAvatarMessage();
-                state.isSpeaking = false;
-                sendAvatarCommand({ type: 'resumeIdle' });
-                setAvatarMood(finalMood);
-                URL.revokeObjectURL(audioUrl);
-            };
-
-            audioPlayer.onerror = (e) => {
-                console.error('❌ Audio Error:', e);
-                state.isSpeaking = false;
-                sendAvatarCommand({ type: 'resumeIdle' });
-                setAvatarMood(finalMood);
-            };
-
-            // Try to play
-            console.log('▶️ Attempting to play audio...');
-            const playPromise = audioPlayer.play();
-            if (playPromise !== undefined) {
-                playPromise
-                    .then(() => console.log('✅ Audio play() succeeded'))
-                    .catch(e => {
-                        console.warn("⚠️ Autoplay prevented:", e.message);
-                        // Show user needs to interact first
-                        setAvatarMood(finalMood);
-                    });
+    try {
+        // 1. Get Blob (Fetch if not ready)
+        let blob = currentItem.blob;
+        if (!blob) {
+            // If promise exists, wait for it, else create new
+            if (!currentItem.promise) {
+                currentItem.promise = fetchTTSBlob(currentItem.text);
             }
-        })
-        .catch(err => {
-            console.error('❌ TTS Network Error:', err);
-            setAvatarMood(finalMood);
-        });
+            blob = await currentItem.promise;
+            currentItem.blob = blob;
+        }
+
+        // 2. Play
+        const url = URL.createObjectURL(blob);
+        audioPlayer.src = url;
+
+        audioPlayer.onplay = () => {
+            setAvatarMood('speaking');
+            hideAvatarMessage();
+
+            // 🚀 PRE-FETCH NEXT CHUNK
+            if (audioQueue.length > 1) {
+                const nextItem = audioQueue[1];
+                if (!nextItem.promise && !nextItem.blob) {
+                    console.log('🚀 Pre-fetching next chunk...');
+                    nextItem.promise = fetchTTSBlob(nextItem.text); // Start fetch
+                }
+            }
+        };
+
+        audioPlayer.onended = () => {
+            URL.revokeObjectURL(url);
+            audioQueue.shift(); // Remove finished item
+            playNextChunk(finalMood); // Next!
+        };
+
+        audioPlayer.onerror = (e) => {
+            console.error("❌ Audio Playback Error", e);
+            audioQueue.shift(); // Skip bad chunk
+            playNextChunk(finalMood);
+        };
+
+        await audioPlayer.play();
+
+    } catch (e) {
+        console.error("❌ TTS Processing Error:", e);
+        audioQueue.shift(); // Skip bad chunk
+        playNextChunk(finalMood);
+    }
+}
+
+function finishSpeaking(finalMood) {
+    console.log('✅ TTS Queue Finished');
+    isPlayingQueue = false;
+    state.isSpeaking = false;
+    hideAvatarMessage();
+    sendAvatarCommand({ type: 'resumeIdle' });
+    setAvatarMood(finalMood);
+    voiceModeManager.resumeRecording(); // Resume VAD
 }
 
 function setAvatarMood(mood) {
-    const avatarFrame = document.querySelector('#avatar-wrapper iframe');
-    if (!avatarFrame) {
-        console.warn('⚠️ [Avatar] iframe not found');
-        return;
-    }
-    if (!avatarFrame.contentWindow) {
-        console.warn('⚠️ [Avatar] iframe contentWindow not ready');
-        return;
-    }
-    console.log(`🎭 [Avatar] Sending mood: ${mood}`);
-    avatarFrame.contentWindow.postMessage({ type: 'changeMood', mood: mood }, '*');
+    // Wrapper to send mood change
+    sendAvatarCommand({ type: 'changeMood', mood: mood });
 }
 
 function sendAvatarCommand(command) {

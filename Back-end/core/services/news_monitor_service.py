@@ -87,7 +87,8 @@ class NewsMonitorService:
             results = []
             # DDGS might raise Ratelimit exceptions
             try:
-                with DDGS() as ddgs:
+                # เพิ่ม timeout เป็น 30 วินาที
+                with DDGS(timeout=30) as ddgs:
                     news_results = list(ddgs.news(
                         keyword,
                         region="th-th",
@@ -133,7 +134,11 @@ class NewsMonitorService:
             logger.error("❌ [DDG] กรุณาติดตั้ง: pip install ddgs")
             return []
         except Exception as e:
-            logger.error(f"❌ [DDG] ข้อผิดพลาด: {e}")
+            error_msg = str(e).lower()
+            if "time" in error_msg and "out" in error_msg:
+                 logger.warning(f"⚠️ [DDG] Connection Timed Out: {e}")
+            else:
+                 logger.error(f"❌ [DDG] ข้อผิดพลาด: {e}")
             return []
     
     async def fetch_gnews(self, keyword: str, max_results: int = 5) -> List[Dict]:

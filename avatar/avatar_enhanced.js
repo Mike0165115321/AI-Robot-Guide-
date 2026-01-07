@@ -416,4 +416,27 @@ const NanAvatar = new NanAvatarController();
 // Auto-init when DOM ready
 document.addEventListener('DOMContentLoaded', () => {
     NanAvatar.init();
+
+    // 📩 Listen for commands from parent window (app.js)
+    window.addEventListener('message', (event) => {
+        const data = event.data;
+        console.log('📩 [Avatar] Received message:', data);
+
+        if (data.type === 'changeMood') {
+            NanAvatar.setMood(data.mood);
+        } else if (data.type === 'action') {
+            if (typeof NanAvatar[data.action] === 'function') {
+                NanAvatar[data.action]();
+            } else {
+                console.warn(`❌ Unknown action: ${data.action}`);
+            }
+        } else if (data.type === 'pauseIdle') {
+            NanAvatar.isIdlePaused = true;
+            console.log('⏸️ Avatar idle paused');
+        } else if (data.type === 'resumeIdle') {
+            NanAvatar.isIdlePaused = false;
+            console.log('▶️ Avatar idle resumed');
+            NanAvatar.resetIdleTimer();
+        }
+    });
 });

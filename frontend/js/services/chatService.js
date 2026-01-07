@@ -32,12 +32,10 @@ class ChatService {
     async sendAudio(audioBlob, sessionId) {
         try {
             const formData = new FormData();
-            formData.append('file', audioBlob, 'voice.wav');
+            formData.append('file', audioBlob, 'voice.webm');
 
-            // Note: client.js might not support FormData directly if it sets JSON headers automatically
-            // We might need to use raw fetch here or update client.js
-            // Let's use raw fetch for now for file upload
-            const response = await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.chat}/audio?session_id=${sessionId}`, {
+            // ใช้ endpoint /chat/transcribe ที่รองรับ Whisper STT
+            const response = await fetch(`${CONFIG.API_BASE_URL}/chat/transcribe?session_id=${sessionId}`, {
                 method: 'POST',
                 body: formData
             });
@@ -48,6 +46,30 @@ class ChatService {
         } catch (error) {
             console.error('Voice Error:', error);
             return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Send audio for STT only
+     * @param {Blob} audioBlob 
+     * @returns {Promise<string>} Transcribed text
+     */
+    async transcribeAudio(audioBlob) {
+        try {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'voice.webm');
+
+            const response = await fetch(`${CONFIG.API_BASE_URL}/chat/stt`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error(`STT failed: ${response.status}`);
+            const data = await response.json();
+            return data.text || '';
+        } catch (error) {
+            console.error('STT Error:', error);
+            return '';
         }
     }
 }
