@@ -91,15 +91,7 @@ def sanitize_text_for_speech(text: str) -> str:
     return text
 
 
-VOICE_MAP = {
-    "th": ["th-TH-PremwadeeNeural", "th-TH-NiwatNeural"],
-    "en": ["en-US-JennyNeural", "en-US-GuyNeural"],
-    "zh": ["zh-CN-XiaoxiaoNeural", "zh-CN-YunxiNeural"],
-    "ja": ["ja-JP-NanamiNeural", "ja-JP-KeitaNeural"],
-    "hi": ["hi-IN-SwaraNeural", "hi-IN-MadhurNeural"],
-    "ru": ["ru-RU-SvetlanaNeural", "ru-RU-DmitryNeural"],
-    "ms": ["ms-MY-YasminNeural", "ms-MY-OsmanNeural"],
-}
+
 
 class SpeechHandler:
     def __init__(self):
@@ -182,7 +174,7 @@ class SpeechHandler:
                 except:
                     pass
 
-    async def synthesize_speech_stream(self, text: str):
+    async def synthesize_speech_stream(self, text: str, language_hint: str = None):
         """
         Async Generator that yields audio chunks (bytes).
         - Uses Edge TTS by default (streaming with sentence buffering).
@@ -195,15 +187,31 @@ class SpeechHandler:
         if not clean_text.strip():
             clean_text = "ขอโทษค่ะ ไม่สามารถอ่านข้อความได้"
 
-        logging.info(f"🗣️  [TTS Stream] เริ่มสังเคราะห์เสียง: '{clean_text[:50]}...'")
+        logging.info(f"🗣️  [TTS Stream] เริ่มสังเคราะห์เสียง: '{clean_text[:50]}...' (Hint: {language_hint})")
 
         # 🌐 Detect language
         detected_lang = "th"
-        if self.lang_detector:
-            detected_lang = self.lang_detector.detect(text)
-            logging.info(f"🌐 [TTS] ภาษา: {detected_lang}")
+        
+        # 🟢 Priority: Use Hint from Frontend
+        # 🟢 Priority: Use Hint from Frontend
+        if language_hint:
+             detected_lang = language_hint
+             logging.info(f"🌐 [TTS] ใช้ภาษาจาก Hint: {detected_lang}")
+        else:
+             # 🟡 Fallback: Detect myself
+             if self.lang_detector:
+                 detected_lang = self.lang_detector.detect(text)
+                 logging.info(f"🌐 [TTS] ตรวจจับภาษาเอง: {detected_lang}")
 
-        voices_to_try = VOICE_MAP.get(detected_lang, VOICE_MAP["th"])
+        # ดึงลิสต์เสียงจาก Central Config (LanguageDetector)
+        voices_to_try = []
+        if self.lang_detector:
+            voices_to_try = self.lang_detector.get_tts_voices(detected_lang)
+        
+        # Fallback hardcoded if detector missing (Safety net)
+        if not voices_to_try:
+            voices_to_try = ["th-TH-PremwadeeNeural"]
+
         
         # ========== Try Edge TTS (Streaming) ==========
         for voice in voices_to_try:

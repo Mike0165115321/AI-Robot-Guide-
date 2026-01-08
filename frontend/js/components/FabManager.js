@@ -419,6 +419,7 @@ class FabManager {
             { name: 'บรรเลง', icon: '🎹', color: '#6366f1' }
         ];
 
+        // Simple HTML Structure
         const content = `
             <p style="margin-bottom: 15px; opacity: 0.8;">เลือกแนวเพลง หรือพิมพ์ชื่อเพลง:</p>
             <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
@@ -433,7 +434,7 @@ class FabManager {
                 <input type="text" class="music-input" placeholder="พิมพ์ชื่อเพลง..." 
                     style="flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(0,0,0,0.3); color: white;">
                 <button class="music-search-btn" style="padding: 10px 15px; background: #10b981; border: none; border-radius: 8px; color: white; cursor: pointer;">
-                    🔍
+                    <span style="pointer-events: none;">🔍</span>
                 </button>
             </div>
             <div class="music-results" style="margin-top: 15px;"></div>
@@ -441,26 +442,41 @@ class FabManager {
 
         const widget = this._showWidget('🎵 ฟังเพลง', content);
 
+        // Common Search Function
         const searchMusic = (term) => {
+            if (!term) return;
             const text = `เปิดเพลง ${term}`;
+            console.log('🎵 Searching:', text);
             this.callbacks.onSendMessage?.(text);
             this._closeWidget(widget);
         };
 
+        // 1. Bind Genre Buttons (User confirmed these work)
         widget.querySelectorAll('.genre-btn').forEach(btn => {
             btn.addEventListener('click', () => searchMusic(btn.dataset.genre));
         });
 
+        // 2. Bind Input & Search Button (Simple Logic)
         const input = widget.querySelector('.music-input');
         const searchBtn = widget.querySelector('.music-search-btn');
 
-        searchBtn.addEventListener('click', () => {
-            if (input.value.trim()) searchMusic(input.value.trim());
-        });
+        if (searchBtn && input) {
+            searchBtn.onclick = () => {
+                const term = input.value.trim();
+                if (term) {
+                    searchMusic(term);
+                } else {
+                    // Simple feedback, no complex animations if user dislikes complexity
+                    input.focus();
+                    input.style.borderColor = '#ef4444';
+                    setTimeout(() => input.style.borderColor = 'rgba(255,255,255,0.2)', 500);
+                }
+            };
 
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && input.value.trim()) searchMusic(input.value.trim());
-        });
+            input.onkeypress = (e) => {
+                if (e.key === 'Enter') searchBtn.onclick();
+            };
+        }
     }
 
     /**

@@ -7,15 +7,17 @@ class ChatService {
      * Send text query to backend
      * @param {string} text - User query
      * @param {string} sessionId - Session ID
+     * @param {string} language - Language hint ('th', 'en')
      * @returns {Promise<Object>}
      */
-    async sendText(text, sessionId) {
+    async sendText(text, sessionId, language = null) {
         try {
             return await api.post(CONFIG.ENDPOINTS.chat, {
                 query: text,
                 session_id: sessionId,
                 ai_mode: aiModeManager.getMode(),
-                frontend_intent: 'GENERAL'
+                frontend_intent: 'GENERAL',
+                language: language // 🆕 Pass language hint
             });
         } catch (error) {
             console.error('ChatService Error:', error);

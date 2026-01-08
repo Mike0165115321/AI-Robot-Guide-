@@ -45,13 +45,19 @@ class LocationAdminSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, arbitrary_types_allowed=True)
 
 class LocationAdminSummaryWithImage(LocationAdminSummary):
-    preview_image_url: Optional[str] = None
+    preview_image_url: Optional[str]
+
+# 🆕 TTS Endpoint
+class TTSRequest(BaseModel):
+    text: str
+    language: Optional[str] = None # 🆕 Optional language hint (th, en, etc.)
 
 class ChatQuery(BaseModel):
     query: str | Dict[str, Any] = Field(..., description="Query string or action object")
     session_id: Optional[str] = None
     ai_mode: Optional[str] = Field("fast", description="AI mode: 'fast' (Llama) or 'detailed' (Gemini)")
     frontend_intent: Optional[str] = Field("GENERAL", description="Frontend intent hint")
+    language: Optional[str] = Field(None, description="Language hint (th, en, etc.)")
 
 class ActionPayloadPrompt(BaseModel): placeholder: str
 

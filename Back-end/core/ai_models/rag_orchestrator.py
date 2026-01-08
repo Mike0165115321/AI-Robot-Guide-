@@ -10,6 +10,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from bson import ObjectId
 
 from sentence_transformers import CrossEncoder
 
@@ -179,6 +180,7 @@ class RAGOrchestrator:
         turn_count: int = 1, session_id: Optional[str] = None, ai_mode: str = "fast", 
         original_query: str = None,
         interpretation: Dict[str, Any] = None,
+        language: str = None, # 🆕 Accept language arg
         **kwargs
     ) -> dict:
         interpretation = interpretation or kwargs.get("interpretation", {})
@@ -304,7 +306,7 @@ class RAGOrchestrator:
 
         # [แผนสำรอง] หาก Qdrant ไม่พบผลลัพธ์ (หรือระบบล่ม) ให้ลองค้นหาข้อความใน MongoDB แทน
         if not qdrant_results_combined:
-            logging.info("⚠️ [RAG] Qdrant ไม่พบผลลัพธ์ กำลังลองค้นหาด้วยข้อความใน MongoDB...")
+            logging.info("⚠️ [RAG] Qdrant ไม่พบผลลัพธ์ กำลังลองค้นหาด้วยข้อความใน MongoDB แทน...")
             # ใช้ entity ถ้ามี มิฉะนั้นใช้ corrected_query
             search_term = entity if entity else corrected_query
             
@@ -348,41 +350,43 @@ class RAGOrchestrator:
         direct_match_ids = {get_payload(res).get('mongo_id') for res in qdrant_results_combined 
                             if get_payload(res).get('is_direct_match')}
 
-        # Re-populate unique_ids from ALL results including trending
-        all_mongo_ids = [get_payload(res).get('mongo_id') for res in qdrant_results_combined 
-                         if get_payload(res).get('mongo_id')]
-        unique_ids = list(dict.fromkeys(all_mongo_ids))
-
-        if not unique_ids:
-            return {"answer": "ขออภัยค่ะ ไม่พบข้อมูลที่เกี่ยวข้องในระบบ", "action": None, "sources": [], "image_url": None, "image_gallery": []}
-
-        retrieved_docs = await asyncio.to_thread(self.mongo_manager.get_locations_by_ids, unique_ids)
-        if not retrieved_docs:
-            return {"answer": "พบข้อมูลแต่ดึงรายละเอียดไม่ได้ค่ะ", "action": None, "sources": [], "image_url": None, "image_gallery": []}
-            
-        # 🆕 Re-inject Trending & Score Info
-        # Note: We can't rely on Qdrant scores for trending items (they are mock scores)
-        # We just mark them.
-        for doc in retrieved_docs:
-            doc_id = str(doc.get('_id'))
-            if doc_id in trending_ids:
-                doc['is_trending'] = True
-                doc['title'] = f"🔥 {doc.get('title')}" # Hack: Add fire to title for Reranker context too
-            if doc_id in direct_match_ids:
-                doc['is_direct_match'] = True
-                doc['title'] = f"🎯 {doc.get('title')}" # Hack: Add target to title
+        docs_with_synthetic = []
         
-        # TODO: Consider synthetic doc creation - we might need to update it
-        # from core.ai_models.utils.summarizer import create_synthetic_document # Removed as it's imported globally now
-        docs_with_synthetic = await asyncio.to_thread(lambda docs: [(doc, create_synthetic_document(doc)) for doc in docs], retrieved_docs)
-        # 🔄 [RERANKING] ขั้นตอนการจัดลำดับใหม่
-        # จับคู่ (User Query, Document) เพื่อให้โมเดล Reranker ให้คะแนนความเกี่ยวข้อง 
+        # Optimize: Fetch all docs at once by ID
+        found_mongo_docs = []
+        if unique_ids:
+             found_mongo_docs = await asyncio.to_thread(
+                 lambda: list(self.mongo_manager.get_collection("nan_locations").find({"_id": {"$in": [ObjectId(uid) for uid in unique_ids if ObjectId.is_valid(uid)]}}))
+             )
+        
+        # Map ID -> Doc
+        doc_map = {str(d["_id"]): d for d in found_mongo_docs}
+        
+        for doc_id in unique_ids:
+            doc = doc_map.get(doc_id)
+            if doc:
+                 # Re-inject trending/direct flags
+                 if doc_id in trending_ids: doc['is_trending'] = True
+                 if doc_id in direct_match_ids: doc['is_direct_match'] = True
+                 
+                 synthetic_doc = create_synthetic_document(doc)
+                 docs_with_synthetic.append((doc, synthetic_doc))
+        
+        if not docs_with_synthetic:
+             return {
+                "answer": f"น้องน่านพยายามหาข้อมูลเกี่ยวกับ **'{corrected_query}'** แล้วแต่ไม่เจอเลยค่ะ 😅 ลองถามเรื่องอื่น หรือใช้คำถามอื่นดูมั้ยคะ?",
+                "action": None,
+                "sources": [], "image_url": None, "image_gallery": []
+            }
+        
+        # 3. Reranking (Cross-Encoder)
+        # นำเอกสารที่หาเจอ มาเทียบกับคำค้น (User Query) อีกรอบ เพื่อเรียงลำดับความน่าเชื่อถือ
         sentence_pairs = [[corrected_query, synthetic_doc] for doc, synthetic_doc in docs_with_synthetic]
         
         # ให้คะแนนความเหมือน (Score) ยิ่งเยอะยิ่งเกี่ยวข้องกันมาก
         scores = await asyncio.to_thread(self.reranker.predict, sentence_pairs, show_progress_bar=False)
         
-        # �️ [Score Boosting] ดันคะแนน Trending/Direct ให้ชนะ Semantic เสมอ
+        # ️ [Score Boosting] ดันคะแนน Trending/Direct ให้ชนะ Semantic เสมอ
         final_scores = []
         for score, (doc, _) in zip(scores, docs_with_synthetic):
             boosted_score = float(score)
@@ -393,7 +397,7 @@ class RAGOrchestrator:
                 boosted_score = max(boosted_score, 0.85) 
             final_scores.append(boosted_score)
         
-        # �🔍 [Debug Log] แสดงคะแนน Reranking ของแต่ละเอกสาร
+        # 🔍 [Debug Log] แสดงคะแนน Reranking ของแต่ละเอกสาร
         logging.info(f"📊 [Reranking] กำลังจัดลำดับเอกสาร {len(final_scores)} รายการ...")
         for i, (score, (doc, _)) in enumerate(zip(final_scores, docs_with_synthetic)):
             logging.info(f"   🔹 เอกสาร: {doc.get('title')} | คะแนน: {score:.4f} | Trending: {doc.get('is_trending', False)} | Direct: {doc.get('is_direct_match', False)}")
@@ -443,11 +447,12 @@ class RAGOrchestrator:
             history = session.get("history", [])
 
         prompt_dict = self.prompt_engine.build_rag_prompt(
-            user_query=original_query or corrected_query, # 🆕 ใช้คำถามเริ่มต้นของผู้ใช้เพื่อตรวจจับภาษาได้ถูกต้อง 
+            user_query=original_query or corrected_query, 
             context=context_str, 
             history=history,
-            ai_mode=ai_mode,  # 🆕 ส่ง mode ไปเลือก prompt ที่เหมาะสม
-            is_low_confidence=is_low_confidence # 🛡️ [Self-Correction]
+            ai_mode=ai_mode,
+            is_low_confidence=is_low_confidence, 
+            language_hint=language # 🆕 Pass language hint
         )
         
         messages = [
@@ -531,10 +536,11 @@ class RAGOrchestrator:
     async def handle_get_directions(self, entity_slug: str, user_lat: float = None, user_lon: float = None) -> dict:
         return await self.nav_service.handle_get_directions(entity_slug, user_lat, user_lon)
     
-    async def answer_query(self, query: str, mode: str = "text", session_id: Optional[str] = None, ai_mode: str = "fast", frontend_intent: str = None, slug: Optional[str] = None, entity_query: Optional[str] = None, **kwargs) -> dict:
+    async def answer_query(self, query: str, mode: str = "text", session_id: Optional[str] = None, ai_mode: str = "fast", frontend_intent: str = None, language: str = None, slug: Optional[str] = None, entity_query: Optional[str] = None, **kwargs) -> dict:
         """
         ai_mode: 'fast' = Llama/Groq, 'detailed' = Gemini
         frontend_intent: 'GENERAL' | 'MUSIC' | 'NAVIGATION' | 'FAQ' (จาก Frontend)
+        language: 'th' | 'en' (Hint from frontend)
         """
         session_data = await self.session_manager.get_session(session_id)
         current_turn = session_data.get("turn_count", 0) + 1
@@ -628,6 +634,7 @@ class RAGOrchestrator:
             ai_mode=ai_mode,   # 🆕 ส่ง ai_mode ไปยัง handlers
             interpretation=interpretation, # 🆕 Send full interpretation object (with location_filter)
             original_query=query, # 🆕 ส่งคำถามต้นฉบับไปด้วย
+            language=language, # 🆕 ส่ง language hint ไปด้วย
             **kwargs
         )
 

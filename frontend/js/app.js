@@ -40,6 +40,25 @@ document.addEventListener('DOMContentLoaded', () => {
     bindEvents();
     initServices();
     loadAvatar();
+
+    // 🔊 Autoplay Policy Unlocker
+    // Most browsers block audio until user interaction.
+    // We add a one-time listener to unlock it.
+    const unlockAudio = () => {
+        const silentAudio = new Audio();
+        silentAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAgZGF0YQQAAAAAAA=='; // Silent 1ms WAV
+        silentAudio.play().then(() => {
+            console.log('🔓 Audio Context Unlocked');
+            // Remove listeners once unlocked
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('keydown', unlockAudio);
+            document.removeEventListener('touchstart', unlockAudio);
+        }).catch(e => console.log('🔒 Autoplay still locked', e));
+    };
+
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('keydown', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
 });
 
 function initServices() {
@@ -50,12 +69,14 @@ function initServices() {
     alertService.connect();
 
     // 3. Initialize FAB Manager
+    // 3. Initialize FAB Manager
     fabManager.init({
         onSendMessage: (text) => {
+            console.log('🔘 FAB onSendMessage:', text);
             // ส่งข้อความจาก FAB widgets ไปที่ chat
             const input = $('#query-input');
             if (input) input.value = text;
-            handleSend();
+            handleSend(text); // ✅ Pass text directly!
         }
     });
 
@@ -198,8 +219,12 @@ async function handleSend(manualText = null) {
 
     try {
         // Send to Backend
-        // 1. Send text to Chat API (triggers RAG)
-        const response = await chatService.sendText(text, state.sessionId);
+        // 1. Detect Language (Extensible)
+        const detectedLang = LanguageUtils.detect(text);
+        console.log(`💬 Chat: Sending message in '${detectedLang}'`);
+
+        // 2. Send text to Chat API (triggers RAG)
+        const response = await chatService.sendText(text, state.sessionId, detectedLang);
 
         // ... rest of function ...
 
@@ -542,11 +567,11 @@ function showToastAlert(alert) {
         if (toast.parentElement) toast.remove();
     }, 15000);
 
-    // Also, if severe, speak it?
-    if (alert.severity_score >= 4) {
-        speakText(`แจ้งเตือน: ${alert.summary}`, 'normal');
-        updateSpeech(`⚠️ แจ้งเตือน: ${alert.summary}`);
-    }
+    // 🔊 Force Speak Alert (User Request: Restore TTS)
+    // Remove severity check to ensure all emergency alerts are spoken as requested
+    console.log('🚨 Speaking Alert:', alert.summary);
+    speakText(`แจ้งเตือนด่วนค่ะ! ${alert.summary}`, 'worried', 'th'); // Explicit 'th'
+    updateSpeech(`⚠️ แจ้งเตือน: ${alert.summary}`);
 }
 
 // ==========================================
@@ -555,61 +580,68 @@ function showToastAlert(alert) {
 const audioPlayer = new Audio();
 let audioQueue = [];
 let isPlayingQueue = false;
+let currentSpeechId = 0; // 🆔 GEN ID to prevent race conditions
+
+// UI Elements: Get ALL stop buttons (Text Mode & Voice Mode)
+const stopButtons = [
+    document.getElementById('btn-stop-tts'),
+    document.getElementById('btn-stop-tts-voice')
+].filter(el => el !== null);
+
+// Bind Events to all
+stopButtons.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        e.preventDefault(); // Prevent focus stealing if needed
+        stopSpeaking();
+        console.log('🔇 User stopped TTS manually');
+    });
+});
+
+function toggleStopButtons(show) {
+    stopButtons.forEach(btn => {
+        btn.style.display = show ? 'flex' : 'none';
+        // Add subtle animation or ensuring it fits in flex layout
+        if (show) btn.style.alignItems = 'center';
+    });
+}
 
 function stopSpeaking() {
+    console.log('🛑 Force Stopping TTS...');
     audioQueue = [];
     isPlayingQueue = false;
+    currentSpeechId++; // Invalidate previous chains
     audioPlayer.pause();
     audioPlayer.currentTime = 0;
+
+    // Reset State & UI
     state.isSpeaking = false;
+    toggleStopButtons(false); // Hide buttons
+
+    // Fix Animation: Explicitly reset avatar state
+    sendAvatarCommand({ type: 'resumeIdle' });
 }
 
-async function speakText(text, finalMood = 'normal') {
-    // 1. Reset/Stop previous
-    stopSpeaking();
-
-    if (!text) {
-        setAvatarMood(finalMood);
-        return;
-    }
-
-    // 2. Pre-processing & Split
-    // Split by delimiters (.|?|!|newline) followed by space or end
-    // Clean markdown symbols to avoid saying "asterisk" etc
-    const cleanText = text.replace(/[*#`]/g, '');
-    const chunks = cleanText.match(/[^.!?\n]+[.!?\n]+|[^.!?\n]+$/g) || [cleanText];
-
-    console.log(`🗣️ TTS Queue: Processing ${chunks.length} chunks`);
-
-    // 3. Setup Queue (Convert to Objects)
-    audioQueue = chunks.map(t => ({ text: t.trim(), blob: null, promise: null }));
-    // Filter empty chunks
-    audioQueue = audioQueue.filter(item => item.text.length > 0);
-
-    if (audioQueue.length === 0) return;
-
-    // 4. Start Queue
-    isPlayingQueue = true;
-    state.isSpeaking = true;
-    sendAvatarCommand({ type: 'pauseIdle' });
-    showAvatarMessage('กำลังพูด...');
-    voiceModeManager.pauseRecording(); // Stop VAD
-
-    playNextChunk(finalMood);
-}
-
-async function fetchTTSBlob(text) {
-    console.log('🗣️ Fetching TTS:', text.substring(0, 20) + '...');
+async function fetchTTSBlob(text, lang) {
+    console.log(`🗣️ Fetching TTS [${lang}]:`, text.substring(0, 20) + '...');
     const response = await fetch('/api/chat/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text })
+        body: JSON.stringify({
+            text: text,
+            language: lang // Pass explicitly to Backend
+        })
     });
     if (!response.ok) throw new Error(`TTS Error: ${response.status}`);
     return await response.blob();
 }
 
-async function playNextChunk(finalMood) {
+async function playNextChunk(finalMood, speechId) {
+    // 🛡️ Guard: If this task belongs to an old speech, DIE immediately.
+    if (speechId !== currentSpeechId) {
+        console.log(`⛔ TTS Chain Aborted (Old ID: ${speechId}, Current: ${currentSpeechId})`);
+        return;
+    }
+
     // Check if stopped or empty
     if (!isPlayingQueue || audioQueue.length === 0) {
         finishSpeaking(finalMood);
@@ -624,9 +656,13 @@ async function playNextChunk(finalMood) {
         if (!blob) {
             // If promise exists, wait for it, else create new
             if (!currentItem.promise) {
-                currentItem.promise = fetchTTSBlob(currentItem.text);
+                currentItem.promise = fetchTTSBlob(currentItem.text, currentItem.lang);
             }
             blob = await currentItem.promise;
+
+            // 🛡️ Re-Guard after await: ensure we are still relevant
+            if (speechId !== currentSpeechId) return;
+
             currentItem.blob = blob;
         }
 
@@ -635,6 +671,8 @@ async function playNextChunk(finalMood) {
         audioPlayer.src = url;
 
         audioPlayer.onplay = () => {
+            if (speechId !== currentSpeechId) { audioPlayer.pause(); return; } // Paranoia check
+
             setAvatarMood('speaking');
             hideAvatarMessage();
 
@@ -642,41 +680,56 @@ async function playNextChunk(finalMood) {
             if (audioQueue.length > 1) {
                 const nextItem = audioQueue[1];
                 if (!nextItem.promise && !nextItem.blob) {
-                    console.log('🚀 Pre-fetching next chunk...');
-                    nextItem.promise = fetchTTSBlob(nextItem.text); // Start fetch
+                    // console.log('🚀 Pre-fetching next chunk...');
+                    nextItem.promise = fetchTTSBlob(nextItem.text, nextItem.lang); // Start fetch with lang
                 }
             }
         };
 
         audioPlayer.onended = () => {
+            if (speechId !== currentSpeechId) return;
             URL.revokeObjectURL(url);
             audioQueue.shift(); // Remove finished item
-            playNextChunk(finalMood); // Next!
+            playNextChunk(finalMood, speechId); // Next!
         };
 
         audioPlayer.onerror = (e) => {
+            if (speechId !== currentSpeechId) return;
             console.error("❌ Audio Playback Error", e);
             audioQueue.shift(); // Skip bad chunk
-            playNextChunk(finalMood);
+            playNextChunk(finalMood, speechId);
         };
 
         await audioPlayer.play();
 
     } catch (e) {
+        if (speechId !== currentSpeechId) return; // Ignore errors from zombies
         console.error("❌ TTS Processing Error:", e);
+
+        // 🚨 VISIBLE DEBUGGING (User Request)
+        if (e.name === 'NotAllowedError') {
+            updateSpeech('🔊 กรุณาคลิกที่หน้าจอเพื่อให้เสียงเล่นได้ค่ะ (Browser Blocked)');
+        } else if (e.message.includes('TTS Error')) {
+            updateSpeech(`⚠️ ระบบเสียงขัดข้อง: ${e.message}`);
+        } else {
+            updateSpeech(`⚠️ เกิดข้อผิดพลาดทางเทคนิค: ${e.message}`);
+        }
+
         audioQueue.shift(); // Skip bad chunk
-        playNextChunk(finalMood);
+        playNextChunk(finalMood, speechId);
     }
 }
 
 function finishSpeaking(finalMood) {
-    console.log('✅ TTS Queue Finished');
+    toggleStopButtons(false); // Hide all stop buttons
+
     isPlayingQueue = false;
     state.isSpeaking = false;
-    hideAvatarMessage();
     sendAvatarCommand({ type: 'resumeIdle' });
-    setAvatarMood(finalMood);
-    voiceModeManager.resumeRecording(); // Resume VAD
+    setAvatarMood(finalMood || 'normal');
+    hideAvatarMessage();
+    voiceModeManager.resumeRecording();
+    console.log("✅ TTS Finished Queue");
 }
 
 function setAvatarMood(mood) {
@@ -690,6 +743,128 @@ function sendAvatarCommand(command) {
         avatarFrame.contentWindow.postMessage(command, '*');
         console.log(`📤 [Avatar] Sent command:`, command);
     }
+}
+
+// ==========================================
+// 🌍 LANGUAGE UTILS (Dynamic & Extensible)
+// ==========================================
+const LanguageUtils = {
+    // Default patterns (Fallback if API fails)
+    patterns: [
+        { code: 'th', regex: /[\u0E00-\u0E7F]/, priority: 1 },
+        { code: 'en', regex: /[a-zA-Z]/, priority: 0 }
+    ],
+
+    // Init: Fetch from Backend
+    async init() {
+        try {
+            const res = await fetch('/api/chat/languages');
+            if (res.ok) {
+                const configs = await res.json();
+                console.log('🌍 LanguageUtils: Loaded configs:', configs);
+
+                // Convert Regex strings to RegExp objects
+                this.patterns = configs.map(cfg => ({
+                    code: cfg.code,
+                    regex: new RegExp(cfg.regex),
+                    priority: cfg.code === 'th' ? 10 : 5 // Prioritize Thai
+                }));
+
+                // Sort by priority desc
+                this.patterns.sort((a, b) => b.priority - a.priority);
+            }
+        } catch (e) {
+            console.error('🌍 LanguageUtils: Init failed, using defaults', e);
+        }
+    },
+
+    /**
+     * Detect language from text using script matching
+     * @param {string} text 
+     * @returns {string} One of supported language codes or 'en' default
+     */
+    detect(text) {
+        if (!text) return 'en';
+        // Check patterns in order
+        for (const p of this.patterns) {
+            if (p.regex.test(text)) return p.code;
+        }
+        return 'en';
+    }
+};
+
+// Start Init
+LanguageUtils.init();
+
+
+async function speakText(text, finalMood = 'normal', explicitLang = null) {
+    // 1. Reset/Stop previous
+    stopSpeaking();
+    const mySpeechId = currentSpeechId; // Capture current ID for this session
+
+    if (!text) {
+        setAvatarMood(finalMood);
+        return;
+    }
+
+    // Show Stop Buttons
+    toggleStopButtons(true);
+
+    // 2. Pre-processing & Language Detection
+    const cleanText = text.replace(/[*#`]/g, '');
+
+    // 🌐 Language Detection (Dynamic or Explicit)
+    let detectedLang = explicitLang;
+    if (!detectedLang) {
+        try {
+            detectedLang = LanguageUtils.detect(cleanText);
+        } catch (e) {
+            console.warn('Language Detection Failed, defaulting to th', e);
+            detectedLang = 'th';
+        }
+    }
+
+    console.log(`🗣️ TTS: Language identified as '${detectedLang}' (Explicit: ${explicitLang}) for text: "${cleanText.substring(0, 30)}..."`);
+
+    // Split by delimiters (Spaces, Newlines, Punctuation)
+    // Split by delimiters (Spaces, Newlines, Punctuation)
+    // 🛡️ REMOVED filter(s.trim()) to PRESERVE SPACES. Now we keep " " as valid events.
+    const rawEvents = cleanText.split(/([ \n.!?]+)/).filter(s => s.length > 0);
+
+    // Smart Merge Loop (Greedy)
+    // 🚚 Increased buffer size to 200 chars to hold more words before sending (User Request)
+    const TARGET_CHUNK_LENGTH = 200;
+    let chunks = [];
+    let currentBuffer = '';
+
+    for (const event of rawEvents) {
+        if ((currentBuffer + event).length < TARGET_CHUNK_LENGTH) {
+            currentBuffer += event;
+        } else {
+            if (currentBuffer) chunks.push(currentBuffer);
+            currentBuffer = event;
+        }
+    }
+    if (currentBuffer) chunks.push(currentBuffer);
+
+    console.log(`📦 TTS Chunks (${chunks.length}):`, chunks);
+
+    // 3. Queue & Play
+    // Tag each chunk with the detected language!
+    audioQueue = chunks.map(t => ({
+        text: t,
+        lang: detectedLang, // <--- Crucial: Pass detected lang to queue item
+        blob: null,
+        promise: null
+    }));
+
+    // 4. Start Queue
+    isPlayingQueue = true;
+    state.isSpeaking = true;
+    sendAvatarCommand({ type: 'pauseIdle' }); // Stop idle animation
+
+    console.log(`▶️ Starting TTS Queue (ID: ${mySpeechId})`);
+    playNextChunk(finalMood, mySpeechId);
 }
 
 // ==========================================

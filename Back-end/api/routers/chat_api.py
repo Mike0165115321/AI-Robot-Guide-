@@ -377,6 +377,16 @@ async def get_navigation(
 # 🆕 TTS Endpoint
 class TTSRequest(BaseModel):
     text: str
+    language: str = "th"
+
+@router.get("/languages")
+async def get_supported_languages():
+    """
+    Get list of supported languages and their regex patterns.
+    Used by Frontend to build dynamic language detection.
+    """
+    from core.services.language_detector import language_detector
+    return language_detector.get_active_languages_config()
 
 @router.post("/tts")
 async def text_to_speech(request: TTSRequest):
@@ -390,7 +400,7 @@ async def text_to_speech(request: TTSRequest):
         logging.info(f"🗣️ [API-TTS] Requesting TTS for: {request.text[:50]}...")
         
         return StreamingResponse(
-            speech_handler_instance.synthesize_speech_stream(request.text),
+            speech_handler_instance.synthesize_speech_stream(request.text, language_hint=request.language),
             media_type="audio/mpeg"
         )
     except Exception as e:
@@ -429,8 +439,9 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                     # 🆕 รับ slug (ถ้ามี) สำหรับ Navigation / System Commands
                     slug = query_data.get("slug")
                     entity_query = query_data.get("entity_query") # manual query text if slug is missing
+                    language_hint = query_data.get("language", "th") # 🆕 Get language hint from query_data
                     
-                    logging.info(f"💬 [WS] ข้อความ: {query_text} | โหมด: {current_ai_mode} | เจตนา: {intent} | Slug: {slug}")
+                    logging.info(f"💬 [WS] ข้อความ: {query_text} | โหมด: {current_ai_mode} | เจตนา: {intent} | Slug: {slug} | Lang: {language_hint}")
                     
                     result = await orchestrator.answer_query(
                         query_text, 
@@ -438,7 +449,8 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                         ai_mode=current_ai_mode,
                         frontend_intent=intent,
                         slug=slug,
-                        entity_query=entity_query
+                        entity_query=entity_query,
+                        language=language_hint # 🆕 Pass language hint
                     )
                     # ✅ Sanitize Images for WS too!
                     result = sanitize_response_images(result)

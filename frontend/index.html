@@ -78,6 +78,8 @@
             <!-- Mode: Text Input (default visible) -->
             <div class="input-mode text-mode" id="text-mode">
                 <input type="text" id="query-input" placeholder="พิมพ์คำถาม..." autocomplete="off">
+                <button class="btn-mode" id="btn-stop-tts" title="หยุดเสียงพูด"
+                    style="display: none; background: #ef4444; color: white;">🔇</button>
                 <button class="btn-mode" id="btn-ai-mode" title="เปลี่ยนโหมด AI">⚡</button>
                 <button class="btn-send" id="btn-send" title="ส่ง">📤</button>
             </div>
@@ -88,6 +90,9 @@
                     <div class="voice-pulse"></div>
                     <span class="voice-status">กำลังฟัง... 👂</span>
                 </div>
+                <!-- Added Mute Button for Voice Mode -->
+                <button class="btn-mode" id="btn-stop-tts-voice" title="หยุดเสียงพูด"
+                    style="display: none; background: #ef4444; color: white; margin-right: 8px;">🔇</button>
                 <button class="btn-stop-voice" id="btn-stop-voice">หยุดพูด</button>
             </div>
         </div>

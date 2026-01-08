@@ -5,17 +5,23 @@ class PromptEngine:
     def __init__(self):
         pass
 
-    def build_rag_prompt(self, user_query: str, context: str, history: List[dict], ai_mode: str = "fast", is_low_confidence: bool = False) -> Dict[str, str]:
+    def build_rag_prompt(self, user_query: str, context: str, history: List[dict], ai_mode: str = "fast", is_low_confidence: bool = False, language_hint: str = None) -> Dict[str, str]:
         """
         สร้าง Prompt สำหรับการตอบคำถามโดยใช้ข้อมูลอ้างอิง
         ai_mode: 'fast' = กระชับสำหรับ Llama, 'detailed' = ละเอียดสำหรับ Gemini
         is_low_confidence: ถ้า True แสดงว่าระบบค้นหาไม่เจอข้อมูลที่ตรงเป๊ะ ให้ AI ตอบอย่างระมัดระวัง
+        language_hint: รหัสภาษาจาก Frontend (ถ้ามี)
         
         ทุกอย่างโหลดจากไฟล์ .txt ตามภาษาที่ตรวจจับ
         """
         
-        # 🌐 ตรวจจับภาษาจาก user query
-        detected_lang = language_detector.detect(user_query)
+        # 🌐 ตรวจจับภาษา
+        detected_lang = "th"
+        if language_hint:
+             detected_lang = language_hint
+        else:
+             detected_lang = language_detector.detect(user_query)
+             
         lang_info = language_detector.get_language_info(detected_lang)
         
         # โหลด persona prompt ตามภาษาและโมเดล
