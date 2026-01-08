@@ -92,15 +92,7 @@ logging.info(f"✅ ให้บริการไฟล์ static จาก: {ST
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # CORS Configuration - กำหนด origins ที่อนุญาตอย่างชัดเจนเพื่อความปลอดภัย
-origins = [
-    "http://localhost:9090",
-    "http://127.0.0.1:9090",
-    "http://localhost:3000",  # Next.js dev server
-    "http://127.0.0.1:3000",  # Next.js dev server
-    f"http://{settings.API_HOST}:{settings.API_PORT}",
-    # เพิ่ม production domain ที่นี่ เช่น:
-    # "https://your-production-domain.com",
-] 
+origins = settings.CORS_ORIGINS 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

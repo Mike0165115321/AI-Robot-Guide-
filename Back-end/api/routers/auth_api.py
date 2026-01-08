@@ -5,10 +5,11 @@ from core.security import create_access_token, decode_access_token, verify_passw
 
 router = APIRouter(prefix="/api/admin/auth", tags=["Admin Auth"])
 
-# Hardcoded Admin User (For MVP)
-# In production, this should be in DB.
-ADMIN_USER = "admin"
-ADMIN_PASS_HASH = get_password_hash("nan2024") # Default password
+from core.config import settings
+
+# Admin User from Config
+ADMIN_USER = settings.ADMIN_USERNAME
+ADMIN_PASS_HASH = get_password_hash(settings.ADMIN_PASSWORD)
 
 class LoginRequest(BaseModel):
     username: str

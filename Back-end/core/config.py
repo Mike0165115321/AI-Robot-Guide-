@@ -63,4 +63,21 @@ class Settings:
     FRONTEND_DIR: Path = PROJECT_ROOT / "frontend"
     IMG_DIR: Path = PROJECT_ROOT / "Back-end" / "static" / "images"
 
+    # Security & Auth
+    ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "nongnan2024") # Default fallback if not in env
+
+    # CORS Configuration
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:9090",
+        "http://127.0.0.1:9090",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        f"http://{API_HOST}:{API_PORT}",
+    ]
+    # Add extra origins from env if needed
+    _EXTRA_ORIGINS = os.getenv("CORS_ORIGINS", "")
+    if _EXTRA_ORIGINS:
+        CORS_ORIGINS.extend([origin.strip() for origin in _EXTRA_ORIGINS.split(",") if origin.strip()])
+
 settings = Settings()
