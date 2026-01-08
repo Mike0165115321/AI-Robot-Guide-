@@ -302,7 +302,7 @@ async def preview_raw_file(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="ไม่พบข้อมูลในไฟล์")
         
         # Generate preview
-        preview = import_service.get_preview(raw_data, max_rows=10)
+        preview = import_service.get_preview(raw_data, max_rows=100)
         
         return RawPreviewResponse(
             columns=preview["columns"],

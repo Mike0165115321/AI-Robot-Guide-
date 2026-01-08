@@ -169,13 +169,24 @@ class QdrantManager:
 
         try:
             # ส่งคำสั่งค้นหาไปที่ Qdrant
-            search_results = await self.client.search(
+            search_results_response = await self.client.query_points(
                 collection_name=self.collection_name,
-                query_vector=query_vector.tolist(),
+                query=query_vector.tolist(),
                 query_filter=qdrant_filter, # Apply Filter here
                 limit=top_k,       # จำนวนผลลัพธ์สูงสุดที่ต้องการ
                 with_payload=True  # ขอข้อมูล payload (เนื้อหา) กลับมาด้วย
             )
+            
+            # query_points returns QueryResponse object in recent versions,
+            # which might have a 'points' attribute or be iterable directly depending on version.
+            # Based on help(), it returns QueryResponse.
+            # However, in some 1.10+ versions, it returns a list of ScoredPoint if not batch?
+            # Let's inspect the object or assume it's list-like or has .points
+            # If it's QueryResponse, we access .points
+            if hasattr(search_results_response, 'points'):
+                search_results = search_results_response.points
+            else:
+                search_results = search_results_response
             
             logging.info(f"✅ [Qdrant Raw Results] คำค้น '{query_text}' พบ {len(search_results)} ผลลัพธ์ (ก่อน Reranking):")
             if not search_results and metadata_filter:

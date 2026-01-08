@@ -204,9 +204,10 @@ class RAGOrchestrator:
         category = interpretation.get("category")
         
         metadata_filter = location_filter.copy()
-        if category:
-            metadata_filter["category"] = category
-            logging.info(f"🏷️ [Filter] Applying Category Filter: {category}")
+        # FIX: Disable category filter for now as DB has Thai categories but interpreter returns English
+        # if category:
+        #     metadata_filter["category"] = category
+        #     logging.info(f"🏷️ [Filter] Applying Category Filter: {category}")
         
         # 🆕 [SMART] Always exclude district/province data from search results
         # ไม่แนะนำ "ข้อมูลอำเภอ" หรือ "ข้อมูลภาพรวมจังหวัด" ในผลลัพธ์
