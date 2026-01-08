@@ -106,6 +106,8 @@ severity_score: 1=ทั่วไป, 2=น่าสนใจ, 3=สำคัญ
                 result["original_url"] = news_item.get("url", "")
                 result["original_source"] = news_item.get("source", "")
                 result["analyzed_at"] = datetime.now(timezone.utc).isoformat()
+                # Use original date if available
+                result["timestamp"] = news_item.get("date")
                 
                 # คำนวณ valid_until
                 valid_hours = result.get("valid_hours", 24)
@@ -248,6 +250,8 @@ severity_score: 1=ทั่วไป, 2=น่าสนใจ, 3=สำคัญ
                     "original_url": original.get("url", ""),
                     "original_source": original.get("source", ""),
                     "analyzed_at": now.isoformat(),
+                    # Use original date if available
+                    "timestamp": original.get("date"),
                     "valid_hours": item.get("valid_hours", 24),
                     "valid_until": (now + timedelta(hours=item.get("valid_hours", 24))).isoformat(),
                     "action_recommendation": item.get("action_recommendation", "info_only")

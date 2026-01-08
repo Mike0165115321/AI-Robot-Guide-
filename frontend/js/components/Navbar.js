@@ -18,7 +18,7 @@ export function renderNavbar(containerId = 'navbar-container', activePage = '') 
     const menuItems = [
         { name: 'หน้าหลัก', link: 'index.html', icon: '🏠', id: 'home' },
         { name: 'สถานที่', link: 'places.html', icon: '📍', id: 'places' },
-        { name: 'พูดคุย', link: 'chat.html', icon: '💬', id: 'chat' },
+        // { name: 'พูดคุย', link: 'chat.html', icon: '💬', id: 'chat' }, // Archived
         { name: 'ข่าวสาร', link: 'alerts.html', icon: '📢', id: 'alerts' },
         { name: 'เกี่ยวกับ', link: 'about.html', icon: 'ℹ️', id: 'about' }
     ];

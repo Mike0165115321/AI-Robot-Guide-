@@ -10,7 +10,8 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 80px;
+    height: 100px;
+    /* 📱 Increased for Touch */
     background: rgba(15, 12, 41, 0.95);
     backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--color-border);
@@ -28,14 +29,16 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    font-size: 1.6rem;
+    font-size: 2rem;
+    /* 📱 Larger brand text */
     font-weight: 600;
     color: var(--color-primary);
 }
 
 .navbar-brand img {
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    /* 📱 Larger Logo */
+    height: 64px;
     border-radius: var(--radius-md);
 }
 
@@ -56,7 +59,8 @@
     gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
     border-radius: var(--radius-lg);
-    font-size: 1.15rem;
+    font-size: 1.4rem;
+    /* 📱 Larger Link Text */
     color: var(--color-text-muted);
     transition: all var(--transition-fast);
 }
@@ -72,7 +76,8 @@
 }
 
 .navbar-link .icon {
-    font-size: 1.2rem;
+    font-size: 1.5rem;
+    /* 📱 Larger Icons */
 }
 
 /* ==========================================
@@ -85,8 +90,9 @@
 }
 
 .navbar-settings {
-    width: 52px;
-    height: 52px;
+    width: 64px;
+    /* 📱 Larger Touch Target */
+    height: 64px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -102,8 +108,9 @@
 }
 
 .navbar-toggle {
-    width: 52px;
-    height: 52px;
+    width: 64px;
+    /* 📱 Larger Touch Target */
+    height: 64px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -200,6 +207,6 @@
    PAGE WITH NAVBAR
    ========================================== */
 .page-with-navbar {
-    padding-top: 80px;
+    padding-top: 100px;
     /* ชดเชย navbar height */
 }

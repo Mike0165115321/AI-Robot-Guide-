@@ -27,6 +27,9 @@ const state = {
     isVoiceMode: false  // 🆕 สำหรับสลับโหมดพิมพ์/พูด
 };
 
+// Global State Tracker
+let lastUserQuery = "";
+
 // Save session ID
 localStorage.setItem('session_id', state.sessionId);
 
@@ -181,6 +184,69 @@ function bindEvents() {
     });
 }
 
+// 🌍 Global Feedback Function
+window.submitFeedback = async (type, btn) => {
+    const parent = btn.parentElement;
+    const likeBtn = parent.querySelector('.btn-like');
+    const dislikeBtn = parent.querySelector('.btn-dislike');
+    const answerEl = document.querySelector('#presentation-content .ai-answer') ||
+        document.querySelector('#presentation-content .response-text');
+
+    const responseText = answerEl ? answerEl.innerText : "";
+    const query = lastUserQuery || "unknown";
+    const sessionId = localStorage.getItem('session_id') || 'anonymous'; // Use localStorage if available
+
+    // UI Feedback
+    if (type === 'like') {
+        likeBtn.innerHTML = '👍';
+        likeBtn.style.background = 'rgba(16, 185, 129, 0.2)'; // Green tint
+        likeBtn.style.borderColor = '#10b981';
+
+        dislikeBtn.innerHTML = '👎';
+        dislikeBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+        dislikeBtn.style.borderColor = 'rgba(255,255,255,0.2)';
+    } else {
+        dislikeBtn.innerHTML = '👎';
+        dislikeBtn.style.background = 'rgba(239, 68, 68, 0.2)'; // Red tint
+        dislikeBtn.style.borderColor = '#ef4444';
+
+        likeBtn.innerHTML = '👍';
+        likeBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+        likeBtn.style.borderColor = 'rgba(255,255,255,0.2)';
+    }
+
+    // Disable temporarily
+    likeBtn.disabled = true;
+    dislikeBtn.disabled = true;
+
+    try {
+        const payload = {
+            session_id: sessionId,
+            query: query,
+            response: responseText.substring(0, 500),
+            feedback_type: type
+        };
+
+        const res = await fetch('/api/analytics/submit_feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            console.log(`✅ Feedback submitted: ${type}`);
+        } else {
+            console.error('Failed to submit feedback');
+        }
+    } catch (e) {
+        console.error('Error submitting feedback:', e);
+    } finally {
+        // Re-enable (optional, but good if they want to change mind)
+        likeBtn.disabled = false;
+        dislikeBtn.disabled = false;
+    }
+};
+
 async function handleSend(manualText = null) {
     const input = $('#query-input');
     // Use manualText if provided, otherwise read input. 
@@ -188,6 +254,8 @@ async function handleSend(manualText = null) {
     const text = (typeof manualText === 'string') ? manualText : input.value.trim();
 
     if (!text) return;
+
+    lastUserQuery = text; // 🆕 Save query
 
     // UI Updates
     input.value = ''; // Clear input (or keep it? User might want to see it? Usually clear after send)
@@ -325,6 +393,38 @@ function handleBackendResponse(data) {
     if (data.payload) {
         panelHtml += responseRenderer.render(data.payload);
     }
+
+    // 🖨️ Add Footer with Print Button & Feedback
+    panelHtml += `<div class="response-footer" style="display: flex; justify-content: flex-end; align-items: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); gap: 10px;">`;
+
+    // Processing Time
+    if (data.processing_time) {
+        panelHtml += `<div class="processing-time" style="font-size: 0.8rem; opacity: 0.6; margin-right: auto;">⏱️ ${data.processing_time}s</div>`;
+    }
+
+    // Feedback Buttons (Like / Dislike)
+    // We bind onclick to a global function we'll add to window
+    panelHtml += `
+        <div class="feedback-group" style="display: flex; gap: 5px;">
+            <button class="btn-img-action btn-like" onclick="window.submitFeedback('like', this)" title="ถูกใจ"
+                style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 6px; cursor: pointer; color: var(--color-text); display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 1.2rem;">
+                👍
+            </button>
+            <button class="btn-img-action btn-dislike" onclick="window.submitFeedback('dislike', this)" title="ไม่ถูกใจ"
+                style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 6px; cursor: pointer; color: var(--color-text); display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 1.2rem;">
+                👎
+            </button>
+        </div>
+    `;
+
+    // Print Button
+    panelHtml += `
+        <button class="btn-print" onclick="window.printCurrentResponse()" title="พิมพ์หน้านี้" 
+            style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 6px; cursor: pointer; color: var(--color-text); font-size: 0.9rem; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+            <i class="fa-solid fa-print"></i> พิมพ์
+        </button>
+    `;
+    panelHtml += `</div>`;
 
     // 🚀 SHOW PANEL if there is content
     if (panelHtml) {

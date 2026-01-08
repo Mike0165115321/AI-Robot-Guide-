@@ -48,7 +48,7 @@ export const responseRenderer = {
 
         // Main answer with Markdown
         if (data.answer) {
-            html += `<div class="ai-answer">${renderMarkdown(data.answer)}</div>`;
+            html += `<div class="ai-answer" id="ai-answer-content">${renderMarkdown(data.answer)}</div>`;
         }
 
         // Image gallery
@@ -68,10 +68,23 @@ export const responseRenderer = {
             html += this.renderSuggestedQuestions(data.suggested_questions);
         }
 
-        // Processing time
+        // Footer Actions: Processing time & Print Button
+        html += `<div class="response-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">`;
+
         if (data.processing_time) {
-            html += `<div class="processing-time">⏱️ AI Time: ${data.processing_time}s</div>`;
+            html += `<div class="processing-time" style="font-size: 0.8rem; opacity: 0.6;">⏱️ AI Time: ${data.processing_time}s</div>`;
+        } else {
+            html += `<div></div>`;
         }
+
+        html += `
+            <button class="btn-print" onclick="window.printCurrentResponse()" title="พิมพ์หน้านี้" 
+                style="background: none; border: none; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; color: var(--color-text);">
+                <i class="fa-solid fa-print"></i> 🖨️ พิมพ์
+            </button>
+        `;
+
+        html += `</div>`;
 
         return html;
     },
@@ -290,7 +303,167 @@ export const responseRenderer = {
                 </div>
             </div>
         `;
+    },
+
+    /**
+     * Print functionality
+     */
+    printResponse(content, imageUrl, imageGallery) {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Please allow popups for printing');
+            return;
+        }
+
+        let imagesHtml = '';
+        if (imageUrl) {
+            imagesHtml += `<img src="${imageUrl}" class="main-image" alt="Main Image">`;
+        }
+        if (imageGallery && imageGallery.length > 0) {
+            imagesHtml += '<div class="gallery">';
+            imageGallery.forEach(img => {
+                const url = typeof img === 'string' ? img : img.url;
+                imagesHtml += `<img src="${url}" alt="Gallery Image">`;
+            });
+            imagesHtml += '</div>';
+        }
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="th">
+            <head>
+                <meta charset="UTF-8">
+                <title>พิมพ์เอกสาร - AI Guide Nan</title>
+                <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+                <style>
+                    body {
+                        font-family: 'Sarabun', sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 210mm;
+                        margin: 0 auto;
+                        padding: 20px;
+                        background: white;
+                    }
+                    @page {
+                        size: A4;
+                        margin: 20mm;
+                    }
+                    header {
+                        border-bottom: 2px solid #3b82f6;
+                        padding-bottom: 10px;
+                        margin-bottom: 20px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    .brand {
+                        font-size: 1.5rem;
+                        font-weight: bold;
+                        color: #1e40af;
+                    }
+                    .date {
+                        font-size: 0.9rem;
+                        color: #666;
+                    }
+                    .content {
+                        font-size: 14px;
+                    }
+                    h1, h2, h3 { color: #1e3a8a; margin-top: 15px; }
+                    ul { margin-left: 20px; }
+                    .main-image {
+                        width: auto;
+                        max-width: 100%;
+                        max-height: 200px;
+                        object-fit: cover;
+                        border-radius: 8px;
+                        margin: 10px auto;
+                        display: block;
+                    }
+                    .content img {
+                        max-width: 80%;
+                        max-height: 200px;
+                        width: auto;
+                        display: block;
+                        margin: 10px auto;
+                        border-radius: 4px;
+                    }
+                    .gallery {
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        gap: 10px;
+                        margin-top: 15px;
+                    }
+                    .gallery img {
+                        width: 100%;
+                        height: 100px;
+                        object-fit: cover;
+                        border-radius: 4px;
+                    }
+                    .footer {
+                        margin-top: 30px;
+                        padding-top: 10px;
+                        border-top: 1px solid #ddd;
+                        text-align: center;
+                        font-size: 0.8rem;
+                        color: #888;
+                    }
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <header>
+                    <div class="brand"><i class="fa-solid fa-robot"></i> AI Guide Nan</div>
+                    <div class="date">พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')}</div>
+                </header>
+                
+                <div class="content">
+                    ${content}
+                    ${imagesHtml}
+                </div>
+
+                <div class="footer">
+                    เอกสารนี้สร้างโดยระบบ AI Robot Guide จังหวัดน่าน | ข้อมูลเพื่อการท่องเที่ยวเท่านั้น
+                </div>
+
+                <script>
+                    window.onload = () => { setTimeout(() => window.print(), 500); };
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
     }
+};
+
+// 🌍 Global Printer for onclick events
+window.printCurrentResponse = () => {
+    // Helper to find the AI answer content in the DOM
+    // App.js uses .response-text, renderAIResponse uses .ai-answer
+    const answerEl = document.querySelector('#presentation-content .ai-answer') ||
+        document.querySelector('#presentation-content .response-text');
+
+    if (!answerEl) {
+        console.warn('No content found to print');
+        return;
+    }
+
+    // Attempt to find images in the panel
+    const mainImage = document.querySelector('#presentation-content .single-image img');
+    const galleryImages = document.querySelectorAll('#presentation-content .image-gallery img');
+
+    // Use current src (absolute path from browser)
+    const imageUrl = mainImage ? mainImage.src : null;
+    let gallery = [];
+    if (galleryImages.length > 0) {
+        galleryImages.forEach(img => gallery.push(img.src));
+    }
+
+    responseRenderer.printResponse(answerEl.innerHTML, imageUrl, gallery);
 };
 
 export default responseRenderer;

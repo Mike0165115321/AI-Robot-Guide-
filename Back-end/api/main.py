@@ -222,6 +222,7 @@ async def serve_frontend(request: Request, full_path: str):
         "admin/": "admin/index.html",
         "admin/index.html": "admin/index.html",
         "admin/admin.html": "admin/index.html", # Alias for legacy link
+        "admin/settings.html": "admin/settings.html", # ⚙️ Settings Page
         "import": "admin/import.html",
         "robot_avatar": "robot_avatar.html",
         "travel_mode": "travel_mode.html",

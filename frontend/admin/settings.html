@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตั้งค่าระบบ (Settings) - น้องน่าน Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/base.css">
+    <link rel="stylesheet" href="assets/styles/admin.css"> <!-- Assuming admin.css exists or use base styles -->
+    <style>
+        body {
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            font-family: 'Kanit', sans-serif;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 12px 15px;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: rgba(var(--color-primary-rgb), 0.2);
+            color: var(--color-primary);
+        }
+
+        .sidebar .brand {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: var(--color-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 10px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: white;
+            font-family: inherit;
+        }
+
+        button.btn-primary {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: opacity 0.2s;
+        }
+
+        button.btn-primary:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <div class="brand">
+            <i class="fa-solid fa-robot"></i> น้องน่าน Admin
+        </div>
+        <a href="index.html"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+        <a href="import.html"><i class="fa-solid fa-file-import"></i> Import Data</a>
+        <a href="settings.html" class="active"><i class="fa-solid fa-cog"></i> Settings</a>
+        <a href="../index.html" style="margin-top: auto;"><i class="fa-solid fa-arrow-left"></i> กลับหน้าบ้าน</a>
+    </aside>
+
+    <main class="content">
+        <h1>⚙️ ตั้งค่าระบบ (System Settings)</h1>
+
+        <div class="card">
+            <h2>ทั่วไป</h2>
+            <div class="form-group">
+                <label>ชื่อบอท (Bot Name)</label>
+                <input type="text" value="น้องน่าน" disabled>
+                <small style="opacity: 0.5;">แก้ไขได้ใน config file เท่านั้น</small>
+            </div>
+            <div class="form-group">
+                <label>โหมดเริ่มต้น (Default Mode)</label>
+                <select>
+                    <option value="normal" selected>Normal (ผู้ช่วยทั่วไป)</option>
+                    <option value="poet">Poet (กวี)</option>
+                    <option value="guide">Guide (มัคคุเทศก์)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>การเชื่อมต่อ (Actions)</h2>
+            <div class="form-group">
+                <button class="btn-primary" onclick="alert('ฟีเจอร์นี้ยังไม่เปิดใช้งาน')">บันทึกการตั้งค่า</button>
+            </div>
+        </div>
+    </main>
+
+</body>
+
+</html>
