@@ -95,11 +95,24 @@ class NewsScheduler:
         try:
             # 1. ดึงข่าว
             news_items = await self._news_service.aggregate_news()
-            logger.info(f"📰 พบข่าว {len(news_items)} รายการ")
+            logger.info(f"📰 พบข่าวดิบ {len(news_items)} รายการ")
             
-            # 2. วิเคราะห์ข่าว
-            if news_items:
-                analyzed = await self._news_analyzer.analyze_batch(news_items[:10])  # จำกัด 10 ข่าว/รอบ
+            # 🔍 Filter Duplicates (Check against DB)
+            from core.services.alert_storage_service import alert_storage_service
+            fresh_news = []
+            
+            for item in news_items:
+                is_dup = await alert_storage_service.is_duplicate(item.get("url"), item.get("title"))
+                if not is_dup:
+                    fresh_news.append(item)
+                else:
+                    logger.debug(f"⏭️ ข้ามข่าวซ้ำ: {item.get('title')[:30]}...")
+            
+            logger.info(f"✨ ข่าวใหม่ที่ต้องวิเคราะห์: {len(fresh_news)} รายการ")
+
+            # 2. วิเคราะห์ข่าว (เฉพาะข่าวใหม่)
+            if fresh_news:
+                analyzed = await self._news_analyzer.analyze_batch(fresh_news[:5])  # Limit 5 fresh ones to save tokens
                 for item in analyzed:
                     # Geocode สถานที่
                     if item.get("location_name"):

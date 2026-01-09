@@ -41,8 +41,10 @@ elif [ -d "Back-end/venv" ]; then
     echo -e "${GREEN}✅ Virtual environment activated (Back-end/venv)${NC}"
 fi
 
+
 # 3. Start Python Backend
 echo -e "\n${GREEN}🐍 Starting Python Backend (port 8014)...${NC}"
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 cd Back-end
 python3 -m uvicorn api.main:app --host 0.0.0.0 --port 8014 --reload &
 BACKEND_PID=$!

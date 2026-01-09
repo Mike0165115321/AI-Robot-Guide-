@@ -50,6 +50,31 @@ class AlertStorageService:
         except Exception as e:
             logger.error(f"❌ [AlertStorage] สร้าง indexes ล้มเหลว: {e}")
     
+    async def is_duplicate(self, url: str, title: str) -> bool:
+        """
+        ตรวจสอบว่าข่าวซ้ำหรือไม่ (เช็คจาก URL หรือ Title)
+        """
+        try:
+            collection = await self._get_collection()
+            
+            # 1. เช็ค URL (ถ้ามี)
+            if url:
+                count = collection.count_documents({"url": url})
+                if count > 0:
+                    return True
+            
+            # 2. เช็ค Title (Exact match)
+            if title:
+                count = collection.count_documents({"title": title})
+                if count > 0:
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"❌ [AlertStorage] Duplicate check error: {e}")
+            return False
+
     async def save_alert(self, alert: Dict) -> Optional[str]:
         """
         บันทึก alert ลง MongoDB

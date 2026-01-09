@@ -37,6 +37,9 @@ class GeocodingService:
         try:
             # Rate limiting
             await self._respect_rate_limit()
+
+            if not place_name or not place_name.strip():
+                return None
             
             # เพิ่ม "น่าน" ถ้ายังไม่มี
             if "น่าน" not in place_name and "nan" not in place_name.lower():
@@ -87,7 +90,7 @@ class GeocodingService:
                     return geocode_result
                     
         except Exception as e:
-            logger.error(f"❌ [Geocoding] ข้อผิดพลาด: {e}")
+            logger.error(f"❌ [Geocoding] ข้อผิดพลาด: {repr(e)}")
             return None
     
     async def reverse_geocode(self, lat: float, lon: float) -> Optional[Dict]:

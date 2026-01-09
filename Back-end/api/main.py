@@ -18,7 +18,7 @@ from core.ai_models.youtube_handler import youtube_handler_instance
 from core.config import settings
 from utils.file_cleaner import start_background_cleanup
 from api.dependencies import get_rag_orchestrator 
-from api.routers import admin_api, chat_api, import_api, sheets_api, analytics_api, line_webhook, alert_api, auth_api
+from api.routers import admin_api, chat_api, import_api, sheets_api, analytics_api, line_webhook, alert_api, auth_api, assistant_api
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("uvicorn").propagate = False
@@ -110,6 +110,7 @@ app.include_router(sheets_api.router, prefix="/api/admin/sheets")  # Google Shee
 app.include_router(analytics_api.router, prefix="/api/analytics")  # Feedback & Stats
 app.include_router(line_webhook.router, prefix="/api/v1/line")     # LINE Webhook
 app.include_router(alert_api.router, prefix="/api")                 # Smart News Alerts
+app.include_router(assistant_api.router, prefix="/api") # 🆕 Google Assistant Proxy (/api/assistant/query)
 
 
 @app.get("/health", tags=["Health"])

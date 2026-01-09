@@ -441,6 +441,16 @@ async def websocket_endpoint(websocket: WebSocket, orchestrator: RAGOrchestrator
                     entity_query = query_data.get("entity_query") # manual query text if slug is missing
                     language_hint = query_data.get("language", "th") # 🆕 Get language hint from query_data
                     
+                    # ⛔ STRICT BLOCK: Empty Query (Prevent RAG waste)
+                    if not query_text.strip() and not slug and not intent == "NAVIGATION":
+                         # If it's a control message or empty, don't trigger RAG
+                         if query_data.get("type") in ["ping", "pong", "setMood", "changeSkin", "resumeIdle", "action"]:
+                             continue
+                         
+                         logging.warning("⚠️ [WS] Empty query received. Skipping RAG.")
+                         # Optional: send ack?
+                         continue
+
                     logging.info(f"💬 [WS] ข้อความ: {query_text} | โหมด: {current_ai_mode} | เจตนา: {intent} | Slug: {slug} | Lang: {language_hint}")
                     
                     result = await orchestrator.answer_query(

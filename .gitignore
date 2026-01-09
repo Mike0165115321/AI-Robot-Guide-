@@ -5,6 +5,8 @@
 # Environment (ห้ามอัปเด็ดขาด!)
 .env
 *.env
+Back-end/assistant_credentials.json
+Back-end/credentials.json
 
 # Virtual Environment (ห้ามอัป!)
 .venv/

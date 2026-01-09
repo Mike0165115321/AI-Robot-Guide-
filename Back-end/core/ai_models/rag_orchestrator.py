@@ -128,7 +128,17 @@ class RAGOrchestrator:
         return intent_map.get(frontend_intent.upper(), "INFORMATIONAL")
 
     async def _handle_small_talk(self, corrected_query: str, **kwargs) -> dict:
-        final_answer = await get_small_talk_response(user_query=corrected_query)
+        # 🆕 Check if Frontline (via Interpreter) already provided a reply
+        interpretation = kwargs.get("interpretation", {})
+        direct_reply = interpretation.get("reply")
+        
+        if direct_reply:
+            logging.info("⚡ [SmallTalk] Using Direct Reply from Frontline/Assistant")
+            final_answer = direct_reply
+        else:
+            # Fallback to Llama 8B if Frontline didn't give a reply (Legacy)
+            final_answer = await get_small_talk_response(user_query=corrected_query)
+            
         return {"answer": final_answer, "action": None, "sources": [], "image_url": None, "image_gallery": []}
 
     async def _handle_calculate(self, corrected_query: str, **kwargs) -> dict:
@@ -506,6 +516,7 @@ class RAGOrchestrator:
             "image_url": None, 
             "image_gallery": static_gallery[:settings.FINAL_GALLERY_IMAGE_LIMIT],
             "sources": prepared_data["source_info"],
+            "show_slide": True, # ✅ Explicitly show slide for informational content
             "_primary_topic": final_docs[0].get("title") if final_docs else None # ส่ง Topic กลับไปบันทึก State
         }
 
@@ -683,5 +694,9 @@ class RAGOrchestrator:
             # 🚀 [Analytics] บันทึกเหตุการณ์ความสนใจหากพบหัวข้อ
             if primary_topic:
                 await self.analytics_handler.log_interest_event(session_id, primary_topic, query)
+        
+        # 🆕 Force show_slide to True by default if not present
+        # This ensures the frontend slide-out panel appears for RAG responses
+        response.setdefault("show_slide", True)
             
         return response
