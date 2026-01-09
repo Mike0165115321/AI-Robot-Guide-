@@ -28,6 +28,12 @@ const FrontendDirector = {
             return { type: 'LOCAL', action: localAction };
         }
 
+        // 1.5 Check Direct Pipe (Bypass Google for Travel Queries)
+        if (this.shouldBypassGoogle(t)) {
+            console.log('🚀 [Director] Travel Query detected -> Direct Pipe to RAG (Skipping Google)');
+            return { type: 'RAG_FALLBACK' };
+        }
+
         // 2. Ask Google Assistant (The Secretary)
         const googleResult = await this.callGoogleAssistant(t, lang);
 
@@ -62,6 +68,21 @@ const FrontendDirector = {
         if (t.includes('หยุด') || t.includes('stop')) return 'stop';
 
         return null;
+    },
+
+    /**
+     * Check if we should bypass Google and go straight to RAG (Direct Pipe)
+     * For travel queries where we want our specific DB answer, not Google's generic one.
+     */
+    shouldBypassGoogle(text) {
+        const t = text.toLowerCase();
+        // Keywords from FAQ and Travel-specific intents
+        const ragKeywords = [
+            'แนะนำ', 'ที่เที่ยว', 'วัด', 'ร้านอาหาร', 'โรงแรม', 'ของฝาก',
+            'guide', 'hotel', 'food', 'restaurant', 'attraction', 'temple',
+            'น่าน', 'nan'
+        ];
+        return ragKeywords.some(kw => t.includes(kw));
     },
 
     /**

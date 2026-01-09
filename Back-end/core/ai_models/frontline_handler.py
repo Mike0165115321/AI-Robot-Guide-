@@ -214,13 +214,20 @@ class FrontlineHandler:
         
         # Fallback Music
         if any(w in query_lower for w in ["เปิดเพลง", "ฟังเพลง", "play music"]):
-           logger.info("⚡ [Frontline] Manual Match: Music Intent")
-           return {"intent": "CMD_MUSIC", "reply": "ได้เลยครับ กำลังเปิดเพลงให้ครับ", "metadata": {"source": "manual_fallback"}}
+           logger.info("⚡ [Frontline] Manual Match: Music Intent -> Passing to RAG for YouTube Search")
+           # Don't return CMD_MUSIC here because we lack the song list.
+           # Let RAG Orchestrator handle the YouTube search & payload.
+           return {"intent": "RAG_QUERY", "reply": None}
         
         # Fallback News
         if any(w in query_lower for w in ["ข่าว", "news", "เล่าข่าว"]):
             logger.info("⚡ [Frontline] Manual Match: News Intent")
             return {"intent": "CMD_NEWS", "reply": "ได้เลยครับ มาฟังข่าวกัน", "metadata": {"source": "manual_fallback"}}
+
+        # Fallback Navigation (Force RAG to handle Map)
+        if any(w in query_lower for w in ["นำทาง", "พาไป", "เส้นทาง", "navigate", "route", "map", "แผนที่"]):
+            logger.info("⚡ [Frontline] Manual Match: Navigation Intent -> Passing to RAG for Map")
+            return {"intent": "RAG_QUERY", "reply": None}
 
         return None
 

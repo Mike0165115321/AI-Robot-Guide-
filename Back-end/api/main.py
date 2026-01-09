@@ -206,6 +206,8 @@ templates = Jinja2Templates(directory=str(FRONTEND_DIR))
 
 
 
+from fastapi.responses import JSONResponse, FileResponse
+
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_frontend(request: Request, full_path: str):
     path_map = {
@@ -224,10 +226,20 @@ async def serve_frontend(request: Request, full_path: str):
     file_to_serve = path_map.get(full_path, full_path)
     
     template_path = FRONTEND_DIR / file_to_serve
-    if not template_path.is_file():
-        return templates.TemplateResponse("index.html", {"request": request})
+    
+    # Check if it's a file request that exists
+    if template_path.is_file():
+        # FIX: Serve JS/CSS as proper static files, not templates
+        if template_path.suffix == ".js":
+            return FileResponse(template_path, media_type="application/javascript")
+        if template_path.suffix == ".css":
+            return FileResponse(template_path, media_type="text/css")
+        
+        # Default to TemplateResponse for HTML
+        return templates.TemplateResponse(file_to_serve, {"request": request})
 
-    return templates.TemplateResponse(file_to_serve, {"request": request})
+    # If file not found, fallback to SPA index.html
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 if __name__ == "__main__":

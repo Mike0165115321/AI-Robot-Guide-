@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เลือกภาษา / Select Language</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/navbar.css">
+    <link rel="stylesheet" href="css/language-modal.css"> <!-- Reusing the nice styling -->
+
+    <style>
+        body {
+            background-color: #0f0c29;
+            background-image:
+                linear-gradient(rgba(15, 12, 41, 0.9), rgba(15, 12, 41, 0.9)),
+                url('assets/bg-pattern.png');
+            /* Fallback or texture */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Override modal styles for page context */
+        #language-popup-overlay {
+            display: flex !important;
+            /* Always visible */
+            background: transparent;
+            /* No overlay bg needed since body has it */
+            position: relative;
+            z-index: 1;
+        }
+
+        .language-popup {
+            width: 100%;
+            max-width: 400px;
+            /* Slightly wider for page view */
+            box-shadow: 0 0 50px rgba(64, 196, 255, 0.1);
+        }
+
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="bg-grid"></div>
+
+    <div id="language-popup-overlay">
+        <div class="language-popup">
+            <div class="language-popup-header">
+                <h3>🌐 Select Language</h3>
+            </div>
+            <div class="language-list">
+                <button class="lang-opt" data-lang="th"><span>🇹🇭 ไทย (Thai)</span><span
+                        class="check-icon">✓</span></button>
+                <button class="lang-opt" data-lang="en"><span>🇬🇧 English</span><span
+                        class="check-icon">✓</span></button>
+                <button class="lang-opt" data-lang="zh"><span>🇨🇳 中文 (Chinese)</span><span
+                        class="check-icon">✓</span></button>
+                <button class="lang-opt" data-lang="ja"><span>🇯🇵 日本語 (Japanese)</span><span
+                        class="check-icon">✓</span></button>
+                <button class="lang-opt" data-lang="ru"><span>🇷🇺 Русский (Russian)</span><span
+                        class="check-icon">✓</span></button>
+                <button class="lang-opt" data-lang="hi"><span>🇮🇳 हिन्दी (Hindi)</span><span
+                        class="check-icon">✓</span></button>
+                <button class="lang-opt" data-lang="ms"><span>🇲🇾 Melayu (Malay)</span><span
+                        class="check-icon">✓</span></button>
+            </div>
+            <div class="language-popup-footer">
+                <button id="btn-cancel" class="btn-lang-cancel">Cancel</button>
+                <button id="btn-confirm" class="btn-lang-confirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { languageManager } from './js/modules/LanguageManager.js';
+
+        // Init logic
+        const langOpts = document.querySelectorAll('.lang-opt');
+        const btnConfirm = document.getElementById('btn-confirm');
+        const btnCancel = document.getElementById('btn-cancel');
+
+        // Get current language (wait for init potentially, or just get from local storage)
+        // LanguageManager might need a moment to init, but usually sync if just reading LS.
+        // Actually LanguageManager reads from LS on instantiation approx.
+
+        // We can manually read LS to be instant
+        const savedLang = localStorage.getItem('app_language') || 'th';
+        let selectedLang = savedLang;
+
+        // Render selection
+        const updateUI = () => {
+            langOpts.forEach(btn => {
+                if (btn.dataset.lang === selectedLang) btn.classList.add('selected');
+                else btn.classList.remove('selected');
+            });
+        };
+        updateUI();
+
+        // Handlers
+        langOpts.forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedLang = btn.dataset.lang;
+                updateUI();
+            });
+        });
+
+        const goBack = () => {
+            // Check if there is a referrer or history
+            if (document.referrer && document.referrer.includes(window.location.host)) {
+                window.history.back();
+            } else {
+                window.location.href = 'index.html';
+            }
+        };
+
+        btnCancel.addEventListener('click', () => {
+            goBack();
+        });
+
+        btnConfirm.addEventListener('click', () => {
+            languageManager.setLanguage(selectedLang);
+            // Give it a split second to save (though setLanguage is sync usually)
+            setTimeout(() => {
+                goBack();
+            }, 100);
+        });
+    </script>
+</body>
+
+</html>

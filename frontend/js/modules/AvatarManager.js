@@ -21,6 +21,10 @@ class AvatarManager {
         this.audioPlayer.addEventListener('ended', () => this.onAudioEnded());
         this.audioPlayer.addEventListener('error', (e) => console.error("Audio Playback Error", e));
 
+        // Global State Callback
+        this.onAudioStateChange = null;
+
+
         // 🔓 Autoplay Unlocker
         // Chrome/Edge blocks auth-play unless user interacts once.
         this.hasUnlocked = false;
@@ -187,6 +191,7 @@ class AvatarManager {
         this.isPlaying = false;
         this.setMood('normal');
         stateManager.set('isSpeaking', false);
+        if (this.onAudioStateChange) this.onAudioStateChange(false);
     }
 
     async processQueue() {
@@ -196,8 +201,18 @@ class AvatarManager {
         const item = this.audioQueue.shift();
 
         try {
-            // Fetch TTS
-            const blob = await this.fetchTTS(item.text, item.lang);
+            // 1. Get Blob (Check Prefetch first)
+            let blob = item.blob;
+
+            if (!blob) {
+                if (item.fetchPromise) {
+                    console.log(`⏳ Waiting for prefetched audio...`);
+                    blob = await item.fetchPromise;
+                } else {
+                    console.log(`📥 Fetching TTS (Just-in-Time)...`);
+                    blob = await this.fetchTTS(item.text, item.lang);
+                }
+            }
 
             // 🛡️ Validate Blob
             if (!blob || blob.size < 100) {
@@ -207,14 +222,21 @@ class AvatarManager {
                 return;
             }
 
+            // 2. Prepare Player
             const url = URL.createObjectURL(blob);
             this.audioPlayer.src = url;
+
+            // 🚀 3. PREFETCH NEXT ITEM(S)
+            // Trigger this BEFORE awaiting play start to maximize concurrency
+            this.prefetchNextItems();
 
             try {
                 await this.audioPlayer.play();
                 // Set mood to speaking (lip sync)
                 this.setMood('speaking');
                 stateManager.set('isSpeaking', true);
+                if (this.onAudioStateChange) this.onAudioStateChange(true);
+
                 // Store current item to handle 'onComplete' in 'onAudioEnded'
                 this.currentItem = item;
             } catch (playError) {
@@ -229,13 +251,39 @@ class AvatarManager {
                 }
 
                 this.isPlaying = false;
-                this.processQueue(); // Skip to next or Retrying might loop, better skip
+                this.processQueue();
             }
 
         } catch (e) {
             console.error("TTS Fetch/Play Error:", e);
             this.isPlaying = false;
             this.processQueue(); // Try next
+        }
+    }
+
+    /**
+     * 🚀 Prefetch the next few items in the queue
+     */
+    prefetchNextItems(count = 2) {
+        // Look ahead in the queue
+        for (let i = 0; i < Math.min(count, this.audioQueue.length); i++) {
+            const nextItem = this.audioQueue[i];
+
+            // Only fetch if not already fetched or fetching
+            if (!nextItem.blob && !nextItem.fetchPromise) {
+                console.log(`🚀 Prefetching Chunk +${i + 1}: "${nextItem.text.substring(0, 15)}..."`);
+
+                // Save Promise immediately to prevent duplicate fetches
+                nextItem.fetchPromise = this.fetchTTS(nextItem.text, nextItem.lang)
+                    .then(blob => {
+                        nextItem.blob = blob; // Store result
+                        return blob;
+                    })
+                    .catch(err => {
+                        console.error("Prefetch Failed:", err);
+                        nextItem.fetchPromise = null; // Reset on error so processQueue might retry
+                    });
+            }
         }
     }
 
@@ -262,6 +310,7 @@ class AvatarManager {
                 this.setMood('normal');
                 this.sendCommand({ type: 'resumeIdle' });
             }
+            if (this.onAudioStateChange) this.onAudioStateChange(false);
         }
     }
 

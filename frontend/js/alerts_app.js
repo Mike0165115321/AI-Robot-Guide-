@@ -3,6 +3,7 @@ import { $, $$, on } from './utils/dom.js';
 import { CONFIG } from './config.js';
 import responseRenderer from './components/responseRenderer.js';
 import { renderNavbar } from './components/Navbar.js';
+import { languageManager } from './modules/LanguageManager.js';
 
 const ITEMS_PER_PAGE = 12;
 let currentPage = 1;
@@ -13,11 +14,32 @@ let currentCategory = 'all';
 let searchTimeout;
 
 document.addEventListener('DOMContentLoaded', () => {
+    // I18N
+    updateStaticText(languageManager.getCurrentLanguage());
+    languageManager.subscribe((lang) => {
+        updateStaticText(lang);
+        // Refresh cards if possible (or just reload? Reload is safer for dynamic content simple update)
+        if (totalAlerts > 0) loadAlerts(currentPage);
+    });
+
     renderNavbar('navbar-container', 'alerts');
     loadAlerts(currentPage);
     initModal();
     initFilters();
 });
+
+function updateStaticText(lang) {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const text = languageManager.getText(key);
+
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+            el.placeholder = text;
+        } else {
+            el.innerText = text;
+        }
+    });
+}
 
 function initFilters() {
     // Search Input
@@ -55,7 +77,7 @@ async function loadAlerts(page = 1) {
     const grid = $('#alerts-grid');
 
     // Show loading state
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:50px;"><div class="spinner"></div><p>กำลังค้นหาข้อมูล... ⏳</p></div>';
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:50px;"><div class="spinner"></div><p data-i18n="alerts_loading">' + languageManager.getText('alerts_loading') + '</p></div>';
 
     // Calculate skip
     const skip = (page - 1) * ITEMS_PER_PAGE;
@@ -78,7 +100,7 @@ async function loadAlerts(page = 1) {
                 renderAlerts(alerts);
                 renderPagination();
             } else {
-                grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;opacity:0.6;padding:40px;">ไม่พบข่าวสารในหน้านี้</p>';
+                grid.innerHTML = `<p style="grid-column:1/-1;text-align:center;opacity:0.6;padding:40px;">${languageManager.getText('alerts_no_data') || 'ไม่พบข่าวสาร'}</p>`;
                 $('.pagination-container')?.remove();
             }
         }
@@ -124,19 +146,19 @@ function renderPagination() {
     // Prev Button
     const prevBtn = document.createElement('button');
     prevBtn.className = 'pagination-btn';
-    prevBtn.innerHTML = '❮ ย้อนกลับ';
+    prevBtn.innerHTML = languageManager.getText('btn_prev');
     prevBtn.disabled = currentPage === 1;
     prevBtn.onclick = () => loadAlerts(currentPage - 1);
 
     // Page Info
     const pageInfo = document.createElement('span');
     pageInfo.className = 'pagination-info';
-    pageInfo.innerText = `หน้า ${currentPage} / ${totalPages}`;
+    pageInfo.innerText = `${languageManager.getText('page_info') || 'หน้า'} ${currentPage} / ${totalPages}`;
 
     // Next Button
     const nextBtn = document.createElement('button');
     nextBtn.className = 'pagination-btn';
-    nextBtn.innerHTML = 'ถัดไป ❯';
+    nextBtn.innerHTML = languageManager.getText('btn_next');
     nextBtn.disabled = currentPage === totalPages;
     nextBtn.onclick = () => loadAlerts(currentPage + 1);
 
@@ -155,21 +177,23 @@ function createAlertCard(alert) {
     const severityClass = `severity-${severityIdx}`;
 
     // Date Formatting
-    // Date Formatting - Prioritize original news timestamp -> created_at -> current time
     const dateSource = alert.timestamp || alert.created_at || Date.now();
-    const timeStr = new Date(dateSource).toLocaleString('th-TH', {
+    const timeStr = new Date(dateSource).toLocaleString(languageManager.getCurrentLanguage() === 'th' ? 'th-TH' : 'en-US', {
         dateStyle: 'short',
         timeStyle: 'short'
     });
 
+    const levelLabel = languageManager.getText('alerts_level') || 'Level';
+    const sourceLabel = languageManager.getText('alerts_source') || 'Source';
+
     article.innerHTML = `
         <div class="alert-header">
-            <span class="alert-badge ${severityClass}">Level ${severityIdx}</span>
+            <span class="alert-badge ${severityClass}">${levelLabel} ${severityIdx}</span>
             <span class="alert-time">${timeStr}</span>
         </div>
         <h3 class="alert-title">${alert.summary}</h3>
         ${alert.location_name ? `<div class="alert-location">📍 ${alert.location_name}</div>` : ''}
-        <div style="font-size:0.8rem;opacity:0.6;margin-top:10px;">Source: ${alert.original_source || 'AI Monitor'}</div>
+        <div style="font-size:0.8rem;opacity:0.6;margin-top:10px;">${sourceLabel}: ${alert.original_source || 'AI Monitor'}</div>
     `;
 
     // Click to open modal
@@ -198,7 +222,6 @@ function openAlertModal(alert) {
     if (!modal || !modalBody) return;
 
     // Use responseRenderer to generate full detail HTML
-    // Conveniently reuse existing rendering logic
     modalBody.innerHTML = responseRenderer.renderAlert(alert);
 
     modal.classList.add('visible');

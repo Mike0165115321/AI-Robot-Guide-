@@ -512,7 +512,8 @@ class FabManager {
         const widget = this._showWidget('🗺️ นำทาง', content);
 
         const navigate = (place) => {
-            const text = `พาไป ${place}`;
+            // ใช้ "นำทางไป" ให้ชัดเจนขึ้น
+            const text = `นำทางไป ${place}`;
             this.callbacks.onSendMessage?.(text);
             this._closeWidget(widget);
         };

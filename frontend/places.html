@@ -32,24 +32,24 @@
 
     <!-- HEADER -->
     <header class="page-header">
-        <h1>📍 สถานที่ท่องเที่ยวจังหวัดน่าน</h1>
-        <p>ค้นหาสถานที่น่าสนใจในจังหวัดน่าน</p>
+        <h1 data-i18n="places_page_title">📍 สถานที่ท่องเที่ยวจังหวัดน่าน</h1>
+        <p data-i18n="places_page_subtitle">ค้นหาสถานที่น่าสนใจในจังหวัดน่าน</p>
     </header>
 
     <!-- SEARCH & FILTER -->
     <section class="search-section">
         <div class="search-box">
             <span class="icon">🔍</span>
-            <input type="text" id="search-input" placeholder="ค้นหาสถานที่...">
+            <input type="text" id="search-input" placeholder="ค้นหาสถานที่..." data-i18n="places_search_placeholder">
         </div>
 
         <div class="category-filters">
-            <button class="category-btn active" data-category="all">ทั้งหมด</button>
-            <button class="category-btn" data-category="temple">🏛️ วัด</button>
-            <button class="category-btn" data-category="nature">🌲 ธรรมชาติ</button>
-            <button class="category-btn" data-category="food">🍜 อาหาร</button>
-            <button class="category-btn" data-category="hotel">🏨 ที่พัก</button>
-            <button class="category-btn" data-category="shopping">🛍️ ช้อปปิ้ง</button>
+            <button class="category-btn active" data-category="all" data-i18n="filter_all">ทั้งหมด</button>
+            <button class="category-btn" data-category="temple" data-i18n="filter_temple">🏛️ วัด</button>
+            <button class="category-btn" data-category="nature" data-i18n="filter_nature">🌲 ธรรมชาติ</button>
+            <button class="category-btn" data-category="food" data-i18n="filter_food">🍜 อาหาร</button>
+            <button class="category-btn" data-category="hotel" data-i18n="filter_hotel">🏨 ที่พัก</button>
+            <button class="category-btn" data-category="shopping" data-i18n="filter_shopping">🛍️ ช้อปปิ้ง</button>
         </div>
     </section>
 
@@ -57,7 +57,7 @@
     <main class="places-grid" id="places-grid">
         <div class="loading-state" style="grid-column:1/-1;text-align:center;padding:50px;">
             <div class="spinner"></div>
-            <p>กำลังโหลดข้อมูลสถานที่... ⏳</p>
+            <p data-i18n="places_loading">กำลังโหลดข้อมูลสถานที่... ⏳</p>
         </div>
     </main>
 
@@ -77,14 +77,17 @@
                         <span class="modal-location" id="modal-location"></span>
 
                         <div class="modal-controls" style="display:flex;gap:10px;width:100%;">
-                            <button id="modal-prev-btn" class="btn btn-secondary" style="flex:1;">⬅️ ก่อนหน้า</button>
-                            <button id="modal-next-btn" class="btn btn-secondary" style="flex:1;">ถัดไป ➡️</button>
+                            <button id="modal-prev-btn" class="btn btn-secondary" style="flex:1;"
+                                data-i18n="btn_prev">⬅️ ก่อนหน้า</button>
+                            <button id="modal-next-btn" class="btn btn-secondary" style="flex:1;"
+                                data-i18n="btn_next">ถัดไป ➡️</button>
                         </div>
 
                         <div style="display:flex;gap:10px;width:100%;margin-top:10px;">
-                            <button class="modal-close-btn btn btn-ghost" style="flex:1;">🔙 ย้อนกลับ</button>
-                            <button id="modal-nav-btn" class="btn btn-primary btn-lg btn-navigate-large"
-                                style="flex:2;">
+                            <button class="modal-close-btn btn btn-ghost" style="flex:1;" data-i18n="btn_back">🔙
+                                ย้อนกลับ</button>
+                            <button id="modal-nav-btn" class="btn btn-primary btn-lg btn-navigate-large" style="flex:2;"
+                                data-i18n="btn_navigate">
                                 🧭 นำทางไปที่นี่
                             </button>
                         </div>

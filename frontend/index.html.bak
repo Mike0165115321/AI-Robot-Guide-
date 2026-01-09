@@ -17,7 +17,6 @@
     <link rel="stylesheet" href="css/animations.css">
     <link rel="stylesheet" href="css/response-cards.css">
     <link rel="stylesheet" href="css/home.css">
-    <link rel="stylesheet" href="css/quick-actions.css">
     <!-- Libraries -->
     <script src="js/lib/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
@@ -73,25 +72,17 @@
 
     </main>
 
-    <!-- Input Area Wrapper (Outer Container, Vertical Stack) -->
+    <!-- Input Area Wrapper (แยก input-bar กับ rainbow button) -->
     <div class="input-area-wrapper">
         <div class="input-bar">
             <!-- Mode: Text Input (default visible) -->
             <div class="input-mode text-mode" id="text-mode">
-                <!-- 🆕 Quick Menu Button (Left) -->
-                <button class="btn-mode" id="btn-quick-menu" title="เมนูทางลัด" style="margin-right: 5px;">🪄</button>
-
                 <input type="text" id="query-input" placeholder="พิมพ์คำถาม..." autocomplete="off"
                     data-i18n="chat_placeholder">
                 <button class="btn-mode" id="btn-stop-tts" title="หยุดเสียงพูด"
                     style="display: none; background: #ef4444; color: white;">🔇</button>
                 <button class="btn-mode" id="btn-ai-mode" title="เปลี่ยนโหมด AI">⚡</button>
                 <button class="btn-send" id="btn-send" title="ส่ง">📤</button>
-            </div>
-
-            <!-- 🆕 Quick Menu Popup (Hidden by default) -->
-            <div id="quick-menu-popup" class="quick-menu-popup">
-                <!-- Items injected by JS -->
             </div>
 
             <!-- Mode: Voice (hidden by default) -->
@@ -107,7 +98,7 @@
             </div>
         </div>
 
-        <!-- Rainbow Button (Outside Input Bar) -->
+        <!-- Rainbow Button (แยกออกมาอยู่ข้างนอก) -->
         <button class="btn-rainbow" id="btn-voice-toggle" title="คุยกับน้องน่าน">
             <span class="rainbow-icon">🎤</span>
             <span class="rainbow-text" data-i18n="chat_talk_button">คุยกับน้องน่าน</span>

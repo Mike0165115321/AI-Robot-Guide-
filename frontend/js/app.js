@@ -14,14 +14,16 @@ import { fabManager } from './components/FabManager.js';
 import { voiceModeManager } from './components/VoiceModeManager.js';
 import aiModeManager from './services/aiModeManager.js';
 import FrontendDirector from './services/frontendDirector.js';
+import { languageManager } from './modules/LanguageManager.js';
 import * as LanguageUtils from './utils/languageUtils.js';
 
 // 🆕 Modules
 import stateManager from './modules/StateManager.js';
 import uiManager from './modules/UIManager.js';
 import avatarManager from './modules/AvatarManager.js';
-import { renderMarkdown } from './services/markdownService.js'; // Import directly
+import { renderMarkdown } from './services/markdownService.js';
 import responseRenderer from './components/responseRenderer.js';
+import { quickScripts } from './data/scripts.js';
 
 // ==========================================
 // INIT
@@ -33,6 +35,15 @@ document.addEventListener('DOMContentLoaded', () => {
     bindEvents();
     initServices();
     loadAvatar();
+
+    // 🌍 Init I18N
+    updateStaticText(languageManager.getCurrentLanguage()); // Initial
+    renderQuickScripts(); // 🆕 Render Quick Scripts
+
+    languageManager.subscribe((lang) => {
+        updateStaticText(lang);
+        renderQuickScripts(); // 🆕 Re-render on language change
+    });
 
     // Unlock Audio Context
     const unlockAudio = () => {
@@ -54,6 +65,19 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', unlockAudio);
     document.addEventListener('touchstart', unlockAudio);
 });
+
+function updateStaticText(lang) {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const text = languageManager.getText(key);
+
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+            el.placeholder = text;
+        } else {
+            el.innerText = text;
+        }
+    });
+}
 
 function initServices() {
     // 1. Connect Services
@@ -96,6 +120,14 @@ function initServices() {
     // 4. Global Listeners
     avatarService.onMessage(handleAvatarMessage);
     alertService.onAlert(handleAlertMessage);
+
+    // Sync Stop Button
+    avatarManager.onAudioStateChange = (isSpeaking) => {
+        const btnStop = $('#btn-stop-tts');
+        if (btnStop) {
+            btnStop.style.display = isSpeaking ? 'inline-flex' : 'none';
+        }
+    };
 
     // 5. Init UI
     uiManager.updateAIModeButton();
@@ -144,7 +176,9 @@ async function handleSend(manualText = null) {
 
     try {
         const detectedLang = LanguageUtils.detect(text);
-        console.log(`🎬 [App] Director Decision for: "${text}"`);
+        const interfaceLang = languageManager.getCurrentLanguage(); // 🌍 Use Interface Language for system feedback
+
+        console.log(`🎬 [App] Director Decision for: "${text}" (Detected: ${detectedLang}, Interface: ${interfaceLang})`);
 
         const decision = await FrontendDirector.decide(text, detectedLang);
 
@@ -162,15 +196,27 @@ async function handleSend(manualText = null) {
         // RAG Fallback
         console.log("📚 Fallback to RAG");
 
-        // 🗣️ Wait Message (Immediate) - Avatar will speak, then go back to thinking automatically
-        avatarManager.speak("รอสักครู่นะคะ กำลังค้นข้อมูลให้ค่ะ", "thinking", detectedLang);
-        uiManager.updateSpeech("กำลังค้นข้อมูล...");
+        // 🗣️ Wait Message (Immediate) - Speak in INTERFACE Language
+        // TODO: Move these strings to translation dictionary too!
+        // For now, let's keep hardcoded Thai or use simple logic.
+        // Ideally: languageManager.getText('status_waiting')
+
+        // Let's use hardcoded for now but with the Correct Language Code for TTS
+        // Actually, if interface is EN, we should speak EN.
+        // "Please wait, searching..."
+
+        // Since we don't have these specific keys in keys yet (we added status_listening), let's just use 'th' or 'en' based on interfaceLang.
+        // Or better: use detectedLang for the RESPONSE, but interfaceLang for STATUS?
+        // Usually, if I speak English, I want English response.
+
+        avatarManager.speak(languageManager.getText('chat_wait_msg') || "รอสักครู่นะคะ กำลังค้นข้อมูลให้ค่ะ", "thinking", interfaceLang);
+        uiManager.updateSpeech(languageManager.getText('chat_searching') || "กำลังค้นข้อมูล...");
 
         // ⏳ Progressive Feedback
         const feedbackTimer = setTimeout(() => {
             if (stateManager.get('isProcessing') && !stateManager.get('isSpeaking')) {
                 // Use interrupt: false to safely append or play if idle
-                avatarManager.speak("ข้อมูลเยอะนิดนึงนะคะ ขอเวลาเรียบเรียงแป๊บนึงค่ะ", "thinking", "th", null, false);
+                avatarManager.speak(languageManager.getText('chat_long_wait') || "ข้อมูลเยอะนิดนึงนะคะ ขอเวลาเรียบเรียงแป๊บนึงค่ะ", "thinking", interfaceLang, null, false);
                 uiManager.updateSpeech("กำลังเรียบเรียงข้อมูล... 📝");
             }
         }, 7000);
@@ -178,12 +224,13 @@ async function handleSend(manualText = null) {
         const longWaitTimer = setTimeout(() => {
             if (stateManager.get('isProcessing') && !stateManager.get('isSpeaking')) {
                 // Use interrupt: false
-                avatarManager.speak("ยังหาอยู่นะคะ หัวข้อนี้ยากจัง รออีกนิดนะคะ", "worried", "th", null, false);
+                avatarManager.speak(languageManager.getText('chat_very_long_wait') || "ยังหาอยู่นะคะ หัวข้อนี้ยากจัง รออีกนิดนะคะ", "worried", interfaceLang, null, false);
                 uiManager.updateSpeech("ข้อมูลลึกมาก... รอสักครู่ค่ะ 😅");
             }
         }, 15000);
 
         const response = await chatService.sendText(text, stateManager.get('sessionId'), detectedLang, 'FAQ');
+
 
         clearTimeout(feedbackTimer);
         clearTimeout(longWaitTimer);
@@ -278,14 +325,18 @@ function renderResponsePanel(data) {
     }
 
     // Footer
+    const txtLike = languageManager.getText('btn_like') || 'Like';
+    const txtDislike = languageManager.getText('btn_dislike') || 'Dislike';
+    const txtPrint = languageManager.getText('btn_print') || 'Print';
+
     panelHtml += `
         <div class="response-footer" style="display: flex; justify-content: flex-end; align-items: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); gap: 10px;">
             ${data.processing_time ? `<div class="processing-time" style="font-size: 0.8rem; opacity: 0.6; margin-right: auto;">⏱️ ${data.processing_time}s</div>` : ''}
             <div class="feedback-group" style="display: flex; gap: 5px;">
-                <button class="btn-img-action btn-like" onclick="window.submitFeedback('like', this)" title="ถูกใจ" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 6px; cursor: pointer; color: var(--color-text); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">👍</button>
-                <button class="btn-img-action btn-dislike" onclick="window.submitFeedback('dislike', this)" title="ไม่ถูกใจ" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 6px; cursor: pointer; color: var(--color-text); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">👎</button>
+                <button class="btn-img-action btn-like" onclick="window.submitFeedback('like', this)" title="${txtLike}" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 6px; cursor: pointer; color: var(--color-text); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">👍</button>
+                <button class="btn-img-action btn-dislike" onclick="window.submitFeedback('dislike', this)" title="${txtDislike}" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); width: 36px; height: 36px; border-radius: 6px; cursor: pointer; color: var(--color-text); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">👎</button>
             </div>
-             <button class="btn-print" onclick="window.printCurrentResponse()" title="พิมพ์หน้านี้" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 6px; cursor: pointer; color: var(--color-text); font-size: 0.9rem; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-print"></i> พิมพ์</button>
+             <button class="btn-print" onclick="window.printCurrentResponse()" title="${txtPrint}" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 6px; cursor: pointer; color: var(--color-text); font-size: 0.9rem; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-print"></i> ${txtPrint}</button>
         </div>
     `;
 
@@ -359,8 +410,47 @@ function bindEvents() {
         uiManager.updateAIModeButton();
     });
 
+    // 🆕 Quick Menu Bindings
+    const btnMenu = $('#btn-quick-menu');
+    if (btnMenu) {
+        on(btnMenu, 'click', (e) => {
+            e.stopPropagation(); // Prevent document click from closing immediately
+            toggleQuickMenu();
+        });
+    }
+
+    // Close menu when clicking outside
+    on(document, 'click', (e) => {
+        const menu = $('#quick-menu-popup');
+        const btn = $('#btn-quick-menu');
+        if (menu && menu.classList.contains('active') && !menu.contains(e.target) && e.target !== btn) {
+            toggleQuickMenu(false);
+        }
+    });
+
     const panelClose = $('#panel-close');
     if (panelClose) on(panelClose, 'click', () => uiManager.hidePanel());
+
+    // Stop TTS Button (Text Mode)
+    const btnStopTTS = $('#btn-stop-tts');
+    if (btnStopTTS) on(btnStopTTS, 'click', (e) => {
+        e.preventDefault();
+        stopSpeaking();
+    });
+
+    // Stop TTS Button (Voice Mode)
+    const btnStopVoice = $('#btn-stop-tts-voice');
+    if (btnStopVoice) on(btnStopVoice, 'click', (e) => {
+        e.preventDefault();
+        stopSpeaking();
+    });
+
+    // Stop Voice Button (Command - old?)
+    const btnStopCommand = $('#btn-stop-voice');
+    if (btnStopCommand) on(btnStopCommand, 'click', (e) => {
+        e.preventDefault();
+        stopSpeaking();
+    });
 
     // Skin Selector
     const skinToggle = $('#skin-toggle');
@@ -386,75 +476,88 @@ function bindEvents() {
     delegate(document.body, 'click', '.close-panel-btn', () => uiManager.hidePanel());
 }
 
-//     if (wrapper && wrapper.contentWindow) {
-//         wrapper.contentWindow.postMessage({ type: 'changeSkin', skin: skinName }, '*');
-//     }
-//     uiManager.updateSpeech(`เปลี่ยนเป็น ${btn.title} แล้วค่ะ! ✨`);
-// }
+function toggleQuickMenu(forceState = null) {
+    const menu = $('#quick-menu-popup');
+    if (!menu) return;
 
-// ==========================================
-// AUDIO / TTS LOGIC (Remaining Logic)
-// ==========================================
-// const audioPlayer = new Audio();
-// let audioQueue = [];
-// let isPlayingQueue = false;
-// let currentSpeechId = 0;
+    if (forceState !== null) {
+        if (forceState) menu.classList.add('active');
+        else menu.classList.remove('active');
+    } else {
+        menu.classList.toggle('active');
+    }
+}
 
-// function speakText(text, mood = 'normal', lang = null) {
-//     if (!text) return;
 
-//     // If text is short (< 80 chars), show it in bubble too
-//     if (text.length < 80) uiManager.updateSpeech(text);
+// NEW Helper
+function renderQuickScripts() {
+    const container = document.getElementById('quick-menu-popup');
+    if (!container) return;
 
-//     // Reset Queue
-//     audioQueue = [];
-//     isPlayingQueue = false;
-//     currentSpeechId++;
-//     audioPlayer.pause();
+    container.innerHTML = '';
+    const currentLang = languageManager.getCurrentLanguage();
 
-//     setAvatarMood(mood);
+    quickScripts.forEach(script => {
+        const item = document.createElement('div');
+        item.className = 'menu-item';
+        item.innerHTML = `<span class="menu-item-icon">${script.icon}</span> <span class="menu-item-text">${script.label[currentLang] || script.label['en']}</span>`;
 
-//     const sentences = text.match(/[^.!?\s]+[.!?]*/g) || [text];
+        item.onclick = () => {
+            // Close menu
+            toggleQuickMenu(false);
 
-//     sentences.forEach(s => {
-//         audioQueue.push({ text: s, lang: lang || 'th', mood: mood });
-//     });
+            // Execute Local Script bypassing Backend
+            handleLocalScript(script);
+        };
 
-//     processAudioQueue();
-// }
+        container.appendChild(item);
+    });
+}
 
-// async function processAudioQueue() {
-//     if (isPlayingQueue || audioQueue.length === 0) return;
-//     isPlayingQueue = true;
+/**
+ * ⚡ Execute a predefined script locally (Zero Logic/Token Cost)
+ */
+async function handleLocalScript(script) {
+    const currentLang = languageManager.getCurrentLanguage();
 
-//     const item = audioQueue.shift();
-//     try {
-//         const blob = await fetchTTSBlob(item.text, item.lang);
-//         const url = URL.createObjectURL(blob);
-//         audioPlayer.src = url;
+    // 1. Get Text Content
+    const userPrompt = script.prompt[currentLang] || script.prompt['en'];
+    const aiResponse = script.response[currentLang] || script.response['en'];
+    if (!userPrompt || !aiResponse) return;
 
-//         audioPlayer.onended = () => {
-//             isPlayingQueue = false;
-//             processAudioQueue();
-//         };
+    // 2. UI: Show User Message (Feedback)
+    uiManager.updateSpeech(`🗣️ ${userPrompt}`);
 
-//         audioPlayer.play();
-//         setAvatarMood('speaking');
+    // 3. UI: Show Loading
+    uiManager.showLoading();
 
-//     } catch (e) {
-//         console.error("TTS Error:", e);
-//         isPlayingQueue = false;
-//     }
-// }
+    // 4. Simulate delay
+    await new Promise(r => setTimeout(r, 600));
 
-// async function fetchTTSBlob(text, lang) {
-//     const response = await fetch('/api/chat/tts', {
-//         method: 'POST',
-//         headers: { 'Content-Type': 'application/json' },
-//         body: JSON.stringify({ text, language: lang })
-//     });
-//     return await response.blob();
-// }
+    uiManager.hideLoading();
+
+    // 5. UI: Show AI Message via Panel (Standard logic)
+    // Store for Feedback
+    stateManager.set('lastAiResponse', aiResponse);
+
+    const fakeResult = {
+        answer: aiResponse,
+        avatar_mood: script.mood || 'talking',
+        conversation_id: stateManager.get('sessionId')
+    };
+
+    // Use the existing panel renderer to show rich text
+    renderResponsePanel(fakeResult);
+
+    // 6. Action: Set Mood
+    if (fakeResult.avatar_mood) {
+        avatarManager.setMood(fakeResult.avatar_mood);
+    }
+
+    // 7. Action: Speak (TTS)
+    // Trigger TTS directly using the response text
+    avatarManager.speak(fakeResult.answer, fakeResult.avatar_mood, currentLang);
+}
 
 function stopSpeaking() {
     avatarManager.stop();
@@ -468,15 +571,18 @@ function stopSpeaking() {
 window.submitFeedback = async (type, btn) => {
     const query = stateManager.get('lastUserQuery') || "unknown";
     const sessionId = stateManager.get('sessionId');
+    const response = stateManager.get('lastAiResponse') || "No response recorded";
 
     try {
         await fetch('/api/analytics/submit_feedback', {
             method: 'POST',
-            body: JSON.stringify({ session_id: sessionId, query, feedback_type: type })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId, query, response, feedback_type: type })
         });
         console.log(`Feedback: ${type}`);
-        if (btn) btn.disabled = true;
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+        }
     } catch (e) { console.error(e); }
 };
-
-
