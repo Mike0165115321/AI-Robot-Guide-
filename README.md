@@ -135,6 +135,19 @@ cd "AI Robot Guide จังหวัดน่าน"
 
 ---
 
+## 🚀 Roadmap to Production Scale (Q1 2026)
+
+To elevate this project from a specialized implementation to a **Department-Scale Solution**, the following roadmap handles the transition to "Senior-Grade" infrastructure:
+
+| Phase | Objective | Technology / Strategy |
+| :--- | :--- | :--- |
+| **1. Deployment** | **Container Orchestration** | Migrate from Docker Compose to **Kubernetes (K8s)** on AWS EKS or Google GKE for auto-scaling. |
+| **2. Observability** | **Deep Monitoring** | Integrate **Prometheus & Grafana** to track API latency, error rates, and token usage in real-time. |
+| **3. Quality** | **Rigorous Testing** | Implement CI/CD pipeline with **Pytest** (Targeting >80% coverage) and Cypress for E2E frontend testing. |
+| **4. Scale** | **High Concurrency** | Optimize for **1,000+ concurrent users** using Nginx Load Balancing and Redis Cluster for session state. |
+
+---
+
 ## 👨‍💻 Tech Stack
 
 | Component | Technology | Role |
