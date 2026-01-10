@@ -3,6 +3,7 @@ export default {
     nav_home: "ホーム",
     nav_places: "観光地",
     nav_news: "ニュース",
+    nav_language: "言語",
     nav_about: "紹介",
     nav_admin: "管理",
     nav_settings: "設定",

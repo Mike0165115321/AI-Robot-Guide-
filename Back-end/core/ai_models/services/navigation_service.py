@@ -11,6 +11,24 @@ class NavigationService:
         self.prompt_engine = prompt_engine
         logging.info("🗺️ [NavigationService] Initialized.")
 
+    def _clean_navigation_entity(self, text: str) -> str:
+        """ลบคำกริยานำทางออกจากชื่อสถานที่ เช่น 'ไป วัด...', 'นำทางไป...'"""
+        prefixes = [
+            "นำทางไปยัง", "นำทางไปที่", "นำทางไป", 
+            "ขอเส้นทางไปยัง", "ขอเส้นทางไปที่", "ขอเส้นทางไป",
+            "พาไปที่", "พาไป", "ไปที่", "ไป"
+        ]
+        # Sort by length descending to match longest prefix first
+        prefixes.sort(key=len, reverse=True)
+        
+        text = text.strip()
+        for prefix in prefixes:
+            if text.startswith(prefix):
+                # Remove prefix and strip again
+                text = text[len(prefix):].strip()
+                break # Only remove one prefix
+        return text
+
     def calculate_distance(self, lat1, lon1, lat2, lon2) -> float:
         """คำนวณระยะทาง (Haversine Formula)"""
         if None in [lat1, lon1, lat2, lon2]: 
@@ -56,18 +74,28 @@ class NavigationService:
         return locations
 
     async def handle_get_directions(self, entity_slug: str, user_lat: float = None, user_lon: float = None) -> dict:
-        logging.info(f"🗺️  [V-Maps] Handling Directions for: '{entity_slug}'")
+        # 1. Clean up the entity name (remove common verbs)
+        clean_slug = self._clean_navigation_entity(entity_slug)
+        logging.info(f"🗺️  [V-Maps] Handling Directions for: '{entity_slug}' -> Cleaned: '{clean_slug}'")
         
-        doc = await asyncio.to_thread(self.mongo_manager.get_location_by_slug, entity_slug)
+        # 2. Search by Slug (Exact)
+        doc = await asyncio.to_thread(self.mongo_manager.get_location_by_slug, clean_slug)
+        
+        # 3. If not found, Search by Title (Fuzzy)
         if not doc:
-            logging.info(f"[V-Maps] Slug not found. Searching by title: '{entity_slug}'")
-            doc = await asyncio.to_thread(self.mongo_manager.get_location_by_title, entity_slug)
+            logging.info(f"[V-Maps] Slug not found. Searching by title: '{clean_slug}'")
+            doc = await asyncio.to_thread(self.mongo_manager.get_location_by_title, clean_slug)
 
         if not doc or not doc.get("location_data"):
-            return {
-                "answer": f"ขออภัยค่ะ ไม่พบพิกัดของ **{entity_slug}** ในระบบ ลองระบุชื่อให้ชัดเจนขึ้นอีกนิดนะคะ", 
-                "action": None, "sources": [], "image_url": None
-            }
+            # Fallback: Try searching original slug just in case cleaning removed too much
+            if clean_slug != entity_slug:
+                 doc = await asyncio.to_thread(self.mongo_manager.get_location_by_title, entity_slug)
+            
+            if not doc or not doc.get("location_data"):
+                return {
+                    "answer": f"ขออภัยค่ะ ไม่พบพิกัดของ **{clean_slug}** ในระบบ ลองระบุชื่อสถานที่อีกครั้งนะคะ", 
+                    "action": None, "sources": [], "image_url": None
+                }
 
         nav_data = doc["location_data"]
         dest_name = doc.get("title", "ปลายทาง")

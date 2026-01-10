@@ -3,6 +3,7 @@ export default {
     nav_home: "Utama",
     nav_places: "Tempat",
     nav_news: "Berita",
+    nav_language: "Bahasa",
     nav_dashboard: "Papan Pemuka",
     nav_admin_panel: "Admin",
     nav_login: "Log Masuk",

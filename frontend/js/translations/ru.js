@@ -3,6 +3,7 @@ export default {
     nav_home: "Главная",
     nav_places: "Места",
     nav_news: "Новости",
+    nav_language: "Язык",
     nav_about: "О нас",
     nav_admin: "Админ",
     nav_settings: "Настройки",

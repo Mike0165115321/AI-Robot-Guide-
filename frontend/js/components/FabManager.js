@@ -63,7 +63,7 @@ class FabManager {
                     <button id="fab-music" class="fab-btn" title="เพลง">🎵</button>
                     <button id="fab-faq" class="fab-btn" title="คำถามที่พบบ่อย">❓</button>
                     <button id="fab-calc" class="fab-btn" title="เครื่องคิดเลข">🧮</button>
-                    <button id="fab-nav" class="fab-btn" title="นำทาง">🗺️</button>
+                    <!-- <button id="fab-nav" class="fab-btn" title="นำทาง">🗺️</button> -->
                 </div>
                 <button id="fab-toggle" class="fab-toggle">
                     <span class="fab-icon-open">➕</span>

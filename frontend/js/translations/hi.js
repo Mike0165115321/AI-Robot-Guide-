@@ -3,6 +3,7 @@ export default {
     nav_home: "होम",
     nav_places: "स्थान",
     nav_news: "समाचार",
+    nav_language: "भाषा",
     nav_dashboard: "डैशबोर्ड",
     nav_admin_panel: "एडमिन",
     nav_login: "लॉग इन",

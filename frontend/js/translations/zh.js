@@ -3,6 +3,7 @@ export default {
     nav_home: "首页",
     nav_places: "景点",
     nav_news: "新闻",
+    nav_language: "语言",
     nav_about: "关于",
     nav_admin: "后台管理",
     nav_settings: "设置",
