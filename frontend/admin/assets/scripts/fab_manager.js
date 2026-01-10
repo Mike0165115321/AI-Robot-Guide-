@@ -24,7 +24,7 @@ class FabManager {
                 ...config.callbacks
             },
             isAvatarMode: config.isAvatarMode || false,
-            apiBaseUrl: config.apiBaseUrl || (window.API_BASE_URL || 'http://localhost:9090')
+            apiBaseUrl: config.apiBaseUrl || (window.API_BASE_URL || 'http://localhost:8014')
         };
 
         this.init();

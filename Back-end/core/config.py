@@ -69,10 +69,8 @@ class Settings:
 
     # CORS Configuration
     CORS_ORIGINS: list[str] = [
-        "http://localhost:9090",
-        "http://127.0.0.1:9090",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
+        "http://localhost:8014",
+        "http://127.0.0.1:8014",
         f"http://{API_HOST}:{API_PORT}",
     ]
     # Add extra origins from env if needed
