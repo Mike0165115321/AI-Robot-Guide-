@@ -50,23 +50,40 @@ class AlertStorageService:
         except Exception as e:
             logger.error(f"❌ [AlertStorage] สร้าง indexes ล้มเหลว: {e}")
     
-    async def is_duplicate(self, url: str, title: str) -> bool:
+    async def is_duplicate(self, url: str, title: str, summary: str = None, lookback_hours: int = 24) -> bool:
         """
-        ตรวจสอบว่าข่าวซ้ำหรือไม่ (เช็คจาก URL หรือ Title)
+        ตรวจสอบว่าข่าวซ้ำหรือไม่
+        1. เช็ค URL/True (ถ้ามี)
+        2. เช็ค Summary + Time Window (สำหรับ Weather/PM2.5)
         """
         try:
             collection = await self._get_collection()
             
-            # 1. เช็ค URL (ถ้ามี)
+            # 1. เช็ค URL (ถ้ามี) - Strict check
             if url:
                 count = collection.count_documents({"url": url})
                 if count > 0:
                     return True
             
-            # 2. เช็ค Title (Exact match)
+            # 2. เช็ค Title (Exact match) - Strict check
             if title:
                 count = collection.count_documents({"title": title})
                 if count > 0:
+                    return True
+            
+            # 3. เช็ค Summary + Time Window (สำหรับ Weather/PM2.5 ที่ title อาจซ้ำแตเนื้อหาเดิม)
+            if summary:
+                # คำนวณเวลาเริ่มต้นที่ต้องเช็ค
+                cutoff_time = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
+                
+                # หา alerts ที่สร้างหลังจาก cutoff_time และมี summary เหมือนกัน
+                count = collection.count_documents({
+                    "summary": summary,
+                    "created_at": {"$gte": cutoff_time}
+                })
+                
+                if count > 0:
+                    logger.debug(f"🔍 [AlertStorage] Found duplicate summary (Last {lookback_hours}h): {summary[:30]}...")
                     return True
             
             return False

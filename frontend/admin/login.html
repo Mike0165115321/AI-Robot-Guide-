@@ -4,124 +4,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>เข้าสู่ระบบ - Admin</title>
+    <title data-i18n="login_page_title">เข้าสู่ระบบ - Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/base.css">
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: radial-gradient(circle at top right, #1a2a6c, #b21f1f, #fdbb2d);
-            /* Fallback */
-            background: radial-gradient(circle at center, #2e1d44 0%, #0f0c29 100%);
-        }
-
-        .login-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            padding: 3rem;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
-            text-align: center;
-        }
-
-        .logo {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-
-        .title {
-            color: #fff;
-            font-size: 1.5rem;
-            margin-bottom: 2rem;
-            font-weight: 500;
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-            text-align: left;
-        }
-
-        .form-label {
-            display: block;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 12px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            color: #fff;
-            font-family: 'Kanit', sans-serif;
-            transition: all 0.3s;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: var(--color-accent, #38ef7d);
-            box-shadow: 0 0 10px rgba(56, 239, 125, 0.3);
-        }
-
-        .btn-login {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #11998e, #38ef7d);
-            border: none;
-            border-radius: 8px;
-            color: #fff;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: transform 0.2s;
-            margin-top: 1rem;
-        }
-
-        .btn-login:hover {
-            transform: scale(1.02);
-        }
-
-        .error-msg {
-            color: #ff6b6b;
-            font-size: 0.9rem;
-            margin-top: 1rem;
-            min-height: 20px;
-        }
-    </style>
+    <link rel="stylesheet" href="assets/styles/login.css">
+</head>
 </head>
 
 <body>
 
     <div class="login-card">
         <div class="logo">🔐</div>
-        <h2 class="title">ผู้ดูแลระบบน้องน่าน</h2>
+        <h2 class="title" data-i18n="login_card_title">ผู้ดูแลระบบน้องน่าน</h2>
         <form id="login-form">
             <div class="form-group">
-                <label class="form-label" for="username">ชื่อผู้ใช้</label>
+                <label class="form-label" for="username" data-i18n="login_username_label">ชื่อผู้ใช้</label>
                 <input type="text" id="username" class="form-input" required autocomplete="username">
             </div>
             <div class="form-group">
-                <label class="form-label" for="password">รหัสผ่าน</label>
+                <label class="form-label" for="password" data-i18n="login_password_label">รหัสผ่าน</label>
                 <input type="password" id="password" class="form-input" required autocomplete="current-password">
             </div>
-            <button type="submit" class="btn-login">เข้าสู่ระบบ</button>
+            <button type="submit" class="btn-login" data-i18n="login_submit_btn">เข้าสู่ระบบ</button>
             <div id="error-msg" class="error-msg"></div>
         </form>
         <a href="/"
-            style="display: block; margin-top: 1.5rem; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.9rem;">←
-            กลับหน้าหลัก</a>
+            style="display: block; margin-top: 1.5rem; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.9rem;">
+            ← <span data-i18n="login_back_home">กลับหน้าหลัก</span>
+        </a>
     </div>
 
     <script src="assets/scripts/config.js"></script>
     <script src="assets/scripts/auth.js"></script>
+    <script type="module" src="assets/scripts/admin-i18n.js"></script>
 </body>
 
 </html>

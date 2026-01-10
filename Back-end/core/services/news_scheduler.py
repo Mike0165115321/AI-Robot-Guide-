@@ -128,14 +128,34 @@ class NewsScheduler:
             if weather:
                 weather_alert = await self._news_analyzer.analyze_weather(weather)
                 if weather_alert:
-                    all_alerts.append(weather_alert)
+                    # Check duplicate Weather alert (6 hour window)
+                    is_dup = await alert_storage_service.is_duplicate(
+                        url=None, 
+                        title=None, 
+                        summary=weather_alert.get("summary"), 
+                        lookback_hours=6
+                    )
+                    if not is_dup:
+                        all_alerts.append(weather_alert)
+                    else:
+                        logger.info(f"⏭️ ข้าม Alert สภาพอากาศซ้ำ: {weather_alert.get('summary')}")
             
             # 4. ดึงและวิเคราะห์ PM2.5 (WAQI API)
             pm25 = await self._air_quality_service.get_pm25()
             if pm25:
                 pm25_alert = await self._news_analyzer.analyze_air_quality(pm25)
                 if pm25_alert:
-                    all_alerts.append(pm25_alert)
+                    # Check duplicate PM2.5 alert (3 hour window)
+                    is_dup = await alert_storage_service.is_duplicate(
+                        url=None, 
+                        title=None, 
+                        summary=pm25_alert.get("summary"), 
+                        lookback_hours=3
+                    )
+                    if not is_dup:
+                        all_alerts.append(pm25_alert)
+                    else:
+                        logger.info(f"⏭️ ข้าม Alert PM2.5 ซ้ำ: {pm25_alert.get('summary')}")
             
             # 5. ส่ง alerts ที่ severity >= 4 ไป WebSocket
             high_priority_alerts = [a for a in all_alerts if a.get("severity_score", 0) >= 4]
