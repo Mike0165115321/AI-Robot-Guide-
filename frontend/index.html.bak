@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="น้องน่าน - AI Guide ประจำจังหวัดน่าน">
+    <title>น้องน่าน - AI Robot Guide จังหวัดน่าน</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/navbar.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/response-cards.css">
+    <link rel="stylesheet" href="css/home.css">
+    <!-- Libraries -->
+    <script src="js/lib/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+</head>
+
+<body class="page-with-navbar">
+    <div class="bg-grid"></div>
+
+    <!-- NAVBAR -->
+    <!-- NAVBAR -->
+    <div id="navbar-container"></div>
+
+    <!-- MAIN -->
+    <main class="main-container">
+
+        <!-- Panel (ซ้าย) -->
+        <div class="presentation-panel" id="presentation-panel">
+            <button class="presentation-close" id="panel-close">✕</button>
+            <div id="presentation-content"></div>
+        </div>
+
+        <!-- Skin Carousel (Top Right) -->
+        <div class="skin-carousel-wrapper">
+            <button class="skin-toggle-btn" id="skin-toggle">🎨</button>
+            <div class="skin-carousel" id="skin-carousel">
+                <div class="skin-list" id="skin-list">
+                    <button class="skin-btn active" data-skin="NanRobot" title="น่าน">🤖</button>
+                    <button class="skin-btn" data-skin="GoldenNan" title="ทอง">🌟</button>
+                    <button class="skin-btn" data-skin="NightNan" title="กลางคืน">🌙</button>
+                    <button class="skin-btn" data-skin="SakuraNan" title="ซากุระ">🌸</button>
+                    <button class="skin-btn" data-skin="CyberNan" title="ไซเบอร์">🎮</button>
+                    <button class="skin-btn" data-skin="ForestNan" title="ป่า">🌲</button>
+                    <button class="skin-btn" data-skin="OceanNan" title="ทะเล">🌊</button>
+                    <button class="skin-btn" data-skin="SunsetNan" title="ตะวันตก">🌅</button>
+                    <button class="skin-btn" data-skin="FestivalNan" title="เทศกาล">🎉</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Avatar (ขวา/กลาง) -->
+        <div class="avatar-section centered" id="avatar-section">
+
+
+            <div id="avatar-wrapper">
+                <span
+                    style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--color-text-muted)">🤖
+                    กำลังโหลด...</span>
+            </div>
+
+            <!-- Skin Carousel (Below Avatar) -->
+            <!-- Skin Carousel Moved to Top Right -->
+        </div>
+
+    </main>
+
+    <!-- Input Area Wrapper (แยก input-bar กับ rainbow button) -->
+    <div class="input-area-wrapper">
+        <div class="input-bar">
+            <!-- Mode: Text Input (default visible) -->
+            <div class="input-mode text-mode" id="text-mode">
+                <input type="text" id="query-input" placeholder="พิมพ์คำถาม..." autocomplete="off"
+                    data-i18n="chat_placeholder">
+                <button class="btn-mode" id="btn-stop-tts" title="หยุดเสียงพูด"
+                    style="display: none; background: #ef4444; color: white;">🔇</button>
+                <button class="btn-mode" id="btn-ai-mode" title="เปลี่ยนโหมด AI">⚡</button>
+                <button class="btn-send" id="btn-send" title="ส่ง">📤</button>
+            </div>
+
+            <!-- Mode: Voice (hidden by default) -->
+            <div class="input-mode voice-mode hidden" id="voice-mode">
+                <div class="voice-indicator">
+                    <div class="voice-pulse"></div>
+                    <span class="voice-status" data-i18n="chat_listening">กำลังฟัง... 👂</span>
+                </div>
+                <!-- Added Mute Button for Voice Mode -->
+                <button class="btn-mode" id="btn-stop-tts-voice" title="หยุดเสียงพูด"
+                    style="display: none; background: #ef4444; color: white; margin-right: 8px;">🔇</button>
+                <button class="btn-stop-voice" id="btn-stop-voice" data-i18n="chat_stop_voice">หยุดพูด</button>
+            </div>
+        </div>
+
+        <!-- Rainbow Button (แยกออกมาอยู่ข้างนอก) -->
+        <button class="btn-rainbow" id="btn-voice-toggle" title="คุยกับน้องน่าน">
+            <span class="rainbow-icon">🎤</span>
+            <span class="rainbow-text" data-i18n="chat_talk_button">คุยกับน้องน่าน</span>
+        </button>
+    </div>
+
+    <!-- JS -->
+    <script type="module" src="js/app.js"></script>
+</body>
+
+</html>

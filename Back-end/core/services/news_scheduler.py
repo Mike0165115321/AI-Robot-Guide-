@@ -95,11 +95,24 @@ class NewsScheduler:
         try:
             # 1. ดึงข่าว
             news_items = await self._news_service.aggregate_news()
-            logger.info(f"📰 พบข่าว {len(news_items)} รายการ")
+            logger.info(f"📰 พบข่าวดิบ {len(news_items)} รายการ")
             
-            # 2. วิเคราะห์ข่าว
-            if news_items:
-                analyzed = await self._news_analyzer.analyze_batch(news_items[:10])  # จำกัด 10 ข่าว/รอบ
+            # 🔍 Filter Duplicates (Check against DB)
+            from core.services.alert_storage_service import alert_storage_service
+            fresh_news = []
+            
+            for item in news_items:
+                is_dup = await alert_storage_service.is_duplicate(item.get("url"), item.get("title"))
+                if not is_dup:
+                    fresh_news.append(item)
+                else:
+                    logger.debug(f"⏭️ ข้ามข่าวซ้ำ: {item.get('title')[:30]}...")
+            
+            logger.info(f"✨ ข่าวใหม่ที่ต้องวิเคราะห์: {len(fresh_news)} รายการ")
+
+            # 2. วิเคราะห์ข่าว (เฉพาะข่าวใหม่)
+            if fresh_news:
+                analyzed = await self._news_analyzer.analyze_batch(fresh_news[:5])  # Limit 5 fresh ones to save tokens
                 for item in analyzed:
                     # Geocode สถานที่
                     if item.get("location_name"):
@@ -115,14 +128,34 @@ class NewsScheduler:
             if weather:
                 weather_alert = await self._news_analyzer.analyze_weather(weather)
                 if weather_alert:
-                    all_alerts.append(weather_alert)
+                    # Check duplicate Weather alert (6 hour window)
+                    is_dup = await alert_storage_service.is_duplicate(
+                        url=None, 
+                        title=None, 
+                        summary=weather_alert.get("summary"), 
+                        lookback_hours=6
+                    )
+                    if not is_dup:
+                        all_alerts.append(weather_alert)
+                    else:
+                        logger.info(f"⏭️ ข้าม Alert สภาพอากาศซ้ำ: {weather_alert.get('summary')}")
             
             # 4. ดึงและวิเคราะห์ PM2.5 (WAQI API)
             pm25 = await self._air_quality_service.get_pm25()
             if pm25:
                 pm25_alert = await self._news_analyzer.analyze_air_quality(pm25)
                 if pm25_alert:
-                    all_alerts.append(pm25_alert)
+                    # Check duplicate PM2.5 alert (3 hour window)
+                    is_dup = await alert_storage_service.is_duplicate(
+                        url=None, 
+                        title=None, 
+                        summary=pm25_alert.get("summary"), 
+                        lookback_hours=3
+                    )
+                    if not is_dup:
+                        all_alerts.append(pm25_alert)
+                    else:
+                        logger.info(f"⏭️ ข้าม Alert PM2.5 ซ้ำ: {pm25_alert.get('summary')}")
             
             # 5. ส่ง alerts ที่ severity >= 4 ไป WebSocket
             high_priority_alerts = [a for a in all_alerts if a.get("severity_score", 0) >= 4]

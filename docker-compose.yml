@@ -3,7 +3,7 @@ services:
   #    build: ./Back-end
   #    container_name: python_backend
   #    ports:
-  #      - "9090:9090"
+  #      - "8014:8014"
   #    environment:
   #      - MONGO_URI=mongodb://mongodb:27017/
   #      - QDRANT_HOST=qdrant

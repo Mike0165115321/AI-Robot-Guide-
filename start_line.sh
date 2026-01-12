@@ -93,6 +93,7 @@ fi
 
 # 7. Start Python Backend
 echo -e "\n${GREEN}🐍 Starting Python Backend (port $BACKEND_PORT)...${NC}"
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 cd Back-end
 python3 -m uvicorn api.main:app --host 0.0.0.0 --port $BACKEND_PORT --reload &
 BACKEND_PID=$!
@@ -102,6 +103,7 @@ sleep 3
 # 8. Start LINE Worker
 echo -e "\n${GREEN}🤖 Starting LINE Worker...${NC}"
 cd Back-end
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 PYTHONPATH=$(pwd) python3 workers/worker_line.py &
 WORKER_PID=$!
 cd ..

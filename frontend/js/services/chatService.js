@@ -10,13 +10,13 @@ class ChatService {
      * @param {string} language - Language hint ('th', 'en')
      * @returns {Promise<Object>}
      */
-    async sendText(text, sessionId, language = null) {
+    async sendText(text, sessionId, language = null, intent = 'GENERAL') {
         try {
             return await api.post(CONFIG.ENDPOINTS.chat, {
                 query: text,
                 session_id: sessionId,
                 ai_mode: aiModeManager.getMode(),
-                frontend_intent: 'GENERAL',
+                frontend_intent: intent,
                 language: language // 🆕 Pass language hint
             });
         } catch (error) {

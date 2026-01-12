@@ -75,3 +75,4 @@ class ChatResponse(BaseModel):
     image_url: Optional[str] = Field(None, description="A single, primary image URL to display.")
     image_gallery: List[str] = Field(default_factory=list, description="A list of image URLs for a gallery view.")
     sources: List[SourceInfo] = Field(default_factory=list, description="A list of source documents with their own images.")
+    show_slide: bool = Field(True, description="Whether to show the slide-out panel for this response.")

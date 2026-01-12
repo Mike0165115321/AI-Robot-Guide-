@@ -18,7 +18,7 @@ from core.ai_models.youtube_handler import youtube_handler_instance
 from core.config import settings
 from utils.file_cleaner import start_background_cleanup
 from api.dependencies import get_rag_orchestrator 
-from api.routers import admin_api, chat_api, import_api, sheets_api, analytics_api, line_webhook, alert_api, auth_api
+from api.routers import admin_api, chat_api, import_api, sheets_api, analytics_api, line_webhook, alert_api, auth_api, assistant_api
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("uvicorn").propagate = False
@@ -92,15 +92,7 @@ logging.info(f"✅ ให้บริการไฟล์ static จาก: {ST
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # CORS Configuration - กำหนด origins ที่อนุญาตอย่างชัดเจนเพื่อความปลอดภัย
-origins = [
-    "http://localhost:9090",
-    "http://127.0.0.1:9090",
-    "http://localhost:3000",  # Next.js dev server
-    "http://127.0.0.1:3000",  # Next.js dev server
-    f"http://{settings.API_HOST}:{settings.API_PORT}",
-    # เพิ่ม production domain ที่นี่ เช่น:
-    # "https://your-production-domain.com",
-] 
+origins = settings.CORS_ORIGINS 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -118,6 +110,7 @@ app.include_router(sheets_api.router, prefix="/api/admin/sheets")  # Google Shee
 app.include_router(analytics_api.router, prefix="/api/analytics")  # Feedback & Stats
 app.include_router(line_webhook.router, prefix="/api/v1/line")     # LINE Webhook
 app.include_router(alert_api.router, prefix="/api")                 # Smart News Alerts
+app.include_router(assistant_api.router, prefix="/api") # 🆕 Google Assistant Proxy (/api/assistant/query)
 
 
 @app.get("/health", tags=["Health"])
@@ -213,6 +206,8 @@ templates = Jinja2Templates(directory=str(FRONTEND_DIR))
 
 
 
+from fastapi.responses import JSONResponse, FileResponse
+
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_frontend(request: Request, full_path: str):
     path_map = {
@@ -231,10 +226,20 @@ async def serve_frontend(request: Request, full_path: str):
     file_to_serve = path_map.get(full_path, full_path)
     
     template_path = FRONTEND_DIR / file_to_serve
-    if not template_path.is_file():
-        return templates.TemplateResponse("index.html", {"request": request})
+    
+    # Check if it's a file request that exists
+    if template_path.is_file():
+        # FIX: Serve JS/CSS as proper static files, not templates
+        if template_path.suffix == ".js":
+            return FileResponse(template_path, media_type="application/javascript")
+        if template_path.suffix == ".css":
+            return FileResponse(template_path, media_type="text/css")
+        
+        # Default to TemplateResponse for HTML
+        return templates.TemplateResponse(file_to_serve, {"request": request})
 
-    return templates.TemplateResponse(file_to_serve, {"request": request})
+    # If file not found, fallback to SPA index.html
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 if __name__ == "__main__":

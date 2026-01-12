@@ -24,7 +24,7 @@ class FabManager {
                 ...config.callbacks
             },
             isAvatarMode: config.isAvatarMode || false,
-            apiBaseUrl: config.apiBaseUrl || (window.API_BASE_URL || 'http://localhost:9090')
+            apiBaseUrl: config.apiBaseUrl || (window.API_BASE_URL || 'http://localhost:8014')
         };
 
         this.init();
@@ -52,18 +52,11 @@ class FabManager {
         }
     }
 
-    // --- Action Handlers (Controller Logic) ---
-
     handleMusicAction() {
         if (this.config.callbacks.onMusicAction) {
             this.config.callbacks.onMusicAction(); // Allow override
         } else {
-            // Default: Request Host to display Music Widget
             console.log("🎵 FabManager: Music Action Triggered");
-            // NOTE: The host (chat.js/avatar_logic.js) should have its own way to "show" the widget.
-            // But here we are centralized. 
-            // Ideally, the host subscribes to 'onMusicAction' and calls `createMusicWidget()` to append it.
-            // Since we are refactoring, we will assume the HOST passed a callback that *uses* the widget.
             console.warn("Please implement onMusicAction in the host to use createMusicWidget()");
         }
     }

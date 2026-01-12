@@ -215,11 +215,12 @@ class VoiceModeManager {
             // 🛑 ไม่สลับกลับ Text Mode อัตโนมัติแล้ว เพื่อให้คุยต่อเนื่องได้
             // setTimeout(() => this._switchToTextMode(), 1500);
 
-            // เริ่มฟังใหม่อีกครั้ง (ถ้ายังอยู่ใน Voice Mode)
-            if (this.isVoiceMode) {
-                console.log('🎤 VoiceModeManager: Resuming listening...');
-                this._startRecording();
-            }
+            // 🛑 REMOVED: Auto-resume immediately after text response.
+            // We now wait for TTS to finish (handled by app.js callbacks).
+            // if (this.isVoiceMode) {
+            //     console.log('🎤 VoiceModeManager: Resuming listening...');
+            //     this._startRecording();
+            // }
         }
     }
 

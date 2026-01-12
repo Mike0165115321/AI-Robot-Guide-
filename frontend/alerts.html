@@ -299,10 +299,11 @@
     <!-- HEADER -->
     <header class="page-header"
         style="background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(147,51,234,0.1) 100%); padding: 40px 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
-        <h1
-            style="font-size: 2.5rem; margin-bottom: 10px; background: linear-gradient(to right, #60a5fa, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 10px; background: linear-gradient(to right, #60a5fa, #c084fc); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;"
+            data-i18n="alerts_page_title">
             📢 ข่าวสารและแจ้งเตือนภัย</h1>
-        <p style="color: #9ca3af; font-size: 1.1rem; max-width: 600px; margin: 0 auto;">
+        <p style="color: #9ca3af; font-size: 1.1rem; max-width: 600px; margin: 0 auto;"
+            data-i18n="alerts_page_subtitle">
             ติดตามสถานการณ์ล่าสุดในจังหวัดน่าน แบบ Real-time</p>
     </header>
 
@@ -312,19 +313,19 @@
 
         <!-- Search -->
         <div class="search-container" style="flex: 1; min-width: 300px; position: relative;">
-            <input type="text" id="alert-search" placeholder="🔍 ค้นหาข่าวสาร..."
+            <input type="text" id="alert-search" placeholder="🔍 ค้นหาข่าวสาร..." data-i18n="alerts_search_placeholder"
                 style="width: 100%; padding: 12px 20px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white; font-family: 'Kanit', sans-serif;">
         </div>
 
         <!-- Filter Chips -->
         <div class="filter-chips" id="filter-chips"
             style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px;">
-            <button class="filter-chip active" data-category="all">ทั้งหมด</button>
-            <button class="filter-chip" data-category="disaster">🚨 ภัยพิบัติ</button>
-            <button class="filter-chip" data-category="health">😷 สุขภาพ</button>
-            <button class="filter-chip" data-category="traffic">🚗 จราจร</button>
-            <button class="filter-chip" data-category="general">📢 ข่าวทั่วไป</button>
-            <button class="filter-chip" data-category="event">🎉 กิจกรรม</button>
+            <button class="filter-chip active" data-category="all" data-i18n="filter_all">ทั้งหมด</button>
+            <button class="filter-chip" data-category="disaster" data-i18n="filter_disaster">🚨 ภัยพิบัติ</button>
+            <button class="filter-chip" data-category="health" data-i18n="filter_health">😷 สุขภาพ</button>
+            <button class="filter-chip" data-category="traffic" data-i18n="filter_traffic">🚗 จราจร</button>
+            <button class="filter-chip" data-category="general" data-i18n="filter_general">📢 ข่าวทั่วไป</button>
+            <button class="filter-chip" data-category="event" data-i18n="filter_event">🎉 กิจกรรม</button>
         </div>
     </section>
 
@@ -332,7 +333,7 @@
     <main class="alerts-grid" id="alerts-grid">
         <div class="loading-state" style="grid-column:1/-1;text-align:center;padding:50px;">
             <div class="spinner"></div>
-            <p>กำลังโหลดข้อมูลข่าวสาร... ⏳</p>
+            <p data-i18n="alerts_loading">กำลังโหลดข้อมูลข่าวสาร... ⏳</p>
         </div>
     </main>
 

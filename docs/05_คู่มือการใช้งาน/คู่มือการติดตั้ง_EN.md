@@ -496,7 +496,7 @@ QDRANT_PORT=6333
 
 # Server Config
 API_HOST=0.0.0.0
-API_PORT=9090
+API_PORT=8014
 ```
 
 #### 7.3.2. Precautions
@@ -616,10 +616,10 @@ API_PORT=9090
   - (1) Open new Terminal
   - (2) Navigate to folder: `cd Back-end`
   - (3) Activate venv: `source ../.venv-robot/bin/activate`
-  - (4) Run: `uvicorn api.main:app --host 127.0.0.1 --port 9090 --reload`
+  - (4) Run: `uvicorn api.main:app --host 127.0.0.1 --port 8014 --reload`
 
 ### 9.3. Accessing the Application
-  - (1) Open browser to: `http://localhost:9090`
+  - (1) Open browser to: `http://localhost:8014`
   - (2) You can now use the Chat and Avatar interfaces.
 
 ### 9.4. Stopping the System
@@ -634,11 +634,11 @@ API_PORT=9090
 
 #### 10.1.1. Test Health Check
   - (1) Open web browser
-  - (2) Go to http://127.0.0.1:9090/health
+  - (2) Go to http://127.0.0.1:8014/health
   - (3) Should get response: `{"status": "ok"}` or similar
 
 #### 10.1.2. Test API Documentation
-  - (1) Go to http://127.0.0.1:9090/docs
+  - (1) Go to http://127.0.0.1:8014/docs
   - (2) Try using various endpoints via Swagger UI
 
 ### 10.2. Frontend Testing

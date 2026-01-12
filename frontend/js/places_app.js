@@ -2,6 +2,7 @@
 import { $, $$, on, delegate } from './utils/dom.js';
 import { CONFIG } from './config.js';
 import { renderNavbar } from './components/Navbar.js';
+import { languageManager } from './modules/LanguageManager.js';
 
 // State
 let allPlaces = [];
@@ -9,10 +10,27 @@ let currentCategory = 'all';
 let searchQuery = '';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. Initial I18N
+    updateStaticText(languageManager.getCurrentLanguage());
+    languageManager.subscribe((lang) => updateStaticText(lang));
+
     renderNavbar('navbar-container', 'places');
     loadPlaces();
     bindEvents();
 });
+
+function updateStaticText(lang) {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const text = languageManager.getText(key);
+
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+            el.placeholder = text;
+        } else {
+            el.innerText = text;
+        }
+    });
+}
 
 async function loadPlaces() {
     const grid = $('#places-grid');

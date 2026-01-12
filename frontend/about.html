@@ -29,83 +29,393 @@
     <!-- NAVBAR -->
     <div id="navbar-container"></div>
 
-    <!-- CONTENT -->
-    <main class="main-content" style="max-width: 800px; margin: 0 auto;">
+    <main class="main-content" style="max-width: 1000px; margin: 0 auto; padding-bottom: 80px;">
 
         <!-- Header -->
-        <section style="text-align: center; margin-bottom: var(--space-8);">
-            <h1 style="font-size: 2.5rem; margin-bottom: var(--space-4);">
-                🤖 น้องน่าน
-            </h1>
-            <p class="text-muted" style="font-size: var(--font-size-lg);">
-                AI Guide ประจำจังหวัดน่าน
-            </p>
-        </section>
-
-        <!-- About Section -->
-        <section class="card" style="margin-bottom: var(--space-6);">
-            <h2 style="margin-bottom: var(--space-4);">📖 เกี่ยวกับโปรเจกต์</h2>
-            <p>
-                <strong>น้องน่าน</strong> เป็น AI Avatar ที่พัฒนาขึ้นเพื่อให้บริการข้อมูลการท่องเที่ยว
-                จังหวัดน่าน โดยใช้เทคโนโลยี AI ล่าสุดในการตอบคำถามและแนะนำสถานที่ท่องเที่ยว
-            </p>
-            <p>โปรเจกต์นี้พัฒนาด้วย:</p>
-            <ul style="list-style: disc; margin-left: 20px; color: var(--color-text-muted);">
-                <li>Frontend: Vanilla JS ES6+, HTML5, CSS3</li>
-                <li>Backend: Python FastAPI</li>
-                <li>AI: Gemini 2.5 + Llama 3</li>
-                <li>RAG: Qdrant + MongoDB</li>
-            </ul>
-        </section>
-
-        <!-- Features -->
-        <section class="card" style="margin-bottom: var(--space-6);">
-            <h2 style="margin-bottom: var(--space-4);">✨ ความสามารถ</h2>
-            <div
-                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4);">
-                <div style="text-align: center; padding: var(--space-4);">
-                    <div style="font-size: 2rem; margin-bottom: var(--space-2);">💬</div>
-                    <h3 style="font-size: var(--font-size-base);">พูดคุย</h3>
-                    <p class="text-muted" style="font-size: var(--font-size-sm); margin: 0;">ถามตอบด้วยภาษาไทย</p>
-                </div>
-                <div style="text-align: center; padding: var(--space-4);">
-                    <div style="font-size: 2rem; margin-bottom: var(--space-2);">🎤</div>
-                    <h3 style="font-size: var(--font-size-base);">เสียง</h3>
-                    <p class="text-muted" style="font-size: var(--font-size-sm); margin: 0;">รองรับ STT/TTS</p>
-                </div>
-                <div style="text-align: center; padding: var(--space-4);">
-                    <div style="font-size: 2rem; margin-bottom: var(--space-2);">📍</div>
-                    <h3 style="font-size: var(--font-size-base);">สถานที่</h3>
-                    <p class="text-muted" style="font-size: var(--font-size-sm); margin: 0;">ค้นหาที่เที่ยว</p>
-                </div>
-                <div style="text-align: center; padding: var(--space-4);">
-                    <div style="font-size: 2rem; margin-bottom: var(--space-2);">🤖</div>
-                    <h3 style="font-size: var(--font-size-base);">Avatar</h3>
-                    <p class="text-muted" style="font-size: var(--font-size-sm); margin: 0;">หุ่นยนต์ 3D</p>
-                </div>
+        <section class="animate-in" style="text-align: center; margin-bottom: var(--space-8); padding: 60px 0;">
+            <div class="glow-avatar" style="font-size: 6rem; margin-bottom: 25px;">🤖
             </div>
+            <h1 style="font-size: 3.5rem; margin-bottom: 15px; background: var(--primary-gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; letter-spacing: -1px;"
+                data-i18n="about_page_header">
+                🤖 น้องน่าน (Nong Nan)
+            </h1>
+            <p class="text-muted" style="font-size: 1.35rem; max-width: 700px; margin: 0 auto; line-height: 1.6;"
+                data-i18n="about_page_subheader">
+                สุดยอด AI Guide ประจำจังหวัดน่าน
+            </p>
         </section>
+
+        <!-- Intro -->
+        <section class="intro-card animate-in" style="animation-delay: 0.1s;">
+            <h2 style="margin-bottom: var(--space-4); font-size: 2rem; color: #fff;" data-i18n="about_intro_title">🌟
+                ยินดีต้อนรับ</h2>
+            <p style="font-size: 1.15rem; line-height: 1.8; color: #e2e8f0;" data-i18n="about_intro_desc">
+                น้องน่าน ไม่ใช่แค่ Chatbot ทั่วไป...
+            </p>
+        </section>
+
+        <!-- Technology Stack (Grid) -->
+        <h2 class="animate-in"
+            style="margin-bottom: 40px; text-align: center; font-size: 2.2rem; font-weight: 700; animation-delay: 0.2s;"
+            data-i18n="about_tech_title">
+            🚀 เทคโนโลยีเบื้องหลัง</h2>
+        <div class="animate-in"
+            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; margin-bottom: 80px; animation-delay: 0.3s;">
+
+            <!-- AI -->
+            <div class="card tech-card">
+                <div class="tech-icon">🧠</div>
+                <h3 data-i18n="about_tech_ai_title">Hybrid AI</h3>
+                <p class="text-muted" data-i18n="about_tech_ai_desc">ระบบสมองคู่ขนาน Gemini + Llama</p>
+            </div>
+
+            <!-- RAG -->
+            <div class="card tech-card">
+                <div class="tech-icon">📚</div>
+                <h3 data-i18n="about_tech_rag_title">Deep Knowledge RAG</h3>
+                <p class="text-muted" data-i18n="about_tech_rag_desc">คลังความรู้เฉพาะถิ่น Qdrant + MongoDB</p>
+            </div>
+
+            <!-- Avatar -->
+            <div class="card tech-card">
+                <div class="tech-icon">💃</div>
+                <h3 data-i18n="about_tech_avatar_title">3D Avatar</h3>
+                <p class="text-muted" data-i18n="about_tech_avatar_desc">WebGL, Three.js, Lip-sync</p>
+            </div>
+
+            <!-- Realtime -->
+            <div class="card tech-card">
+                <div class="tech-icon">⚡</div>
+                <h3 data-i18n="about_tech_realtime_title">Real-time Data</h3>
+                <p class="text-muted" data-i18n="about_tech_realtime_desc">News, Alerts, Traffic</p>
+            </div>
+            <!-- Voice -->
+            <div class="card tech-card" style="grid-column: 1 / -1; max-width: 600px; margin: 0 auto; width: 100%;">
+                <div class="tech-icon">🗣️</div>
+                <h3 data-i18n="about_tech_voice_title">Voice Interaction</h3>
+                <p class="text-muted" data-i18n="about_tech_voice_desc">STT / TTS Thai Language</p>
+            </div>
+        </div>
+
+        <!-- Features (3 Cols) -->
+        <h2 class="animate-in"
+            style="margin-bottom: 40px; text-align: center; font-size: 2.2rem; font-weight: 700; animation-delay: 0.4s;"
+            data-i18n="about_features_title">✨ ความสามารถหลัก
+        </h2>
+        <div class="animate-in"
+            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-bottom: 80px; animation-delay: 0.5s;">
+            <div class="feature-box">
+                <div class="feature-emoji">🗺️</div>
+                <h4 data-i18n="about_feat_guide">Smart Guide</h4>
+                <p class="text-muted" data-i18n="about_feat_guide_dest">แนะนำที่เที่ยว</p>
+            </div>
+            <div class="feature-box">
+                <div class="feature-emoji">📜</div>
+                <h4 data-i18n="about_feat_story">Storyteller</h4>
+                <p class="text-muted" data-i18n="about_feat_story_desc">เล่าเรื่องราว</p>
+            </div>
+            <div class="feature-box">
+                <div class="feature-emoji">🚨</div>
+                <h4 data-i18n="about_feat_alert">Safety</h4>
+                <p class="text-muted" data-i18n="about_feat_alert_desc">เตือนภัย</p>
+            </div>
+        </div>
 
         <!-- Contact -->
-        <section class="card">
-            <h2 style="margin-bottom: var(--space-4);">📞 ติดต่อ</h2>
-            <p class="text-muted">
-                พัฒนาโดย MikeDev Team<br>
-                GitHub: <a href="https://github.com/Mike0165115321/AI-Robot-Guide-"
-                    style="color: var(--color-primary);">AI-Robot-Guide</a>
+        <section class="contact-card animate-in" style="text-align: center; animation-delay: 0.6s;">
+            <h2 style="margin-bottom: 20px; font-size: 2rem;" data-i18n="about_contact_title">📞 ติดต่อ</h2>
+            <p class="text-muted" style="margin-bottom: 30px; font-size: 1.1rem;">
+                <strong data-i18n="about_developed_by">พัฒนาโดย MikeDev Team</strong>
             </p>
+            <a href="https://github.com/Mike0165115321/AI-Robot-Guide-" target="_blank" class="btn-github"
+                style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none;">
+                <i class="fab fa-github"></i> <span data-i18n="about_github_btn">GitHub</span>
+            </a>
         </section>
 
+        <!-- CSS for this page -->
+        <style>
+            :root {
+                /* Lighter Glass Theme */
+                --glass-bg: rgba(255, 255, 255, 0.1);
+                --glass-border: rgba(255, 255, 255, 0.2);
+                --glass-highlight: rgba(255, 255, 255, 0.15);
+                --primary-gradient: linear-gradient(135deg, #60a5fa 0%, #c084fc 100%);
+                --card-gradient: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(147, 51, 234, 0.15) 100%);
+            }
+
+            /* Animations */
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @keyframes pulseGlow {
+                0% {
+                    box-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
+                }
+
+                50% {
+                    box-shadow: 0 0 50px rgba(192, 132, 252, 0.8);
+                }
+
+                100% {
+                    box-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
+                }
+            }
+
+            @keyframes float {
+
+                0%,
+                100% {
+                    transform: translateY(0);
+                }
+
+                50% {
+                    transform: translateY(-10px);
+                }
+            }
+
+            .animate-in {
+                opacity: 0;
+                animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            }
+
+            .main-content {
+                position: relative;
+            }
+
+            /* Tech Cards */
+            .tech-card {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                padding: 40px 30px;
+                background: var(--glass-bg);
+                /* Lighter glass */
+                border: 1px solid var(--glass-border);
+                border-radius: 24px;
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                transition: all 0.4s ease;
+                position: relative;
+                overflow: hidden;
+                box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+                /* Softer shadow */
+            }
+
+            .tech-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 1px;
+                background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            }
+
+            .tech-card:hover {
+                transform: translateY(-10px) scale(1.02);
+                background: var(--glass-highlight);
+                border-color: rgba(255, 255, 255, 0.4);
+                box-shadow: 0 20px 50px rgba(96, 165, 250, 0.3);
+                /* Colorful shadow on hover */
+            }
+
+            .tech-icon {
+                font-size: 3.5rem;
+                margin-bottom: 20px;
+                display: inline-block;
+                filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+                transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            }
+
+            .tech-card:hover .tech-icon {
+                transform: scale(1.2) rotate(5deg);
+            }
+
+            .tech-card h3 {
+                font-size: 1.5rem;
+                font-weight: 700;
+                margin-bottom: 10px;
+                color: #ffffff;
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            }
+
+            .tech-card p {
+                color: rgba(255, 255, 255, 0.9);
+            }
+
+            /* Feature Boxes - REPLACED DARK BG WITH VIBRANT GRADIENT */
+            .feature-box {
+                background: var(--card-gradient);
+                /* Colorful gradient instead of dark */
+                padding: 30px;
+                border-radius: 24px;
+                text-align: center;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                backdrop-filter: blur(10px);
+                transition: all 0.3s ease;
+                position: relative;
+                z-index: 1;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            }
+
+            .feature-box:hover {
+                transform: translateY(-5px);
+                border-color: rgba(255, 255, 255, 0.5);
+                box-shadow: 0 15px 35px rgba(192, 132, 252, 0.4);
+                /* Purple glow */
+            }
+
+            .feature-emoji {
+                font-size: 3rem;
+                margin-bottom: 15px;
+                display: inline-block;
+                animation: float 6s ease-in-out infinite;
+                filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+            }
+
+            .feature-box h4 {
+                font-size: 1.35rem;
+                font-weight: 700;
+                margin-bottom: 8px;
+                color: #ffffff;
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            }
+
+            .feature-box p {
+                color: rgba(255, 255, 255, 0.9);
+                font-weight: 400;
+            }
+
+            /* Intro Card */
+            .intro-card {
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 20px;
+                padding: 40px;
+                backdrop-filter: blur(10px);
+                margin-bottom: var(--space-8);
+                position: relative;
+                overflow: hidden;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            }
+
+            .intro-card::after {
+                content: '';
+                position: absolute;
+                bottom: -50px;
+                right: -50px;
+                width: 200px;
+                height: 200px;
+                background: radial-gradient(circle, rgba(96, 165, 250, 0.3) 0%, transparent 70%);
+                /* Brighter glow */
+                pointer-events: none;
+            }
+
+            /* Contact Card - Lighter */
+            .contact-card {
+                background: linear-gradient(to right, rgba(96, 165, 250, 0.2), rgba(192, 132, 252, 0.2));
+                /* Blue-Purple tint */
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 20px;
+                padding: 40px;
+                backdrop-filter: blur(10px);
+            }
+
+            .btn-github {
+                background: rgba(255, 255, 255, 0.2);
+                color: white;
+                padding: 12px 30px;
+                border-radius: 30px;
+                font-size: 1.1rem;
+                font-weight: 600;
+                transition: all 0.3s;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            }
+
+            .btn-github:hover {
+                background: white;
+                color: #7c3aed;
+                /* Purple text */
+                transform: scale(1.05);
+                box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
+            }
+
+            /* Glow Avatar */
+            .glow-avatar {
+                animation: pulseGlow 4s infinite alternate;
+                border-radius: 50%;
+                display: inline-block;
+                padding: 10px;
+                background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+                /* Whiter glow */
+            }
+
+            /* Stagger delays for grid items */
+            .tech-card:nth-child(1) {
+                animation-delay: 0.1s;
+            }
+
+            .tech-card:nth-child(2) {
+                animation-delay: 0.2s;
+            }
+
+            .tech-card:nth-child(3) {
+                animation-delay: 0.3s;
+            }
+
+            .tech-card:nth-child(4) {
+                animation-delay: 0.4s;
+            }
+
+            .tech-card:nth-child(5) {
+                animation-delay: 0.5s;
+            }
+        </style>
     </main>
 
     <!-- JavaScript -->
     <script type="module">
         import { $, on } from './js/utils/dom.js';
         import { renderNavbar } from './js/components/Navbar.js';
+        import { languageManager } from './js/modules/LanguageManager.js';
 
         renderNavbar('navbar-container', 'about');
 
-        console.log('ℹ️ หน้าเกี่ยวกับ');
+        // Init I18N
+        function updateText() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                let text = languageManager.getText(key);
+
+                // Parse **bold** markdown to <strong> tag
+                if (text) {
+                    text = text.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #60a5fa;">$1</strong>');
+                }
+
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    el.placeholder = text;
+                } else {
+                    el.innerHTML = text;
+                }
+            });
+        }
+
+        updateText();
+        languageManager.subscribe(updateText);
+
+        console.log('ℹ️ หน้าเกี่ยวกับ Init');
     </script>
 </body>
 

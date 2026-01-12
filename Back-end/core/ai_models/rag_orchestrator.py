@@ -81,7 +81,11 @@ class RAGOrchestrator:
         processed_prefixes = set()
         for doc in docs_to_show:
             if not doc: continue
-            prefix = doc.get("metadata", {}).get("image_prefix")
+            
+            # Safe access: Handle if metadata is None or missing
+            metadata = doc.get("metadata") or {}
+            prefix = metadata.get("image_prefix")
+            
             doc_images = []
             if prefix and prefix not in processed_prefixes:
                 found_images = self.image_service.find_all_images_by_prefix(prefix)
@@ -91,6 +95,7 @@ class RAGOrchestrator:
                         if img_url not in static_image_gallery:
                             static_image_gallery.append(img_url)
                     processed_prefixes.add(prefix)
+            
             source_info.append({
                 "title": doc.get("title", "N/A"),
                 "summary": doc.get("summary", ""),
@@ -128,7 +133,17 @@ class RAGOrchestrator:
         return intent_map.get(frontend_intent.upper(), "INFORMATIONAL")
 
     async def _handle_small_talk(self, corrected_query: str, **kwargs) -> dict:
-        final_answer = await get_small_talk_response(user_query=corrected_query)
+        # 🆕 Check if Frontline (via Interpreter) already provided a reply
+        interpretation = kwargs.get("interpretation", {})
+        direct_reply = interpretation.get("reply")
+        
+        if direct_reply:
+            logging.info("⚡ [SmallTalk] Using Direct Reply from Frontline/Assistant")
+            final_answer = direct_reply
+        else:
+            # Fallback to Llama 8B if Frontline didn't give a reply (Legacy)
+            final_answer = await get_small_talk_response(user_query=corrected_query)
+            
         return {"answer": final_answer, "action": None, "sources": [], "image_url": None, "image_gallery": []}
 
     async def _handle_calculate(self, corrected_query: str, **kwargs) -> dict:
@@ -145,15 +160,13 @@ class RAGOrchestrator:
         """
         search_query = corrected_query.strip() if corrected_query else ""
         
-        # ถ้า query ว่างหรือเป็นคำทั่วไป
+        # ถ้า query ว่างหรือเป็นคำทั่วไป ให้เปิดเพลงแนะนำอัตโนมัติ (เพลงคำเมือง/น่าน)
         generic_triggers = ["เพลง", "เปิดเพลง", "ฟังเพลง", "music", "song", "อยากฟังเพลง", ""]
-        if search_query in generic_triggers:
-            return {
-                "answer": "ได้เลยค่ะ! อยากฟังเพลงอะไร หรือศิลปินคนไหน บอกน้องน่านได้เลยนะคะ 🎧",
-                "action": "PROMPT_FOR_SONG_INPUT",
-                "action_payload": {"placeholder": "เช่น น่านเนิบๆ, ปู่จ๋าน ลองไมค์..."},
-                "sources": [], "image_url": None, "image_gallery": []
-            }
+        if search_query.lower() in generic_triggers:
+            logging.info("🎵 [Music] Generic request detected -> Defaulting to 'เพลงคำเมือง เพราะๆ'")
+            search_query = "เพลงคำเมือง เพราะๆ"
+
+        # (Logic continues to search_music below...)
         
         logging.info(f"🎵 [Music] กำลังค้นหาเพลงใน YouTube สำหรับ: '{search_query}'")
         search_results = await youtube_handler_instance.search_music(query=search_query)
@@ -507,6 +520,7 @@ class RAGOrchestrator:
             "image_url": None, 
             "image_gallery": static_gallery[:settings.FINAL_GALLERY_IMAGE_LIMIT],
             "sources": prepared_data["source_info"],
+            "show_slide": True, # ✅ Explicitly show slide for informational content
             "_primary_topic": final_docs[0].get("title") if final_docs else None # ส่ง Topic กลับไปบันทึก State
         }
 
@@ -593,6 +607,17 @@ class RAGOrchestrator:
         if is_nav_request:
             target_entity = entity
             
+            # 🩹 [Manual Extraction Fallback] ถ้า AI หา Entity ไม่เจอ ให้ตัดคำ Keyword ออกแล้วเอาส่วนที่เหลือ
+            if not target_entity:
+                for kw in navigation_keywords:
+                    if kw in corrected_query:
+                        # "พาไป วัดภูมินทร์" -> " วัดภูมินทร์" -> "วัดภูมินทร์"
+                        potential_entity = corrected_query.split(kw, 1)[1].strip()
+                        if potential_entity:
+                            target_entity = potential_entity
+                            logging.info(f"🧠 [Manual Entity] สกัดสถานที่ได้เอง: '{target_entity}'")
+                            break
+
             if not target_entity and session_id:
                 last_topic = await self.session_manager.get_last_topic(session_id)
                 if last_topic:
@@ -609,6 +634,15 @@ class RAGOrchestrator:
                     user_lon=kwargs.get('user_lon', 0.0)
                 )
         
+        # 🎵 [Music Detection] ตรวจจับคำขอเปิดเพลง (Keyword Force)
+        # ป้องกัน LLM Router พลาดสำหรับคำสั่งสั้นๆ
+        music_keywords = ["เปิดเพลง", "ฟังเพลง", "เล่นเพลง", "play music", "open music"]
+        is_music_request = any(kw in corrected_query.lower() for kw in music_keywords)
+        
+        if is_music_request and intent != "PLAY_MUSIC":
+            logging.info(f"🎵 [Smart Router] ตรวจพบคำขอเปิดเพลง: '{corrected_query}' -> Force PLAY_MUSIC")
+            intent = "PLAY_MUSIC"
+            
         # 🧮 [Calculator Detection] ตรวจจับคำถามคณิตศาสตร์ก่อน (Hybrid Mode)
         # Pure math → Python ตรง | Text+math → AI 70B ช่วยวิเคราะห์
         if calculator_service.is_calculator_query(query):
@@ -684,5 +718,9 @@ class RAGOrchestrator:
             # 🚀 [Analytics] บันทึกเหตุการณ์ความสนใจหากพบหัวข้อ
             if primary_topic:
                 await self.analytics_handler.log_interest_event(session_id, primary_topic, query)
+        
+        # 🆕 Force show_slide to True by default if not present
+        # This ensures the frontend slide-out panel appears for RAG responses
+        response.setdefault("show_slide", True)
             
         return response

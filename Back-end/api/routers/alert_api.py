@@ -50,7 +50,7 @@ async def alert_websocket(websocket: WebSocket):
     """
     WebSocket endpoint สำหรับรับ real-time alerts
     
-    เชื่อมต่อ: ws://localhost:9090/alerts/ws
+    เชื่อมต่อ: ws://localhost:8014/alerts/ws
     """
     await alert_manager.connect(websocket)
     

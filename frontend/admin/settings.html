@@ -127,33 +127,49 @@
     </aside>
 
     <main class="content">
-        <h1>⚙️ ตั้งค่าระบบ (System Settings)</h1>
+        <h1 data-i18n="settings_page_title">⚙️ ตั้งค่าระบบ (System Settings)</h1>
 
         <div class="card">
-            <h2>ทั่วไป</h2>
+            <h2 data-i18n="settings_general">ทั่วไป</h2>
             <div class="form-group">
-                <label>ชื่อบอท (Bot Name)</label>
+                <label data-i18n="settings_bot_name">ชื่อบอท (Bot Name)</label>
                 <input type="text" value="น้องน่าน" disabled>
-                <small style="opacity: 0.5;">แก้ไขได้ใน config file เท่านั้น</small>
+                <small style="opacity: 0.5;" data-i18n="settings_bot_name_hint">แก้ไขได้ใน config file เท่านั้น</small>
             </div>
+
             <div class="form-group">
-                <label>โหมดเริ่มต้น (Default Mode)</label>
+                <label data-i18n="settings_language">ภาษา (Language)</label>
+                <select id="language-select">
+                    <option value="th">🇹🇭 ไทย (Thai)</option>
+                    <option value="en">🇺🇸 English</option>
+                    <option value="zh">🇨🇳 中文 (Chinese)</option>
+                    <option value="ja">🇯🇵 日本語 (Japanese)</option>
+                    <option value="ru">🇷🇺 Русский (Russian)</option>
+                    <option value="hi">🇮🇳 हिन्दी (Hindi)</option>
+                    <option value="ms">🇲🇾 Bahasa Melayu (Malay)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="settings_default_mode">โหมดเริ่มต้น (Default Mode)</label>
                 <select>
-                    <option value="normal" selected>Normal (ผู้ช่วยทั่วไป)</option>
-                    <option value="poet">Poet (กวี)</option>
-                    <option value="guide">Guide (มัคคุเทศก์)</option>
+                    <option value="normal" data-i18n="mode_normal" selected>Normal (ผู้ช่วยทั่วไป)</option>
+                    <option value="poet" data-i18n="mode_poet">Poet (กวี)</option>
+                    <option value="guide" data-i18n="mode_guide">Guide (มัคคุเทศก์)</option>
                 </select>
             </div>
         </div>
 
         <div class="card">
-            <h2>การเชื่อมต่อ (Actions)</h2>
+            <h2 data-i18n="settings_actions">การเชื่อมต่อ (Actions)</h2>
             <div class="form-group">
-                <button class="btn-primary" onclick="alert('ฟีเจอร์นี้ยังไม่เปิดใช้งาน')">บันทึกการตั้งค่า</button>
+                <button class="btn-primary" onclick="alert('ฟีเจอร์นี้ยังไม่เปิดใช้งาน')"
+                    data-i18n="settings_save">บันทึกการตั้งค่า</button>
             </div>
         </div>
     </main>
 
+    <script type="module" src="settings.js"></script>
 </body>
 
 </html>

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bulk Import - AI Guide น่าน</title>
+    <title data-i18n="import_page_title">Bulk Import - AI Guide น่าน</title>
     <link rel="stylesheet" href="assets/styles/main.css">
     <link rel="stylesheet" href="assets/styles/admin.css">
     <style>
@@ -577,12 +577,13 @@
     <div class="import-container">
         <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
             <div>
-                <h1 class="text-gradient">📥 Bulk Import</h1>
-                <p style="color: var(--text-muted);">นำเข้าข้อมูลจาก Excel/CSV ด้วย AI อัตโนมัติ</p>
+                <h1 class="text-gradient" data-i18n="import_page_header">📥 Bulk Import</h1>
+                <p style="color: var(--text-muted);" data-i18n="import_page_desc">นำเข้าข้อมูลจาก Excel/CSV ด้วย AI
+                    อัตโนมัติ</p>
             </div>
             <a href="admin.html" class="btn btn-submit"
                 style="text-decoration: none; background-color: #667eea; border: none;">
-                ← กลับ Admin Panel
+                ← <span data-i18n="import_btn_back">กลับ Admin Panel</span>
             </a>
         </header>
 
@@ -590,19 +591,19 @@
         <div class="step-indicator">
             <div class="step active" id="step-1">
                 <span class="step-number">1</span>
-                <span>อัปโหลดไฟล์</span>
+                <span data-i18n="import_step_1">อัปโหลดไฟล์</span>
             </div>
             <div class="step" id="step-2">
                 <span class="step-number">2</span>
-                <span>เลือก Fields</span>
+                <span data-i18n="import_step_2">เลือก Fields</span>
             </div>
             <div class="step" id="step-3">
                 <span class="step-number">3</span>
-                <span>AI Transform</span>
+                <span data-i18n="import_step_3">AI Transform</span>
             </div>
             <div class="step" id="step-4">
                 <span class="step-number">4</span>
-                <span>ยืนยันบันทึก</span>
+                <span data-i18n="import_step_4">ยืนยันบันทึก</span>
             </div>
         </div>
 
@@ -612,13 +613,16 @@
 
             <!-- Input Mode Tabs -->
             <div class="input-mode-tabs">
-                <button class="mode-tab active" id="tab-upload" onclick="switchInputMode('upload')">
+                <button class="mode-tab active" id="tab-upload" onclick="switchInputMode('upload')"
+                    data-i18n="import_tab_file">
                     📤 อัปโหลดไฟล์
                 </button>
-                <button class="mode-tab" id="tab-document" onclick="switchInputMode('document')">
+                <button class="mode-tab" id="tab-document" onclick="switchInputMode('document')"
+                    data-i18n="import_tab_doc">
                     📄 PDF/เอกสาร
                 </button>
-                <button class="mode-tab manual" id="tab-manual" onclick="switchInputMode('manual')">
+                <button class="mode-tab manual" id="tab-manual" onclick="switchInputMode('manual')"
+                    data-i18n="import_tab_manual">
                     ✏️ กรอกข้อมูลเอง
                 </button>
             </div>
@@ -928,6 +932,7 @@ AI สามารถช่วยจัดโครงสร้างข้อ�
     </div>
 
     <script src="assets/scripts/config.js"></script>
+    <script type="module" src="assets/scripts/admin-i18n.js"></script>
     <script>
         // ===========================================
         // State Management
@@ -941,7 +946,7 @@ AI สามารถช่วยจัดโครงสร้างข้อ�
         // ===========================================
         // API Base URL
         // ===========================================
-        const API_BASE = window.API_BASE_URL || 'http://localhost:9090';
+        const API_BASE = window.API_BASE_URL || 'http://localhost:8014';
 
         // ===========================================
         // Input Mode State (upload or manual)
