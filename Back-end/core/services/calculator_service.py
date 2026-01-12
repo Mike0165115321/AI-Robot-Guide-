@@ -49,16 +49,17 @@ class CalculatorService:
     SIMPLE_THAI_MATH = r'^\s*\d+\s*(บวก|ลบ|คูณ|หาร|%\s*ของ)\s*\d+\s*$'
 
     # Patterns to detect ANY calculator query (broad)
+    # 🔧 FIX: Require number/space before operator keywords to avoid matching 'อาหาร' (food)
     CALC_PATTERNS = [
         r'คำนวณ',
         r'คิดเลข',
         r'เท่าไหร่',
         r'เท่าไร',
         r'เป็นเท่าไหร่',
-        r'หาร',
-        r'คูณ',
-        r'บวก',
-        r'ลบ',
+        r'\d+\s*หาร',        # 🔧 Require number before 'หาร' to avoid matching 'อาหาร'
+        r'\d+\s*คูณ',        # 🔧 Require number before 'คูณ'
+        r'\d+\s*บวก',        # 🔧 Require number before 'บวก'
+        r'\d+\s*ลบ',         # 🔧 Require number before 'ลบ'
         r'เปอร์เซ็นต์',
         r'%\s*ของ',
         r'\d+\s*[\+\-\*\/\%]\s*\d+',

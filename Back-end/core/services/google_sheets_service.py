@@ -158,8 +158,9 @@ class GoogleSheetsService:
             response = requests.get(csv_url, timeout=30.0, allow_redirects=True)
             
             if response.status_code != 200:
-                logging.error(f"❌ ดึง CSV ล้มเหลว: HTTP {response.status_code}")
-                return []
+                error_msg = f"❌ ดึง CSV ล้มเหลว: HTTP {response.status_code}"
+                logging.error(error_msg)
+                raise Exception(error_msg)
             
             # Parse CSV with explicit UTF-8 encoding
             # response.content is bytes, decode with UTF-8
@@ -172,7 +173,7 @@ class GoogleSheetsService:
                 
         except Exception as e:
             logging.error(f"❌ ดึง public CSV ล้มเหลว: {e}")
-            return []
+            raise e
 
     def connect(self, sheet_id: str = None, sheet_url: str = None) -> bool:
         """
@@ -254,7 +255,7 @@ class GoogleSheetsService:
             return records
         except Exception as e:
             logging.error(f"❌ ดึงข้อมูลแถวไม่สำเร็จ: {e}")
-            return []
+            raise e
     
     def _normalize_row(self, row: Dict[str, Any]) -> Dict[str, Any]:
         """แปลง row จาก Sheet ให้ตรงกับ DB schema"""
@@ -414,7 +415,12 @@ class GoogleSheetsService:
                 logging.info("🔄 เริ่มการซิงค์ข้อมูล...")
                 
                 # Fetch from sheet
-                sheet_data = self.fetch_all_rows()
+                try:
+                    sheet_data = self.fetch_all_rows()
+                except Exception as e:
+                    result = SyncResult()
+                    result.errors.append(str(e))
+                    return result
                 
                 # Fetch from DB
                 db_data = self.mongo.get_all_locations() if self.mongo else []
