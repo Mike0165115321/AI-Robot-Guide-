@@ -140,19 +140,22 @@ async def connect_public_sheet(
 
 @router.post("/sync-now", response_model=Dict[str, Any])
 async def sync_now(
-    mongo: MongoDBManager = Depends(get_mongo_manager)
+    mongo: MongoDBManager = Depends(get_mongo_manager),
+    qdrant: QdrantManager = Depends(get_qdrant_manager)
 ):
     """
     บังคับ sync ทันที (Polling mode manual trigger)
     รองรับทั้ง Public Mode และ Service Account Mode
     """
-    service = get_sheets_service(mongo)
+    # Inject both Mongo and Qdrant
+    service = get_sheets_service(mongo, qdrant)
     
     # [FIX] Check sheet_id instead of spreadsheet - Public Mode uses sheet_id only
     if not service.sheet_id:
         raise HTTPException(status_code=400, detail="ยังไม่ได้เชื่อมต่อ Sheet กรุณาวางลิงก์และกดเชื่อมต่อก่อน")
     
-    result = service.full_sync()
+    # [ASYNC UPDATE] Await the async full_sync method
+    result = await service.full_sync()
     
     return {
         "success": len(result.errors) == 0,
