@@ -410,24 +410,6 @@ function bindEvents() {
         uiManager.updateAIModeButton();
     });
 
-    // 🆕 Quick Menu Bindings
-    const btnMenu = $('#btn-quick-menu');
-    if (btnMenu) {
-        on(btnMenu, 'click', (e) => {
-            e.stopPropagation(); // Prevent document click from closing immediately
-            toggleQuickMenu();
-        });
-    }
-
-    // Close menu when clicking outside
-    on(document, 'click', (e) => {
-        const menu = $('#quick-menu-popup');
-        const btn = $('#btn-quick-menu');
-        if (menu && menu.classList.contains('active') && !menu.contains(e.target) && e.target !== btn) {
-            toggleQuickMenu(false);
-        }
-    });
-
     const panelClose = $('#panel-close');
     if (panelClose) on(panelClose, 'click', () => uiManager.hidePanel());
 
@@ -476,41 +458,30 @@ function bindEvents() {
     delegate(document.body, 'click', '.close-panel-btn', () => uiManager.hidePanel());
 }
 
-function toggleQuickMenu(forceState = null) {
-    const menu = $('#quick-menu-popup');
-    if (!menu) return;
-
-    if (forceState !== null) {
-        if (forceState) menu.classList.add('active');
-        else menu.classList.remove('active');
-    } else {
-        menu.classList.toggle('active');
-    }
-}
 
 
 // NEW Helper
 function renderQuickScripts() {
-    const container = document.getElementById('quick-menu-popup');
+    const container = document.getElementById('quick-chips-container');
     if (!container) return;
 
     container.innerHTML = '';
     const currentLang = languageManager.getCurrentLanguage();
 
     quickScripts.forEach(script => {
-        const item = document.createElement('div');
-        item.className = 'menu-item';
-        item.innerHTML = `<span class="menu-item-icon">${script.icon}</span> <span class="menu-item-text">${script.label[currentLang] || script.label['en']}</span>`;
+        const chip = document.createElement('div');
+        chip.className = 'quick-chip';
+        chip.innerHTML = `
+            <span class="quick-chip-icon">${script.icon}</span> 
+            <span class="quick-chip-text">${script.label[currentLang] || script.label['en']}</span>
+        `;
 
-        item.onclick = () => {
-            // Close menu
-            toggleQuickMenu(false);
-
+        chip.onclick = () => {
             // Execute Local Script bypassing Backend
             handleLocalScript(script);
         };
 
-        container.appendChild(item);
+        container.appendChild(chip);
     });
 }
 

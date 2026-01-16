@@ -50,37 +50,29 @@ class FabManager {
     }
 
     /**
-     * Create FAB HTML structure
+     * Create Sidebar Cards HTML structure
      * @private
      */
     _createFabContainer() {
-        // Check if already exists
-        if (document.getElementById('fab-container')) return;
+        const container = document.getElementById('right-actions-sidebar');
+        if (!container) return;
 
-        const html = `
-            <div id="fab-container" class="fab-container">
-                <div id="fab-actions" class="fab-actions">
-                    <button id="fab-music" class="fab-btn" title="เพลง">🎵</button>
-                    <button id="fab-faq" class="fab-btn" title="คำถามที่พบบ่อย">❓</button>
-                    <button id="fab-calc" class="fab-btn" title="เครื่องคิดเลข">🧮</button>
-                    <!-- <button id="fab-nav" class="fab-btn" title="นำทาง">🗺️</button> -->
-                </div>
-                <button id="fab-toggle" class="fab-toggle">
-                    <span class="fab-icon-open">➕</span>
-                    <span class="fab-icon-close">✕</span>
-                </button>
-            </div>
+        container.innerHTML = `
+            <button id="fab-music" class="quick-chip" title="เพลง">
+                <span class="quick-chip-icon">🎵</span>
+                <span class="quick-chip-text">ฟังเพลง</span>
+            </button>
+            <button id="fab-faq" class="quick-chip" title="คำถามที่พบบ่อย">
+                <span class="quick-chip-icon">❓</span>
+                <span class="quick-chip-text">ถามบ่อย</span>
+            </button>
+            <button id="fab-calc" class="quick-chip" title="เครื่องคิดเลข">
+                <span class="quick-chip-icon">🧮</span>
+                <span class="quick-chip-text">คิดเลข</span>
+            </button>
         `;
 
-        // Insert before input-area-wrapper (or input-bar as fallback)
-        const inputWrapper = document.querySelector('.input-area-wrapper') || document.querySelector('.input-bar');
-        if (inputWrapper) {
-            inputWrapper.insertAdjacentHTML('beforebegin', html);
-        } else {
-            document.body.insertAdjacentHTML('beforeend', html);
-        }
-
-        this.container = document.getElementById('fab-container');
+        this.container = container;
         this._injectStyles();
     }
 

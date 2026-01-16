@@ -58,6 +58,11 @@ class UIManager {
                 avatarSection.classList.remove('centered');
                 avatarSection.classList.add('shifted');
             }
+            // 🆕 Hide both sidebars when panel is open
+            const leftSidebar = $('#quick-chips-container');
+            const rightSidebar = $('#right-actions-sidebar');
+            if (leftSidebar) leftSidebar.classList.add('panel-open');
+            if (rightSidebar) rightSidebar.classList.add('panel-open');
         }
     }
 
@@ -70,6 +75,12 @@ class UIManager {
             avatarSection.classList.remove('shifted');
             avatarSection.classList.add('centered');
         }
+        // 🆕 Show both sidebars when panel is closed
+        const leftSidebar = $('#quick-chips-container');
+        const rightSidebar = $('#right-actions-sidebar');
+        if (leftSidebar) leftSidebar.classList.remove('panel-open');
+        if (rightSidebar) rightSidebar.classList.remove('panel-open');
+
         this.updateSpeech('มีอะไรให้ช่วยอีกไหมคะ? 😊');
     }
 

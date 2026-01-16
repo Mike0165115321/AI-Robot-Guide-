@@ -32,6 +32,11 @@
 
     <!-- MAIN -->
     <main class="main-container">
+        <!-- 🆕 Large Quick Actions Sidebar (Left) -->
+        <div id="quick-chips-container" class="quick-actions-sidebar"></div>
+
+        <!-- 🆕 Large FAB Actions Sidebar (Right) -->
+        <div id="right-actions-sidebar" class="right-actions-sidebar"></div>
 
         <!-- Panel (ซ้าย) -->
         <div class="presentation-panel" id="presentation-panel">
@@ -73,13 +78,11 @@
 
     </main>
 
-    <!-- Input Area Wrapper (Outer Container, Vertical Stack) -->
     <div class="input-area-wrapper">
         <div class="input-bar">
             <!-- Mode: Text Input (default visible) -->
             <div class="input-mode text-mode" id="text-mode">
-                <!-- 🆕 Quick Menu Button (Left) -->
-                <button class="btn-mode" id="btn-quick-menu" title="เมนูทางลัด" style="margin-right: 5px;">🪄</button>
+                <!-- Quick Menu Button Removed - Buttons moved to chips -->
 
                 <input type="text" id="query-input" placeholder="พิมพ์คำถาม..." autocomplete="off"
                     data-i18n="chat_placeholder">
@@ -89,10 +92,6 @@
                 <button class="btn-send" id="btn-send" title="ส่ง">📤</button>
             </div>
 
-            <!-- 🆕 Quick Menu Popup (Hidden by default) -->
-            <div id="quick-menu-popup" class="quick-menu-popup">
-                <!-- Items injected by JS -->
-            </div>
 
             <!-- Mode: Voice (hidden by default) -->
             <div class="input-mode voice-mode hidden" id="voice-mode">
