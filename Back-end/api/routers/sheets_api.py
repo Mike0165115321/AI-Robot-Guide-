@@ -9,7 +9,8 @@ from typing import Optional, Dict, Any
 
 from core.services.google_sheets_service import get_sheets_service, GoogleSheetsService
 from core.database.mongodb_manager import MongoDBManager
-from api.dependencies import get_mongo_manager
+from core.database.qdrant_manager import QdrantManager
+from api.dependencies import get_mongo_manager, get_qdrant_manager
 
 router = APIRouter(tags=["Google Sheets Sync"])
 

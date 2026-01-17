@@ -30,6 +30,7 @@ from .services.session_manager import SessionManager
 from .services.navigation_service import NavigationService
 from .services.prompt_engine import PromptEngine
 from core.services.image_service import ImageService
+from core.services.knowledge_gap_service import KnowledgeGapService
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -73,6 +74,10 @@ class RAGOrchestrator:
             query_interpreter=self.query_interpreter,
             orchestrator_callback=self.answer_query
         )
+        
+        # 🧠 [Self-Correcting RAG] Knowledge Gap Service
+        self.knowledge_gap_service = KnowledgeGapService(mongo_manager, qdrant_manager)
+        
         logging.info("✅ RAG Orchestrator พร้อมใช้งาน")
 
     def _prepare_source_and_image_data(self, docs_to_show: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -439,8 +444,12 @@ class RAGOrchestrator:
                 is_low_confidence = True
                 logging.warning(f"⚠️ [Low Confidence] คะแนนสูงสุด ({top_score:.4f}) ต่ำกว่าเกณฑ์ ({settings.RAG_CONFIDENCE_THRESHOLD})")
                 
-                # 📝 [Log Quality] บันทึกเหตุการณ์นี้เพื่อนำไปปรับปรุง (Active Learning)
-                logging.info(f"📉 [Quality Log] Triggered Low Confidence for query: '{corrected_query}'")
+                # 🧠 [Self-Correcting RAG] Log to MongoDB for Admin review
+                await self.knowledge_gap_service.log_unanswered(
+                    query=corrected_query,
+                    score=top_score,
+                    session_id=session_id
+                )
         
         final_docs = [doc for score, (doc, _) in reranked_results[:top_k]]
         

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analytics Dashboard - AI Guide น่าน</title>
+    <title>📊 Enhanced Analytics - AI Guide น่าน</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,7 +20,269 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <link rel="stylesheet" href="assets/styles/dashboard.css">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
 
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .stat-card .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card .stat-icon.blue {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .stat-card .stat-icon.green {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        }
+
+        .stat-card .stat-icon.orange {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .stat-card .stat-icon.pink {
+            background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+        }
+
+        .stat-card .stat-icon.cyan {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+        }
+
+        .stat-card .stat-icon.purple {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #fff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .stat-change {
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .stat-change.up {
+            color: #4ade80;
+        }
+
+        .stat-change.down {
+            color: #f87171;
+        }
+
+        .stat-change.neutral {
+            color: var(--text-muted);
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+
+        .chart-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chart-container {
+            height: 250px;
+            position: relative;
+        }
+
+        .queries-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .queries-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .queries-list li:last-child {
+            border-bottom: none;
+        }
+
+        .query-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 1rem;
+        }
+
+        .query-count {
+            background: rgba(102, 126, 234, 0.2);
+            color: #a5b4fc;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .word-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 1rem 0;
+        }
+
+        .word-tag {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .word-tag:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.4);
+        }
+
+        .word-tag.large {
+            font-size: 1.2rem;
+            padding: 0.5rem 1.25rem;
+        }
+
+        .word-tag.medium {
+            font-size: 1rem;
+        }
+
+        .word-tag.small {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .knowledge-widget {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .knowledge-widget .stat-icon {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .knowledge-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            color: #fbbf24;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .knowledge-link:hover {
+            background: rgba(245, 158, 11, 0.3);
+            border-color: rgba(245, 158, 11, 0.5);
+        }
+
+        .performance-bar {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            height: 8px;
+            margin-top: 0.5rem;
+            overflow: hidden;
+        }
+
+        .performance-bar .fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .performance-bar .fill.good {
+            background: linear-gradient(90deg, #22c55e, #4ade80);
+        }
+
+        .performance-bar .fill.warning {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+        }
+
+        .performance-bar .fill.danger {
+            background: linear-gradient(90deg, #ef4444, #f87171);
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -32,96 +294,378 @@
         <header>
             <div class="brand">
                 <div
-                    style="width: 40px; height: 40px; background: var(--accent-gradient); border-radius: 10px; display: grid; place-items: center;">
-                    <i class="fa-solid fa-chart-pie" style="color: white; font-size: 1.2rem;"></i>
+                    style="width: 48px; height: 48px; background: var(--accent-gradient); border-radius: 12px; display: grid; place-items: center;">
+                    <i class="fa-solid fa-chart-line" style="color: white; font-size: 1.4rem;"></i>
                 </div>
                 <div>
-                    <h1>statistics</h1>
-                    <p style="color: var(--text-muted); font-size: 0.9rem;">ข้อมูลเชิงลึกแบบเรียลไทม์</p>
+                    <h1>Enhanced Analytics</h1>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">วิเคราะห์พฤติกรรมผู้ใช้และประสิทธิภาพ AI</p>
                 </div>
             </div>
             <div class="actions">
-                <a href="admin.html" class="btn btn-glass">
-                    <i class="fa-solid fa-arrow-left"></i> กลับหน้า Admin
+                <select id="days-filter" class="btn btn-glass"
+                    style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white;">
+                    <option value="7">7 วัน</option>
+                    <option value="30" selected>30 วัน</option>
+                    <option value="90">90 วัน</option>
+                </select>
+                <a href="dashboard.html" class="btn btn-glass">
+                    <i class="fa-solid fa-chart-pie"></i> Basic View
                 </a>
-                <a href="/" class="btn btn-primary">
-                    <i class="fa-solid fa-robot"></i> เปิดหน้าแอป
+                <a href="index.html" class="btn btn-primary">
+                    <i class="fa-solid fa-arrow-left"></i> กลับ Admin
                 </a>
             </div>
         </header>
 
         <!-- Key Metrics -->
-        <div class="stats-grid">
-            <div class="card stat-card">
-                <div class="stat-label">บทสนทนาทั้งหมด (30 วัน)</div>
-                <div class="stat-number" id="total-conversations">0</div>
+        <div class="section-title">
+            <i class="fa-solid fa-gauge-high"></i> ภาพรวม
+        </div>
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="fa-solid fa-message"></i></div>
+                <div class="stat-value" id="total-queries">0</div>
+                <div class="stat-label">บทสนทนาทั้งหมด</div>
             </div>
-            <div class="card stat-card" style="display: flex; flex-direction: column; justify-content: space-between;">
-                <div>
-                    <div class="stat-label">สถานที่ยอดฮิต (พูดถึงมากที่สุด)</div>
-                    <div class="stat-number" id="top-location" style="font-size: 2.5rem; margin-bottom: 5px;">--</div>
-                    <div class="stat-subtext" id="top-location-count">
-                        <i class="fa-solid fa-fire"></i> กำลังมาแรง
-                    </div>
+            <div class="stat-card">
+                <div class="stat-icon green"><i class="fa-solid fa-users"></i></div>
+                <div class="stat-value" id="unique-sessions">0</div>
+                <div class="stat-label">ผู้ใช้งาน (Sessions)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon cyan"><i class="fa-solid fa-bolt"></i></div>
+                <div class="stat-value" id="avg-response-time">0</div>
+                <div class="stat-label">เวลาตอบเฉลี่ย (ms)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon purple"><i class="fa-solid fa-brain"></i></div>
+                <div class="stat-value" id="avg-confidence">0%</div>
+                <div class="stat-label">Confidence เฉลี่ย</div>
+                <div class="performance-bar">
+                    <div class="fill good" id="confidence-bar" style="width: 0%;"></div>
                 </div>
-                <button id="view-details-btn" class="btn-subtle">
-                    ดูรายละเอียด <i class="fa-solid fa-chevron-right" style="font-size: 0.8em;"></i>
-                </button>
             </div>
-            <div class="card stat-card">
-                <div class="stat-label">คะแนนความพึงพอใจ</div>
-                <div class="stat-number" id="satisfaction-score">4.9</div>
-                <div style="font-size: 0.8rem; color: #4ade80; margin-top: 5px;" id="satisfaction-container">
-                    <i class="fa-solid fa-arrow-trend-up"></i> <span id="satisfaction-label">ยอดเยี่ยม</span>
+            <div class="stat-card">
+                <div class="stat-icon pink"><i class="fa-solid fa-heart"></i></div>
+                <div class="stat-value" id="engagement-rate">0%</div>
+                <div class="stat-label">Engagement Rate</div>
+            </div>
+            <div class="stat-card knowledge-widget">
+                <div class="stat-icon"><i class="fa-solid fa-circle-question"></i></div>
+                <div class="stat-value" id="pending-gaps">0</div>
+                <div class="stat-label">คำถามที่รอตอบ</div>
+                <a href="knowledge-gaps.html" class="knowledge-link">
+                    <i class="fa-solid fa-arrow-right"></i> จัดการ Knowledge Gaps
+                </a>
+            </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <div class="section-title">
+            <i class="fa-solid fa-chart-area"></i> แนวโน้มการใช้งาน
+        </div>
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3><i class="fa-solid fa-calendar-days"></i> การใช้งานรายวัน</h3>
+                <div class="chart-container">
+                    <canvas id="dailyChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fa-solid fa-clock"></i> ช่วงเวลาที่ใช้งานมากที่สุด</h3>
+                <div class="chart-container">
+                    <canvas id="hourlyChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Charts Grid -->
-        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));">
-            <div class="card">
-                <h3><i class="fa-solid fa-earth-asia"></i> นักท่องเที่ยวมาจากประเทศไหน?</h3>
+        <!-- Charts Row 2 -->
+        <div class="section-title">
+            <i class="fa-solid fa-magnifying-glass-chart"></i> วิเคราะห์คำถาม
+        </div>
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3><i class="fa-solid fa-fire"></i> คำถามยอดนิยม</h3>
+                <ul class="queries-list" id="top-queries-list">
+                    <li><span class="query-text">กำลังโหลด...</span></li>
+                </ul>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fa-solid fa-cloud"></i> คำที่ถูกใช้บ่อย</h3>
+                <div class="word-cloud" id="word-cloud">
+                    <!-- Word tags will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 3 -->
+        <div class="section-title">
+            <i class="fa-solid fa-robot"></i> AI Performance
+        </div>
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3><i class="fa-solid fa-bullseye"></i> Intent Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="intentChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fa-solid fa-earth-asia"></i> นักท่องเที่ยวมาจากที่ไหน?</h3>
                 <div class="chart-container">
                     <canvas id="originChart"></canvas>
                 </div>
-            </div>
-
-            <div class="card">
-                <h3><i class="fa-solid fa-map-location-dot"></i> มาจากจังหวัดไหนบ้าง? (คนไทย)</h3>
-                <div class="chart-container">
-                    <canvas id="provinceChart"></canvas>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3><i class="fa-solid fa-fire"></i> หัวข้อที่กำลังมาแรง</h3>
-                <div class="chart-container">
-                    <canvas id="interestChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-    </div>
-    </div>
-
-    <!-- Top Locations Modal -->
-    <div id="details-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fa-solid fa-ranking-star"></i> 10 อันดับสถานที่ยอดฮิต</h3>
-                <button id="close-modal-btn" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body">
-                <ul id="top-locations-list" class="ranking-list">
-                    <!-- List items will be populated by JS -->
-                </ul>
             </div>
         </div>
     </div>
 
     <script src="assets/scripts/config.js"></script>
-    <script src="assets/scripts/main.js"></script>
-    <script src="assets/scripts/dashboard.js"></script>
+    <script>
+        // Chart Configuration
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = "'Sarabun', sans-serif";
+        Chart.defaults.scale.grid.color = 'rgba(255, 255, 255, 0.05)';
+
+        let dailyChartInstance = null;
+        let hourlyChartInstance = null;
+        let intentChartInstance = null;
+        let originChartInstance = null;
+
+        const loader = document.getElementById('loader');
+        const daysFilter = document.getElementById('days-filter');
+
+        async function fetchData() {
+            const days = daysFilter.value;
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/analytics/enhanced?days=${days}`);
+                if (!response.ok) throw new Error("Failed to fetch data");
+                const data = await response.json();
+                updateDashboard(data);
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
+                if (loader.style.display !== 'none') {
+                    loader.style.opacity = '0';
+                    setTimeout(() => loader.style.display = 'none', 500);
+                }
+            }
+        }
+
+        function updateDashboard(data) {
+            // Key Metrics
+            document.getElementById('total-queries').textContent = (data.total_conversations || 0).toLocaleString();
+
+            const sessions = data.session_stats || {};
+            document.getElementById('unique-sessions').textContent = (sessions.unique_sessions || 0).toLocaleString();
+            document.getElementById('engagement-rate').textContent = (sessions.engagement_rate || 0) + '%';
+
+            const aiPerf = data.ai_performance || {};
+            document.getElementById('avg-response-time').textContent = (aiPerf.avg_response_time_ms || 0).toLocaleString();
+            document.getElementById('avg-confidence').textContent = (aiPerf.avg_confidence || 0) + '%';
+
+            // Confidence Bar
+            const confBar = document.getElementById('confidence-bar');
+            const conf = aiPerf.avg_confidence || 0;
+            confBar.style.width = conf + '%';
+            confBar.className = 'fill ' + (conf >= 70 ? 'good' : conf >= 50 ? 'warning' : 'danger');
+
+            // Knowledge Health
+            const knowledge = data.knowledge_health || {};
+            document.getElementById('pending-gaps').textContent = (knowledge.pending_gaps || 0).toLocaleString();
+
+            // Daily Usage Chart
+            if (data.daily_usage && data.daily_usage.length > 0) {
+                const labels = data.daily_usage.map(d => {
+                    const date = new Date(d.date);
+                    return `${date.getDate()}/${date.getMonth() + 1}`;
+                });
+                const counts = data.daily_usage.map(d => d.count);
+
+                if (dailyChartInstance) {
+                    dailyChartInstance.data.labels = labels;
+                    dailyChartInstance.data.datasets[0].data = counts;
+                    dailyChartInstance.update('none');
+                } else {
+                    const ctx = document.getElementById('dailyChart').getContext('2d');
+                    dailyChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'บทสนทนา',
+                                data: counts,
+                                borderColor: '#667eea',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                pointRadius: 2,
+                                pointHoverRadius: 6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: { beginAtZero: true, grid: { borderDash: [5, 5] } },
+                                x: { grid: { display: false } }
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Hourly Usage Chart
+            if (data.hourly_usage && data.hourly_usage.length > 0) {
+                const hours = data.hourly_usage.map(h => `${h.hour}:00`);
+                const counts = data.hourly_usage.map(h => h.count);
+
+                if (hourlyChartInstance) {
+                    hourlyChartInstance.data.labels = hours;
+                    hourlyChartInstance.data.datasets[0].data = counts;
+                    hourlyChartInstance.update('none');
+                } else {
+                    const ctx = document.getElementById('hourlyChart').getContext('2d');
+                    hourlyChartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: hours,
+                            datasets: [{
+                                data: counts,
+                                backgroundColor: counts.map((_, i) => {
+                                    const maxIdx = counts.indexOf(Math.max(...counts));
+                                    return i === maxIdx ? '#f59e0b' : 'rgba(102, 126, 234, 0.6)';
+                                }),
+                                borderRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: { beginAtZero: true, grid: { borderDash: [5, 5] } },
+                                x: { grid: { display: false } }
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Top Queries
+            const queriesList = document.getElementById('top-queries-list');
+            if (data.top_queries && data.top_queries.length > 0) {
+                queriesList.innerHTML = data.top_queries.slice(0, 10).map(q => `
+                    <li>
+                        <span class="query-text" title="${escapeHtml(q.query)}">${escapeHtml(q.query)}</span>
+                        <span class="query-count">${q.count}x</span>
+                    </li>
+                `).join('');
+            } else {
+                queriesList.innerHTML = '<li><span class="query-text" style="color: var(--text-muted);">ยังไม่มีข้อมูล</span></li>';
+            }
+
+            // Word Cloud
+            const wordCloud = document.getElementById('word-cloud');
+            if (data.word_frequency && data.word_frequency.length > 0) {
+                const maxCount = Math.max(...data.word_frequency.map(w => w.count));
+                wordCloud.innerHTML = data.word_frequency.slice(0, 25).map(w => {
+                    const ratio = w.count / maxCount;
+                    const sizeClass = ratio > 0.7 ? 'large' : ratio > 0.4 ? 'medium' : 'small';
+                    return `<span class="word-tag ${sizeClass}">${escapeHtml(w.word)} (${w.count})</span>`;
+                }).join('');
+            } else {
+                wordCloud.innerHTML = '<span style="color: var(--text-muted);">ยังไม่มีข้อมูล</span>';
+            }
+
+            // Intent Distribution
+            if (data.intent_distribution && data.intent_distribution.length > 0) {
+                const labels = data.intent_distribution.map(i => i.intent);
+                const counts = data.intent_distribution.map(i => i.count);
+
+                if (intentChartInstance) {
+                    intentChartInstance.data.labels = labels;
+                    intentChartInstance.data.datasets[0].data = counts;
+                    intentChartInstance.update('none');
+                } else {
+                    const ctx = document.getElementById('intentChart').getContext('2d');
+                    intentChartInstance = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: counts,
+                                backgroundColor: ['#38bdf8', '#818cf8', '#c084fc', '#f472b6', '#fb7185', '#22d3ee'],
+                                borderWidth: 0,
+                                hoverOffset: 10
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '65%',
+                            plugins: {
+                                legend: { position: 'right', labels: { usePointStyle: true, padding: 15 } }
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Origin Chart
+            if (data.origin_stats && data.origin_stats.length > 0) {
+                const labels = data.origin_stats.map(o => o._id || 'ไม่ระบุ');
+                const counts = data.origin_stats.map(o => o.count);
+
+                if (originChartInstance) {
+                    originChartInstance.data.labels = labels;
+                    originChartInstance.data.datasets[0].data = counts;
+                    originChartInstance.update('none');
+                } else {
+                    const ctx = document.getElementById('originChart').getContext('2d');
+                    originChartInstance = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: counts,
+                                backgroundColor: ['#34d399', '#4ade80', '#22d3ee', '#38bdf8', '#818cf8', '#a78bfa', '#c084fc', '#f472b6'],
+                                borderWidth: 0,
+                                hoverOffset: 10
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '65%',
+                            plugins: {
+                                legend: { position: 'right', labels: { usePointStyle: true, padding: 15 } }
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Event Listeners
+        daysFilter.addEventListener('change', () => {
+            loader.style.display = 'flex';
+            loader.style.opacity = '1';
+            fetchData();
+        });
+
+        // Initial fetch
+        fetchData();
+
+        // Auto-refresh every 30 seconds
+        setInterval(fetchData, 30000);
+    </script>
 </body>
 
 </html>

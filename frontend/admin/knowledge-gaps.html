@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧠 Knowledge Gaps - Admin</title>
+    <link rel="stylesheet" href="assets/styles/main.css">
+    <link rel="stylesheet" href="assets/styles/admin.css">
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-card.pending .number {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+
+        .stat-card.resolved .number {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+
+        .stat-card .label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        .gap-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .gap-table th,
+        .gap-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gap-table th {
+            background: rgba(0, 0, 0, 0.2);
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .gap-table tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge.pending {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .badge.resolved {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .badge.dismissed {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .count-badge {
+            background: rgba(102, 126, 234, 0.3);
+            color: #a5b4fc;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .action-btn.resolve {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .action-btn.resolve:hover {
+            background: rgba(34, 197, 94, 0.4);
+        }
+
+        .action-btn.dismiss {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .action-btn.dismiss:hover {
+            background: rgba(239, 68, 68, 0.4);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 1rem;
+        }
+
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .query-text {
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .query-text:hover {
+            white-space: normal;
+            overflow: visible;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-grid"></div>
+
+    <div class="container" style="max-width: 1200px;">
+        <!-- Header -->
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div>
+                <h1 class="text-gradient">🧠 Knowledge Gaps</h1>
+                <p style="color: var(--text-muted);">คำถามที่ AI ตอบไม่ได้ - รอ Admin เพิ่มคำตอบ</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="refreshData()" class="btn"
+                    style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5);">
+                    🔄 รีเฟรช
+                </button>
+                <a href="index.html" class="btn btn-cta" style="text-decoration: none;">
+                    ← กลับ Admin
+                </a>
+            </div>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid" id="stats-container">
+            <div class="stat-card pending">
+                <div class="number" id="stat-pending">-</div>
+                <div class="label">รอตอบ</div>
+            </div>
+            <div class="stat-card resolved">
+                <div class="number" id="stat-resolved">-</div>
+                <div class="label">ตอบแล้ว</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="stat-today">-</div>
+                <div class="label">ตอบวันนี้</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="stat-total">-</div>
+                <div class="label">ทั้งหมด</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+            <select id="filter-status" onchange="refreshData()"
+                style="padding: 0.5rem 1rem; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                <option value="pending">🟡 รอตอบ</option>
+                <option value="all">📋 ทั้งหมด</option>
+            </select>
+            <select id="filter-sort" onchange="refreshData()"
+                style="padding: 0.5rem 1rem; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                <option value="count">🔥 ถามบ่อยสุด</option>
+                <option value="last_asked">🕐 ล่าสุด</option>
+            </select>
+        </div>
+
+        <!-- Gaps Table -->
+        <div class="form-container" style="overflow-x: auto;">
+            <table class="gap-table" id="gaps-table">
+                <thead>
+                    <tr>
+                        <th>คำถาม</th>
+                        <th style="text-align: center;">ถามซ้ำ</th>
+                        <th style="text-align: center;">คะแนน</th>
+                        <th>ล่าสุด</th>
+                        <th>สถานะ</th>
+                        <th style="text-align: center;">จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody id="gaps-body">
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <div class="icon">⏳</div>
+                            <div>กำลังโหลด...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Resolve Modal -->
+    <div class="modal" id="resolve-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✍️ เพิ่มคำตอบ</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="resolve-form" onsubmit="submitResolve(event)">
+                <input type="hidden" id="resolve-gap-id">
+
+                <div class="form-group">
+                    <label>❓ คำถามที่ถูกถาม</label>
+                    <input type="text" id="resolve-query" readonly style="background: rgba(0,0,0,0.3);">
+                </div>
+
+                <div class="form-group">
+                    <label>📝 หัวข้อ (ไม่จำเป็น)</label>
+                    <input type="text" id="resolve-title" placeholder="ถ้าไม่ระบุจะใช้คำถามเป็นหัวข้อ">
+                </div>
+
+                <div class="form-group">
+                    <label>📂 หมวดหมู่</label>
+                    <select id="resolve-category">
+                        <option value="ข้อมูลเพิ่มเติม">ข้อมูลเพิ่มเติม</option>
+                        <option value="สถานที่ท่องเที่ยว">สถานที่ท่องเที่ยว</option>
+                        <option value="ร้านอาหาร">ร้านอาหาร</option>
+                        <option value="ที่พัก">ที่พัก</option>
+                        <option value="วัด">วัด</option>
+                        <option value="ข้อมูลทั่วไป">ข้อมูลทั่วไป</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>💬 คำตอบ *</label>
+                    <textarea id="resolve-answer" required
+                        placeholder="พิมพ์คำตอบที่ถูกต้องที่นี่... (อย่างน้อย 10 ตัวอักษร)" minlength="10"></textarea>
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn" onclick="closeModal()"
+                        style="background: rgba(255,255,255,0.1);">ยกเลิก</button>
+                    <button type="submit" class="btn btn-cta">✅ บันทึกคำตอบ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dismiss Modal -->
+    <div class="modal" id="dismiss-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>❌ ยกเลิกคำถาม</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="dismiss-form" onsubmit="submitDismiss(event)">
+                <input type="hidden" id="dismiss-gap-id">
+
+                <div class="form-group">
+                    <label>❓ คำถาม</label>
+                    <input type="text" id="dismiss-query" readonly style="background: rgba(0,0,0,0.3);">
+                </div>
+
+                <div class="form-group">
+                    <label>📝 เหตุผลที่ยกเลิก</label>
+                    <select id="dismiss-reason">
+                        <option value="ไม่เกี่ยวกับน่าน">ไม่เกี่ยวกับจังหวัดน่าน</option>
+                        <option value="spam">Spam / คำถามไม่เหมาะสม</option>
+                        <option value="ซ้ำซ้อน">ซ้ำกับข้อมูลที่มีอยู่</option>
+                        <option value="ไม่ชัดเจน">คำถามไม่ชัดเจน</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn" onclick="closeModal()"
+                        style="background: rgba(255,255,255,0.1);">ยกเลิก</button>
+                    <button type="submit" class="btn"
+                        style="background: rgba(239,68,68,0.3); border: 1px solid rgba(239,68,68,0.5); color: #ef4444;">❌
+                        ยืนยันยกเลิก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="assets/scripts/config.js"></script>
+    <script>
+        const API_BASE = window.API_BASE_URL || '';
+        let currentGaps = [];
+
+        // ========== Data Loading ==========
+
+        async function loadStats() {
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/knowledge-gaps/stats`);
+                const data = await res.json();
+
+                document.getElementById('stat-pending').textContent = data.pending_count || 0;
+                document.getElementById('stat-resolved').textContent = data.resolved_count || 0;
+                document.getElementById('stat-today').textContent = data.resolved_today || 0;
+                document.getElementById('stat-total').textContent = data.total || 0;
+            } catch (e) {
+                console.error('Failed to load stats:', e);
+            }
+        }
+
+        async function loadGaps() {
+            const status = document.getElementById('filter-status').value;
+            const sortBy = document.getElementById('filter-sort').value;
+            const includeResolved = status === 'all';
+
+            try {
+                const url = `${API_BASE}/api/admin/knowledge-gaps?limit=100&sort_by=${sortBy}&include_resolved=${includeResolved}`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                currentGaps = data.gaps || [];
+                renderGaps(currentGaps);
+            } catch (e) {
+                console.error('Failed to load gaps:', e);
+                document.getElementById('gaps-body').innerHTML = `
+                    <tr><td colspan="6" class="empty-state">
+                        <div class="icon">❌</div>
+                        <div>เกิดข้อผิดพลาดในการโหลดข้อมูล</div>
+                    </td></tr>
+                `;
+            }
+        }
+
+        function renderGaps(gaps) {
+            const tbody = document.getElementById('gaps-body');
+
+            if (!gaps || gaps.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="6" class="empty-state">
+                        <div class="icon">🎉</div>
+                        <div>ไม่มีคำถามที่รอการตอบ</div>
+                        <p style="margin-top: 0.5rem; font-size: 0.9rem;">AI ตอบได้ทุกคำถามแล้ว!</p>
+                    </td></tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = gaps.map(gap => {
+                const statusBadge = getStatusBadge(gap.status);
+                const lastAsked = formatDate(gap.last_asked);
+                const score = (gap.max_score * 100).toFixed(1);
+
+                const actions = gap.status === 'PENDING' ? `
+                    <button class="action-btn resolve" onclick="openResolveModal('${gap._id}')">✍️ ตอบ</button>
+                    <button class="action-btn dismiss" onclick="openDismissModal('${gap._id}')">❌</button>
+                ` : '<span style="color: var(--text-muted);">-</span>';
+
+                return `
+                    <tr>
+                        <td class="query-text" title="${escapeHtml(gap.query)}">${escapeHtml(gap.query)}</td>
+                        <td style="text-align: center;"><span class="count-badge">${gap.count}x</span></td>
+                        <td style="text-align: center;">${score}%</td>
+                        <td>${lastAsked}</td>
+                        <td>${statusBadge}</td>
+                        <td style="text-align: center; display: flex; gap: 0.5rem; justify-content: center;">${actions}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                'PENDING': '<span class="badge pending">🟡 รอตอบ</span>',
+                'RESOLVED': '<span class="badge resolved">✅ ตอบแล้ว</span>',
+                'DISMISSED': '<span class="badge dismissed">❌ ยกเลิก</span>'
+            };
+            return badges[status] || status;
+        }
+
+        function formatDate(isoDate) {
+            if (!isoDate) return '-';
+            const date = new Date(isoDate);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 60) return `${diffMins} นาทีที่แล้ว`;
+            if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
+            if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
+            return date.toLocaleDateString('th-TH');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ========== Modals ==========
+
+        function openResolveModal(gapId) {
+            const gap = currentGaps.find(g => g._id === gapId);
+            if (!gap) return;
+
+            document.getElementById('resolve-gap-id').value = gapId;
+            document.getElementById('resolve-query').value = gap.query;
+            document.getElementById('resolve-title').value = '';
+            document.getElementById('resolve-answer').value = '';
+
+            document.getElementById('resolve-modal').classList.add('active');
+        }
+
+        function openDismissModal(gapId) {
+            const gap = currentGaps.find(g => g._id === gapId);
+            if (!gap) return;
+
+            document.getElementById('dismiss-gap-id').value = gapId;
+            document.getElementById('dismiss-query').value = gap.query;
+
+            document.getElementById('dismiss-modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+        }
+
+        // ========== Form Submissions ==========
+
+        async function submitResolve(e) {
+            e.preventDefault();
+
+            const gapId = document.getElementById('resolve-gap-id').value;
+            const answer = document.getElementById('resolve-answer').value.trim();
+            const title = document.getElementById('resolve-title').value.trim();
+            const category = document.getElementById('resolve-category').value;
+
+            if (answer.length < 10) {
+                alert('กรุณาพิมพ์คำตอบอย่างน้อย 10 ตัวอักษร');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/knowledge-gaps/${gapId}/resolve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        answer: answer,
+                        title: title || null,
+                        category: category
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    alert('✅ บันทึกคำตอบสำเร็จ! AI จะตอบคำถามนี้ได้ในครั้งต่อไป');
+                    closeModal();
+                    refreshData();
+                } else {
+                    alert('❌ เกิดข้อผิดพลาด: ' + (data.error || data.detail));
+                }
+            } catch (e) {
+                console.error('Submit resolve failed:', e);
+                alert('❌ เกิดข้อผิดพลาดในการบันทึก');
+            }
+        }
+
+        async function submitDismiss(e) {
+            e.preventDefault();
+
+            const gapId = document.getElementById('dismiss-gap-id').value;
+            const reason = document.getElementById('dismiss-reason').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/knowledge-gaps/${gapId}/dismiss`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: reason })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    alert('✅ ยกเลิกคำถามสำเร็จ');
+                    closeModal();
+                    refreshData();
+                } else {
+                    alert('❌ เกิดข้อผิดพลาด: ' + (data.error || data.detail));
+                }
+            } catch (e) {
+                console.error('Submit dismiss failed:', e);
+                alert('❌ เกิดข้อผิดพลาดในการยกเลิก');
+            }
+        }
+
+        // ========== Init ==========
+
+        function refreshData() {
+            loadStats();
+            loadGaps();
+        }
+
+        // Close modal on outside click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+        });
+
+        // Load data on page load
+        refreshData();
+    </script>
+</body>
+
+</html>

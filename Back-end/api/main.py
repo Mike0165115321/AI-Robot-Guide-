@@ -18,7 +18,7 @@ from core.ai_models.youtube_handler import youtube_handler_instance
 from core.config import settings
 from utils.file_cleaner import start_background_cleanup
 from api.dependencies import get_rag_orchestrator 
-from api.routers import admin_api, chat_api, import_api, sheets_api, analytics_api, line_webhook, alert_api, auth_api, assistant_api
+from api.routers import admin_api, chat_api, import_api, sheets_api, analytics_api, line_webhook, alert_api, auth_api, assistant_api, knowledge_api
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("uvicorn").propagate = False
@@ -111,6 +111,7 @@ app.include_router(analytics_api.router, prefix="/api/analytics")  # Feedback & 
 app.include_router(line_webhook.router, prefix="/api/v1/line")     # LINE Webhook
 app.include_router(alert_api.router, prefix="/api")                 # Smart News Alerts
 app.include_router(assistant_api.router, prefix="/api") # 🆕 Google Assistant Proxy (/api/assistant/query)
+app.include_router(knowledge_api.router, prefix="/api")  # 🧠 Knowledge Gaps (Self-Correcting RAG)
 
 
 @app.get("/health", tags=["Health"])
@@ -218,6 +219,8 @@ async def serve_frontend(request: Request, full_path: str):
         "admin/index.html": "admin/index.html",
         "admin/admin.html": "admin/index.html", # Alias for legacy link
         "admin/settings.html": "admin/settings.html", # ⚙️ Settings Page
+        "admin/knowledge-gaps.html": "admin/knowledge-gaps.html", # 🧠 Knowledge Gaps
+        "admin/dashboard.html": "admin/dashboard.html", # 📊 Enhanced Dashboard
         "import": "admin/import.html",
         "robot_avatar": "robot_avatar.html",
         "travel_mode": "travel_mode.html",
