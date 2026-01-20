@@ -21,6 +21,7 @@ import * as LanguageUtils from './utils/languageUtils.js';
 import stateManager from './modules/StateManager.js';
 import uiManager from './modules/UIManager.js';
 import avatarManager from './modules/AvatarManager.js';
+import idlePrompter from './modules/IdlePrompter.js';
 import { renderMarkdown } from './services/markdownService.js';
 import responseRenderer from './components/responseRenderer.js';
 import { quickScripts } from './data/scripts.js';
@@ -64,6 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', unlockAudio);
     document.addEventListener('keydown', unlockAudio);
     document.addEventListener('touchstart', unlockAudio);
+
+    // 🆕 Start IdlePrompter (พูดชวนกดปุ่มทุก 15-30 วิ)
+    idlePrompter.start();
 });
 
 function updateStaticText(lang) {
@@ -258,6 +262,9 @@ async function handleSend(manualText = null) {
             avatarManager.setMood('normal');
             avatarManager.sendCommand({ type: 'resumeIdle' });
         }
+
+        // Reset IdlePrompter timer (user interacted)
+        idlePrompter.reset();
     }
 }
 

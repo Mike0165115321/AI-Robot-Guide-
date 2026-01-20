@@ -50,6 +50,15 @@ class FabManager {
     }
 
     /**
+     * Multi-language labels for FAB buttons
+     */
+    static labels = {
+        music: { th: 'ฟังเพลง', en: 'Music', ja: '音楽', zh: '听音乐', ru: 'Музыка', hi: 'संगीत', ms: 'Dengar Lagu' },
+        faq: { th: 'ถามบ่อย', en: 'FAQ', ja: 'よくある質問', zh: '常见问题', ru: 'Вопросы', hi: 'सवाल', ms: 'Soalan' },
+        calc: { th: 'คิดเลข', en: 'Calculator', ja: '電卓', zh: '计算器', ru: 'Калькулятор', hi: 'कैलकुलेटर', ms: 'Kalkulator' }
+    };
+
+    /**
      * Create Sidebar Cards HTML structure
      * @private
      */
@@ -57,23 +66,66 @@ class FabManager {
         const container = document.getElementById('right-actions-sidebar');
         if (!container) return;
 
-        container.innerHTML = `
-            <button id="fab-music" class="quick-chip" title="เพลง">
-                <span class="quick-chip-icon">🎵</span>
-                <span class="quick-chip-text">ฟังเพลง</span>
-            </button>
-            <button id="fab-faq" class="quick-chip" title="คำถามที่พบบ่อย">
-                <span class="quick-chip-icon">❓</span>
-                <span class="quick-chip-text">ถามบ่อย</span>
-            </button>
-            <button id="fab-calc" class="quick-chip" title="เครื่องคิดเลข">
-                <span class="quick-chip-icon">🧮</span>
-                <span class="quick-chip-text">คิดเลข</span>
-            </button>
-        `;
-
+        this._renderButtons(container);
         this.container = container;
         this._injectStyles();
+
+        // Listen for language changes
+        window.addEventListener('languageChanged', () => {
+            this._updateButtonLabels();
+        });
+    }
+
+    /**
+     * Render FAB buttons with current language
+     * @private
+     */
+    _renderButtons(container) {
+        const lang = localStorage.getItem('app_language') || 'th';
+        const labels = FabManager.labels;
+
+        container.innerHTML = `
+            <button id="fab-music" class="quick-chip" title="${labels.music[lang] || labels.music.th}">
+                <span class="quick-chip-icon">🎵</span>
+                <span class="quick-chip-text">${labels.music[lang] || labels.music.th}</span>
+            </button>
+            <button id="fab-faq" class="quick-chip" title="${labels.faq[lang] || labels.faq.th}">
+                <span class="quick-chip-icon">❓</span>
+                <span class="quick-chip-text">${labels.faq[lang] || labels.faq.th}</span>
+            </button>
+            <button id="fab-calc" class="quick-chip" title="${labels.calc[lang] || labels.calc.th}">
+                <span class="quick-chip-icon">🧮</span>
+                <span class="quick-chip-text">${labels.calc[lang] || labels.calc.th}</span>
+            </button>
+        `;
+    }
+
+    /**
+     * Update button labels when language changes
+     * @private
+     */
+    _updateButtonLabels() {
+        const lang = localStorage.getItem('app_language') || 'th';
+        const labels = FabManager.labels;
+
+        const musicBtn = document.getElementById('fab-music');
+        const faqBtn = document.getElementById('fab-faq');
+        const calcBtn = document.getElementById('fab-calc');
+
+        if (musicBtn) {
+            musicBtn.querySelector('.quick-chip-text').textContent = labels.music[lang] || labels.music.th;
+            musicBtn.title = labels.music[lang] || labels.music.th;
+        }
+        if (faqBtn) {
+            faqBtn.querySelector('.quick-chip-text').textContent = labels.faq[lang] || labels.faq.th;
+            faqBtn.title = labels.faq[lang] || labels.faq.th;
+        }
+        if (calcBtn) {
+            calcBtn.querySelector('.quick-chip-text').textContent = labels.calc[lang] || labels.calc.th;
+            calcBtn.title = labels.calc[lang] || labels.calc.th;
+        }
+
+        console.log(`🌍 [FabManager] Labels updated to: ${lang}`);
     }
 
     /**

@@ -1,0 +1,113 @@
+/**
+ * ========================================
+ * IdlePrompter Styles
+ * ========================================
+ * 
+ * Purpose: Controls ALL visual styling for the IdlePrompter feature.
+ * Related JS: /frontend/js/modules/IdlePrompter.js (Logic only)
+ * 
+ * Configuration:
+ * - Animation Speed: Adjust transition duration values
+ * - Colors: Modify gradient colors
+ * - Size: Adjust scale() and translateY() values
+ */
+
+/* ========== Animation Timing (ปรับที่นี่เพื่อเปลี่ยนความเร็ว) ========== */
+:root {
+    --idle-animation-up: 1.5s;
+    /* ความเร็วตอนลอยขึ้น */
+    --idle-animation-down: 1.5s;
+    /* ความเร็วตอนลอยลง */
+    --idle-color-change: 0.8s;
+    /* ความเร็วตอนเปลี่ยนสี */
+}
+
+/* ========== Starting State (เตรียมตัวก่อนลอยขึ้น) ========== */
+/* ขั้นตอน: เพิ่ม idle-starting ก่อน แล้วค่อยเพิ่ม idle-highlight */
+.quick-chip.idle-starting {
+    animation: none !important;
+    opacity: 1 !important;
+
+    /* ยังคงอยู่ตำแหน่งปกติ */
+    transform: scale(1) translateY(0) !important;
+
+    /* เตรียม transition ไว้รอ */
+    transition:
+        transform var(--idle-animation-up) cubic-bezier(0.34, 1.56, 0.64, 1),
+        background var(--idle-color-change) ease,
+        box-shadow var(--idle-color-change) ease,
+        border var(--idle-color-change) ease !important;
+}
+
+/* ========== Highlight State (ตอนปุ่มลอยขึ้นแล้ว) ========== */
+.quick-chip.idle-highlight {
+    /* ยกเลิก animation เดิมของ chip */
+    animation: none !important;
+    opacity: 1 !important;
+
+    /* Transform: ขยาย + ลอยขึ้น */
+    transform: scale(1.12) translateY(-15px) !important;
+
+    /* สีพื้นหลัง: Gradient Teal-Cyan (เข้ากับ Theme) */
+    background: linear-gradient(135deg, #14b8a6, #2dd4bf, #5eead4) !important;
+
+    /* เงา: สี Teal เรืองแสง */
+    box-shadow:
+        0 20px 50px rgba(45, 212, 191, 0.5),
+        0 0 40px rgba(20, 184, 166, 0.4) !important;
+
+    /* ขอบ: ขาวโปร่ง */
+    border: 2px solid rgba(255, 255, 255, 0.5) !important;
+
+    /* Z-Index: อยู่หน้าสุด */
+    z-index: 100 !important;
+
+    /* ⏱️ Transition: ต่อเนื่องจาก idle-starting */
+    transition:
+        transform var(--idle-animation-up) cubic-bezier(0.34, 1.56, 0.64, 1),
+        background var(--idle-color-change) ease,
+        box-shadow var(--idle-color-change) ease,
+        border var(--idle-color-change) ease !important;
+}
+
+/* ========== Text Style When Highlighted ========== */
+.quick-chip.idle-highlight .quick-chip-text {
+    color: #fff !important;
+    font-weight: 700 !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ========== Returning State (ค่อยๆ กลับลง) ========== */
+/* 
+ * ขั้นตอน: 
+ * 1. เพิ่ม class 'idle-returning' พร้อมกับลบ 'idle-highlight'
+ * 2. Transition จะทำให้ลอยลงช้าๆ
+ * 3. หลังจาก transition เสร็จ ลบ 'idle-returning' ออก
+ */
+.quick-chip.idle-returning {
+    animation: none !important;
+    opacity: 1 !important;
+
+    /* กลับสู่ปกติ */
+    transform: scale(1) translateY(0) !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+
+    /* ⏱️ Transition ช้าๆ นุ่มนวล */
+    transition:
+        transform var(--idle-animation-down) cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        background var(--idle-color-change) ease,
+        box-shadow var(--idle-color-change) ease,
+        border var(--idle-color-change) ease !important;
+}
+
+/* ========== Done State (ป้องกัน animation restart) ========== */
+/* 
+ * หลังจาก idle-prompter เล่นเสร็จ เก็บ class นี้ไว้ตลอด
+ * เพื่อป้องกันไม่ให้ slideInLeft เล่นใหม่
+ */
+.quick-chip.idle-done {
+    animation: none !important;
+    opacity: 1 !important;
+}
