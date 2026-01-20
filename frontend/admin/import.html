@@ -1639,10 +1639,17 @@ AI สามารถช่วยจัดโครงสร้างข้อ�
         });
 
         async function handleFileUpload(file) {
-            // Validate file size (2GB max)
-            const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+            // Validate file size (200MB max as requested)
+            const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB
             if (file.size > MAX_FILE_SIZE) {
-                alert('ไฟล์ใหญ่เกินไป! รองรับไฟล์สูงสุด 2GB');
+                alert('ไฟล์ใหญ่เกินไป! รองรับไฟล์สูงสุด 200MB');
+                return;
+            }
+
+            // Check if JSONL (Simulate Streaming Import)
+            if (file.name.toLowerCase().endsWith('.jsonl')) {
+                // Switch to streaming mode
+                await handleJSONLUpload(file);
                 return;
             }
 
@@ -1718,6 +1725,98 @@ AI สามารถช่วยจัดโครงสร้างข้อ�
             } finally {
                 hideLoading();
             }
+        }
+
+
+
+        async function handleJSONLUpload(file) {
+            // Setup UI for streaming
+            document.getElementById('uploaded-filename').textContent = file.name;
+            document.getElementById('uploaded-stats').textContent = `ขนาด ${formatFileSize(file.size)}`;
+            document.getElementById('file-info-display').style.display = 'flex';
+            uploadZone.style.display = 'none';
+
+            // Show transform section directly (skip preview & field selection for JSONL)
+            goToStep(3);
+
+            const tbody = document.getElementById('transform-preview-tbody');
+            tbody.innerHTML = `
+                <tr><td colspan="5" style="text-align:center; padding: 2rem;">
+                    <div class="loading-spinner" style="margin: 0 auto 1rem;"></div>
+                    <h3>🚀 กำลังทยอยนำเข้าข้อมูล (Streaming Import)...</h3>
+                    <p>ระบบกำลังอ่านไฟล์และบันทึกลงฐานข้อมูลทีละรายการ</p>
+                    <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem; margin-top: 1rem; text-align: left;">
+                        <div id="stream-log" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.9rem;"></div>
+                    </div>
+                </td></tr>
+            `;
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // Start Streaming Request
+                const response = await fetch(`${API_BASE}/api/admin/import/import-jsonl-stream`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                const logEl = document.getElementById('stream-log');
+
+                function log(msg, type = 'info') {
+                    const color = type === 'error' ? '#ff6b6b' : (type === 'success' ? '#4caf50' : '#ccc');
+                    const time = new Date().toLocaleTimeString();
+                    logEl.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
+                    logEl.scrollTop = logEl.scrollHeight;
+                }
+
+                log("เชื่อมต่อกับ Server แล้ว... เริ่มต้นการส่งไฟล์");
+
+                let buffer = "";
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop(); // Keep last partial line
+
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        try {
+                            const msg = JSON.parse(line);
+                            if (msg.type === 'progress') {
+                                log(`✅ Processed: ${msg.count} (Success: ${msg.success})`, 'success');
+                            } else if (msg.type === 'error') {
+                                log(`❌ Error Row ${msg.row}: ${msg.message}`, 'error');
+                            } else if (msg.type === 'complete') {
+                                log(`🎉 เสร็จสิ้น! ทั้งหมด ${msg.total} รายการ (สำเร็จ ${msg.success})`, 'success');
+                                alert(`นำเข้าสำเร็จ! ${msg.success} รายการ`);
+                                goToStep(4);
+                                document.getElementById('success-message').innerHTML = `<strong>นำเข้าสำเร็จ!</strong><br>เพิ่มข้อมูล ${msg.success} รายการจากไฟล์ ${file.name}`;
+                            } else if (msg.type === 'fatal_error') {
+                                log(`💀 Fatal Error: ${msg.message}`, 'error');
+                                alert('เกิดข้อผิดพลาดร้ายแรง: ' + msg.message);
+                            }
+                        } catch (e) {
+                            console.error("JSON Parse Error:", e);
+                        }
+                    }
+                }
+
+            } catch (error) {
+                alert('Connection Error: ' + error.message);
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
         function resetUpload() {

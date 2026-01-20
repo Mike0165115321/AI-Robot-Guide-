@@ -274,7 +274,7 @@ async def preview_raw_file(file: UploadFile = File(...)):
     
     try:
         # Read file with size limit (Anti-DoS)
-        MAX_FILE_SIZE = 50 * 1024 * 1024 # 50 MB
+        MAX_FILE_SIZE = 200 * 1024 * 1024 # 200 MB (Requested by Admin)
         content = io.BytesIO()
         size = 0
         CHUNK_SIZE = 1024 * 1024 # 1MB
@@ -324,7 +324,9 @@ async def ai_transform_data(request: AITransformRequest):
     """
     🤖 AI Transform: แปลงข้อมูลดิบลง Target Fields ที่เลือก
     
-    ใช้ Gemini AI วิเคราะห์และ extract ข้อมูลจากแต่ละ row
+    Update: 
+    - ⚡ Smart Bypass: ถ้าข้อมูลดิบมี Fields ครบตาม Target อยู่แล้ว จะข้าม AI ไปเลย (Direct Import)
+    - 🤖 AI Fallback: ถ้าข้อมูลไม่ครบ หรือ Field ไม่ตรง จะใช้ AI ช่วย Map ให้
     """
     if not request.raw_data:
         raise HTTPException(status_code=400, detail="ไม่มีข้อมูลให้ประมวลผล")
@@ -332,32 +334,72 @@ async def ai_transform_data(request: AITransformRequest):
     if not request.target_fields:
         raise HTTPException(status_code=400, detail="กรุณาเลือก Target Fields อย่างน้อย 1 field")
     
-    # Validate target fields - รองรับทั้ง core และ detail fields
+    # Validate target fields
     valid_field_keys = [f["key"] for f in ALL_CONFIGURABLE_FIELDS]
     for field in request.target_fields:
-        # Custom fields (เริ่มด้วย custom_) ไม่ต้อง validate
-        if field.startswith("custom_"):
-            continue
+        if field.startswith("custom_"): continue
         if field not in valid_field_keys:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Invalid field: {field}. Valid fields: {valid_field_keys}"
-            )
+            raise HTTPException(status_code=400, detail=f"Invalid field: {field}")
     
     try:
-        # Import AI Mapper Service
-        from core.services.ai_mapper_service import ai_mapper_service
+        # 1. ⚡ Smart Check: ตรวจสอบว่าต้องใช้ AI หรือไม่?
+        # เช็คจากแถวแรกๆ ว่ามี Key ตรงกับ Target Fields หรือไม่
+        sample_size = min(5, len(request.raw_data))
+        sample_rows = request.raw_data[:sample_size]
         
-        # Process with AI
-        logging.info(f"🤖 [ImportAPI] เริ่มต้นการแปลงด้วย AI สำหรับ {len(request.raw_data)} แถว, ฟิลด์: {request.target_fields}")
+        # นับจำนวน Field ที่ตรงกัน (Case-insensitive check)
+        direct_map_count = 0
+        target_set = set(f.lower() for f in request.target_fields)
         
-        transformed = await ai_mapper_service.transform_batch(
-            rows=request.raw_data,
-            target_fields=request.target_fields,
-            concurrency=8  # Process 8 rows at a time for faster import
-        )
+        for row in sample_rows:
+            row_keys = set(k.lower() for k in row.keys())
+            # ถ้า row นี้มี keys ที่ครอบคลุม target_fields อย่างน้อย 80% (หรือครบ)
+            common = row_keys.intersection(target_set)
+            if len(common) >= len(target_set) * 0.8: # Threshold 80%
+                direct_map_count += 1
         
-        logging.info(f"✅ [ImportAPI] การแปลงด้วย AI เสร็จสิ้น: ประมวลผลไป {len(transformed)} แถว")
+        # ถ้า Data ส่วนใหญ่ (เกิน 80% ของ Sample) พร้อมใช้อยู่แล้ว -> Bypass AI
+        is_structured_data = direct_map_count >= (sample_size * 0.8)
+        
+        transformed = []
+        
+        if is_structured_data:
+            logging.info(f"⚡ [ImportAPI] Smart Bypass Active! ข้อมูลมีโครงสร้างครบถ้วน -> ข้ามขั้นตอน AI")
+            
+            # Direct Map Logic
+            for row in request.raw_data:
+                # Normalize keys to lowercase for matching
+                row_lower = {k.lower(): v for k, v in row.items()}
+                
+                new_row = {}
+                for field in request.target_fields:
+                    # พยายามหา value จาก key ที่ตรงกัน (case-insensitive)
+                    # เช่น target="title", data มี "Title" -> match
+                    field_lower = field.lower()
+                    if field_lower in row_lower:
+                        new_row[field] = row_lower[field_lower]
+                    else:
+                        new_row[field] = None # หรือ "" ตามต้องการ
+                
+                # Keep original data for reference (optional) or merge missing columns
+                # for k, v in row.items():
+                #     if k not in new_row: new_row[k] = v
+                    
+                transformed.append(new_row)
+                
+        else:
+            # 2. 🤖 AI Process Logic (เดิม)
+            from core.services.ai_mapper_service import ai_mapper_service
+            
+            logging.info(f"🤖 [ImportAPI] Data is unstructured -> Using Gemini AI for {len(request.raw_data)} rows")
+            
+            transformed = await ai_mapper_service.transform_batch(
+                rows=request.raw_data,
+                target_fields=request.target_fields,
+                concurrency=8 
+            )
+        
+        logging.info(f"✅ [ImportAPI] Transform เสร็จสิ้น: {len(transformed)} แถว (Mode: {'Direct' if is_structured_data else 'AI'})")
         
         return AITransformResponse(
             original_rows=request.raw_data,
@@ -367,11 +409,8 @@ async def ai_transform_data(request: AITransformRequest):
         )
         
     except Exception as e:
-        logging.error(f"❌ [ImportAPI] ข้อผิดพลาดในการแปลงด้วย AI: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, 
-            detail=f"AI Transform ล้มเหลว: {str(e)}"
-        )
+        logging.error(f"❌ [ImportAPI] Transform Error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Transform Failed: {str(e)}")
 
 
 @router.post("/confirm-save", response_model=ConfirmSaveResponse, tags=["Admin :: Bulk Import"])
@@ -939,3 +978,118 @@ def _build_details(row: dict) -> list:
             details.append({"heading": heading, "content": str(value)})
     
     return details if details else [{"heading": "ภาพรวม", "content": "ข้อมูลที่นำเข้าจาก Bulk Import"}]
+
+
+@router.post("/import-jsonl-stream", tags=["Admin :: Bulk Import"])
+async def import_jsonl_stream(
+    file: UploadFile = File(..., description="ไฟล์ JSONL (.jsonl) ข้อมูลมหาศาล"),
+    db: MongoDBManager = Depends(get_mongo_manager),
+    vector_db: QdrantManager = Depends(get_qdrant_manager)
+):
+    """
+    🌊 Streaming Import for Massive JSONL Data (Supports 200MB+)
+    
+    - อ่านไฟล์ทีละบรรทัด (Memory Efficient)
+    - บันทึกลง DB ทันที (Real-time Insert)
+    - Bypass AI ถ้าข้อมูลครบถ้วน (Fastest)
+    - Syncs to Qdrant (Vector DB) for AI
+    """
+    import json
+    import re
+    
+    if not file.filename.endswith('.jsonl') and not file.filename.endswith('.json'):
+         raise HTTPException(status_code=400, detail="รองรับเฉพาะไฟล์ .jsonl หรือ .json เท่านั้น")
+
+    async def processed_stream():
+        count = 0
+        success = 0
+        failed = 0
+        
+        # Buffer for parsing lines
+        buffer = b""
+        
+        try:
+            # Yield initialization
+            yield json.dumps({"type": "start", "message": "Starting stream import..."}) + "\n"
+            
+            while True:
+                chunk = await file.read(1024 * 1024) # Read 1MB chunks
+                if not chunk:
+                    break
+                
+                buffer += chunk
+                while b'\n' in buffer:
+                    line, buffer = buffer.split(b'\n', 1)
+                    if not line.strip(): continue
+                    
+                    count += 1
+                    try:
+                        # 1. Parse JSON Line
+                        record = json.loads(line.decode('utf-8'))
+                        
+                        # 2. Add minimal defaults if needed
+                        if "title" not in record:
+                            record["title"] = f"Imported Item {count}"
+                        
+                        # 3. Save to MongoDB (Directly)
+                        # Generate slug
+                        slug = record.get("slug", "")
+                        if not slug:
+                            slug = re.sub(r'[^a-zA-Z0-9\u0E00-\u0E7F\s-]', '', record["title"].lower())
+                            slug = re.sub(r'[\s]+', '-', slug.strip())
+                        
+                        # Ensure uniqueness (simple append)
+                        doc = {
+                            "slug": slug,
+                            **record,
+                            "imported_via": "stream_jsonl"
+                        }
+                        
+                        # Save to MongoDB
+                        db.add_location(doc)
+                        
+                        # 4. Sync to Qdrant (Vector DB) -> AI BRAIN 🧠
+                        try:
+                           # Construct text representation for embedding
+                           desc_parts = [
+                               doc.get('title', ''),
+                               doc.get('category', ''),
+                               doc.get('topic', ''),
+                               doc.get('summary', '')
+                           ]
+                           if 'details' in doc and isinstance(doc['details'], list):
+                               for d in doc['details']:
+                                   desc_parts.append(f"{d.get('heading','')}: {d.get('content','')}")
+                           
+                           text_for_ai = " ".join([str(p) for p in desc_parts if p])
+                           
+                           # Upsert to Qdrant
+                           vector_db.upsert_location(doc_id=str(doc.get('_id', slug)), description=text_for_ai, payload=doc)
+                           
+                        except Exception as v_err:
+                           # Log vector error but don't fail the import
+                           print(f"⚠️ Vector DB Sync Error for {slug}: {v_err}")
+
+                        success += 1
+                        
+                        # Yield progress every 100 items
+                        if success % 100 == 0:
+                             yield json.dumps({"type": "progress", "count": count, "success": success}) + "\n"
+
+                    except Exception as e:
+                        failed += 1
+                        yield json.dumps({"type": "error", "row": count, "message": str(e)}) + "\n"
+        
+            # Final stats
+            yield json.dumps({
+                "type": "complete", 
+                "total": count, 
+                "success": success, 
+                "failed": failed,
+                "message": f"Import Completed! Success: {success}, Failed: {failed}"
+            }) + "\n"
+            
+        except Exception as e:
+             yield json.dumps({"type": "fatal_error", "message": str(e)}) + "\n"
+
+    return StreamingResponse(processed_stream(), media_type="application/x-ndjson")
