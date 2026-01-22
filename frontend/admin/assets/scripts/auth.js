@@ -30,6 +30,7 @@ async function handleLogin(e) {
     btn.innerText = 'กำลังตรวจสอบ...';
 
     try {
+
         const response = await fetch(`${API_BASE_URL}/api/admin/auth/login`, {
             method: 'POST',
             headers: {
@@ -40,7 +41,14 @@ async function handleLogin(e) {
         });
 
         if (response.ok) {
-            window.location.href = 'index.html';
+            // Check for redirect param
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirectUrl = urlParams.get('redirect');
+            if (redirectUrl) {
+                window.location.href = decodeURIComponent(redirectUrl);
+            } else {
+                window.location.href = 'index.html';
+            }
         } else {
             const data = await response.json();
             throw new Error(data.detail || 'Login failed');
@@ -60,17 +68,24 @@ async function checkAuth(isLoginPage = false) {
 
         if (response.ok) {
             if (isLoginPage) {
-                window.location.href = 'index.html'; // Already logged in
+                // If on login page but already logged in, redirect back
+                const urlParams = new URLSearchParams(window.location.search);
+                const redirectUrl = urlParams.get('redirect');
+                window.location.href = redirectUrl ? decodeURIComponent(redirectUrl) : 'index.html';
             }
         } else {
             if (!isLoginPage) {
-                // Token invalid or expired
-                window.location.href = 'login.html';
+                // Token invalid or expired, redirect to login with current URL
+                const currentUrl = encodeURIComponent(window.location.href);
+                window.location.href = `login.html?redirect=${currentUrl}`;
             }
         }
     } catch (e) {
         console.error("Auth check failed", e);
-        if (!isLoginPage) window.location.href = 'login.html';
+        if (!isLoginPage) {
+            const currentUrl = encodeURIComponent(window.location.href);
+            window.location.href = `login.html?redirect=${currentUrl}`;
+        }
     }
 }
 

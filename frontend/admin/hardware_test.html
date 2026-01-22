@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Control - AI Robot Guide</title>
+    <link rel="stylesheet" href="assets/styles/main.css">
+    <link rel="stylesheet" href="assets/styles/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/styles/hardware.css">
+</head>
+
+<body>
+    <div class="hardware-fullscreen">
+        <!-- Hamburger Menu Button -->
+        <button id="menu-toggle" class="menu-toggle">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Slide-out Menu Panel -->
+        <div id="menu-panel" class="menu-panel">
+            <div class="menu-header">
+                <h3><i class="fas fa-robot"></i> Control Panel</h3>
+                <button id="menu-close" class="menu-close"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Core System -->
+            <div class="menu-section">
+                <h4><i class="fas fa-rocket"></i> ระบบหลัก</h4>
+                <button id="btn-start_all" class="menu-btn bringup-btn">
+                    <i class="fas fa-power-off"></i> เริ่มระบบทั้งหมด
+                </button>
+                <button id="btn-setstart" class="menu-btn">
+                    <i class="fas fa-map-pin"></i> ตั้งจุดเริ่มต้น
+                </button>
+                <button id="btn-m_viz2" class="menu-btn">
+                    <i class="fas fa-map"></i> เปิดแผนที่
+                </button>
+            </div>
+
+            <!-- Features -->
+            <div class="menu-section">
+                <h4><i class="fas fa-magic"></i> ฟีเจอร์พิเศษ</h4>
+                <button id="btn-follow_lidar" class="menu-btn">
+                    <i class="fas fa-crosshairs"></i> เดินตาม (Lidar)
+                </button>
+                <button id="btn-twisz" class="menu-btn">
+                    <i class="fas fa-sync-alt"></i> หมุนหาคน
+                </button>
+                <button id="btn-chaba" class="menu-btn">
+                    <i class="fas fa-camera"></i> เปิดกล้อง
+                </button>
+                <button id="btn-key_control" class="menu-btn">
+                    <i class="fas fa-keyboard"></i> Keyboard Control
+                </button>
+            </div>
+
+            <!-- Back Link -->
+            <div class="menu-footer">
+                <a href="settings.html" class="menu-link">
+                    <i class="fas fa-arrow-left"></i> กลับไปตั้งค่า
+                </a>
+            </div>
+        </div>
+
+        <!-- Overlay -->
+        <div id="menu-overlay" class="menu-overlay"></div>
+
+        <!-- Full-Screen Joystick -->
+        <div class="joystick-fullscreen">
+            <div id="joystick-zone"></div>
+
+            <!-- Usage Instructions -->
+            <div class="usage-instructions">
+                <div class="instruction-item">
+                    <i class="fas fa-bars"></i>
+                    <span>กดปุ่มซ้ายบน เพื่อเปิดเมนูควบคุม</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-hand-pointer"></i>
+                    <span>ลากวงกลมเพื่อบังคับทิศทางหุ่นยนต์</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-keyboard"></i>
+                    <span>หรือใช้ปุ่ม W A S D บน Keyboard</span>
+                </div>
+            </div>
+
+            <div class="joystick-hint">
+                <i class="fas fa-info-circle"></i> ลากเพื่อบังคับทิศทาง
+            </div>
+        </div>
+
+        <!-- Keyboard Debug Panel (Hidden by default) -->
+        <div id="keyboard-debug-panel" class="keyboard-debug-floating">
+            <div class="key-row">
+                <div id="key-w" class="key-box">W</div>
+            </div>
+            <div class="key-row">
+                <div id="key-a" class="key-box">A</div>
+                <div id="key-s" class="key-box">S</div>
+                <div id="key-d" class="key-box">D</div>
+            </div>
+            <div class="debug-values">
+                <div>Vx: <span id="debug-vx">0.0</span></div>
+                <div>Wz: <span id="debug-wz">0.0</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Logic -->
+    <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/auth.js"></script>
+
+    <!-- Joystick Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+    <script type="module" src="assets/scripts/modules/legacy_ros.js?v=2.0"></script>
+
+    <!-- Menu Toggle Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const menuToggle = document.getElementById('menu-toggle');
+            const menuPanel = document.getElementById('menu-panel');
+            const menuClose = document.getElementById('menu-close');
+            const menuOverlay = document.getElementById('menu-overlay');
+
+            function openMenu() {
+                menuPanel.classList.add('open');
+                menuOverlay.classList.add('show');
+            }
+
+            function closeMenu() {
+                menuPanel.classList.remove('open');
+                menuOverlay.classList.remove('show');
+            }
+
+            menuToggle.addEventListener('click', openMenu);
+            menuClose.addEventListener('click', closeMenu);
+            menuOverlay.addEventListener('click', closeMenu);
+        });
+    </script>
+</body>
+
+</html>

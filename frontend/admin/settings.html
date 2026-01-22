@@ -160,6 +160,155 @@
             </div>
         </div>
 
+        <!-- ⚙️ Hardware Control Section -->
+        <!-- 🕹️ Simple Hardware Control (Inline Logic) -->
+        <div class="card hardware-card">
+            <h2><i class="fa-solid fa-microchip"></i> System Control</h2>
+
+            <div class="form-group"
+                style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; text-align: center;">
+                <!-- 1. The Toggle Button -->
+                <button id="btn-toggle-system" class="btn-primary" style="font-size: 1.1rem; padding: 10px 30px;">
+                    <i class="fa-solid fa-power-off"></i> เปิดระบบ (Start)
+                </button>
+
+                <div style="margin-top: 10px;">
+                    <span id="lbl-system-status" class="badge bg-secondary">Status: Checking...</span>
+                </div>
+            </div>
+
+            <!-- 2. The Link (Hidden by default) -->
+            <div id="link-hardware-test" style="margin-top: 20px; display: none;">
+                <a href="hardware_test.html" class="btn-primary"
+                    style="width: 100%; display: block; text-align: center; background: #28a745; border: none; font-size: 1.2rem; padding: 15px;">
+                    🚀 ไปที่หน้าควบคุม (Go to Controller)
+                </a>
+            </div>
+
+            <!-- Inline Script for Absolute Certainty -->
+            <script>
+                (function () {
+                    console.log("🚀 [HW] Script Loaded & Ready v3 (State Based)");
+                    const API_URL = '/api/ros';
+                    const btn = document.getElementById('btn-toggle-system');
+                    const link = document.getElementById('link-hardware-test');
+                    const lbl = document.getElementById('lbl-system-status');
+
+                    // STATE TRACKING
+                    // "OFF", "ON", "STARTING", "STOPPING"
+                    let currentState = "OFF";
+
+                    async function checkSystem() {
+                        try {
+                            const res = await fetch(`${API_URL}/status`);
+                            const data = await res.json();
+
+                            const isRunning = data.running_scripts && data.running_scripts['bringup'] === 'running';
+
+                            // Only update if not in transition
+                            if (currentState !== "STARTING" && currentState !== "STOPPING") {
+                                updateUI(isRunning);
+                            }
+                        } catch (e) {
+                            console.error("❌ [HW] Check failed:", e);
+                            lbl.innerText = "Error checking status";
+                        }
+                    }
+
+                    function updateUI(isOn) {
+                        if (isOn) {
+                            // System is ON
+                            currentState = "ON";
+                            btn.dataset.state = "ON";
+                            btn.innerHTML = '<i class="fa-solid fa-stop"></i> ปิดระบบ (Stop)';
+                            btn.style.background = '#dc3545'; // Red
+                            lbl.innerText = "Status: ONLINE";
+                            lbl.className = "badge bg-success";
+                            link.style.display = 'block';
+                        } else {
+                            // System is OFF
+                            currentState = "OFF";
+                            btn.dataset.state = "OFF";
+                            btn.innerHTML = '<i class="fa-solid fa-power-off"></i> เปิดระบบ (Start)';
+                            btn.style.background = 'var(--color-primary)'; // Blue/Purple
+                            lbl.innerText = "Status: OFFLINE";
+                            lbl.className = "badge bg-secondary";
+                            link.style.display = 'none';
+                        }
+                    }
+
+                    btn.addEventListener('click', async () => {
+                        const isStopAction = currentState === "ON";
+                        console.log(`🖱️ [HW] Button Clicked. Current State: ${currentState}. Action: ${isStopAction ? 'STOP' : 'START'}`);
+
+                        btn.disabled = true;
+
+                        try {
+                            if (isStopAction) {
+                                // --- STOPPING ---
+                                currentState = "STOPPING";
+                                console.log("📤 [HW] Sending STOP command...");
+                                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังปิดระบบ (Stopping)...';
+
+                                await fetch(`${API_URL}/stop/bringup`, { method: 'POST' });
+
+                                // Wait 2 seconds
+                                await new Promise(r => setTimeout(r, 2000));
+
+                                // Unlock and Check
+                                currentState = "OFF"; // Assuming it worked, checkSystem will verify
+                                checkSystem();
+
+                            } else {
+                                // --- STARTING ---
+                                currentState = "STARTING";
+                                console.log("📤 [HW] Sending START command...");
+                                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังเชื่อมต่อ (Connecting)...';
+
+                                await fetch(`${API_URL}/launch/bringup`, { method: 'POST' });
+
+                                // Poll loop (10s)
+                                let success = false;
+                                for (let i = 0; i < 10; i++) {
+                                    await new Promise(r => setTimeout(r, 1000));
+                                    console.log(`⏳ [HW] Connection Attempt ${i + 1}/10...`);
+
+                                    const res = await fetch(`${API_URL}/status`);
+                                    const data = await res.json();
+                                    if (data.running_scripts && data.running_scripts['bringup'] === 'running') {
+                                        success = true;
+                                        break;
+                                    }
+                                }
+
+                                if (success) {
+                                    console.log("✅ [HW] Hardware Found!");
+                                    currentState = "ON";
+                                    checkSystem();
+                                } else {
+                                    console.error("❌ [HW] Connection Timeout");
+                                    alert("❌ ไม่พบฮาร์ดแวร์ (Hardware not found)\nกรุณาตรวจสอบการเชื่อมต่อ USB และไฟเลี้ยงของหุ่นยนต์");
+                                    currentState = "OFF";
+                                    checkSystem();
+                                }
+                            }
+                        } catch (e) {
+                            console.error("❌ [HW] Action failed:", e);
+                            alert('Error: ' + e.message);
+                            currentState = "OFF";
+                            checkSystem();
+                        } finally {
+                            btn.disabled = false;
+                        }
+                    });
+
+                    // Start Loop
+                    checkSystem();
+                    setInterval(checkSystem, 3000); // Check every 3s
+                })();
+            </script>
+        </div>
+
         <div class="card">
             <h2 data-i18n="settings_actions">การเชื่อมต่อ (Actions)</h2>
             <div class="form-group">
@@ -169,7 +318,9 @@
         </div>
     </main>
 
-    <script type="module" src="settings.js"></script>
+    <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/auth.js"></script>
+    <script type="module" src="settings.js?v=2"></script>
 </body>
 
 </html>

@@ -33,7 +33,7 @@ trap cleanup SIGINT SIGTERM
 
 # 1. Start Docker Databases
 echo -e "\n${GREEN}📦 Starting Docker Databases...${NC}"
-docker-compose up -d mongodb qdrant redis
+docker compose up -d mongodb qdrant redis
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Failed to start databases. Is Docker running?${NC}"
     exit 1

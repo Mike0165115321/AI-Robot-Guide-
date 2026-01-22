@@ -18,7 +18,7 @@ from core.ai_models.youtube_handler import youtube_handler_instance
 from core.config import settings
 from utils.file_cleaner import start_background_cleanup
 from api.dependencies import get_rag_orchestrator 
-from api.routers import admin_api, chat_api, import_api, sheets_api, analytics_api, line_webhook, alert_api, auth_api, assistant_api, knowledge_api
+from api.routers import admin_api, chat_api, import_api, sheets_api, analytics_api, line_webhook, alert_api, auth_api, assistant_api, knowledge_api, legacy_ros_api
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("uvicorn").propagate = False
@@ -112,6 +112,7 @@ app.include_router(line_webhook.router, prefix="/api/v1/line")     # LINE Webhoo
 app.include_router(alert_api.router, prefix="/api")                 # Smart News Alerts
 app.include_router(assistant_api.router, prefix="/api") # 🆕 Google Assistant Proxy (/api/assistant/query)
 app.include_router(knowledge_api.router, prefix="/api")  # 🧠 Knowledge Gaps (Self-Correcting RAG)
+app.include_router(legacy_ros_api.router) # 🤖 Legacy ROS Control
 
 
 @app.get("/health", tags=["Health"])
@@ -224,7 +225,8 @@ async def serve_frontend(request: Request, full_path: str):
         "import": "admin/import.html",
         "robot_avatar": "robot_avatar.html",
         "travel_mode": "travel_mode.html",
-        "alerts": "alerts.html"
+        "alerts": "alerts.html",
+        "admin/hardware_test.html": "admin/hardware_test.html"
     }
     file_to_serve = path_map.get(full_path, full_path)
     

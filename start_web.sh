@@ -18,14 +18,20 @@ echo -e "${BLUE}═════════════════════�
 
 cleanup() {
     echo -e "\n${RED}🛑 Stopping all services...${NC}"
-    kill $(jobs -p) 2>/dev/null
+    kill $BACKEND_PID $BRIDGE_PID 2>/dev/null
     exit
 }
 trap cleanup SIGINT SIGTERM
 
+# 0. Pre-flight Cleanup (Prevent Address already in use)
+echo -e "\n${YELLOW}🧹 Cleaning up old processes...${NC}"
+pkill -f "ros2_bridge.py" 2>/dev/null
+fuser -k 8014/tcp 2>/dev/null
+sleep 1
+
 # 1. Start Docker Databases
 echo -e "\n${GREEN}📦 Starting Docker Databases...${NC}"
-docker-compose up -d mongodb qdrant redis
+docker compose up -d mongodb qdrant redis
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Failed to start databases. Is Docker running?${NC}"
     exit 1
@@ -41,6 +47,18 @@ elif [ -d "Back-end/venv" ]; then
     echo -e "${GREEN}✅ Virtual environment activated (Back-end/venv)${NC}"
 fi
 
+
+
+# 2.1 Source ROS2 (Required for rclpy)
+if [ -f "/opt/ros/humble/setup.bash" ]; then
+    source /opt/ros/humble/setup.bash
+    echo -e "${GREEN}✅ ROS2 Humble sourced!${NC}"
+    
+    # Start ROS2 Bridge (UDP to /cmd_vel) using System Python
+    echo -e "${GREEN}🌉 Starting ROS2 Teleop Bridge...${NC}"
+    /usr/bin/python3 Back-end/scripts/ros2_bridge.py &
+    BRIDGE_PID=$!
+fi
 
 # 3. Start Python Backend
 echo -e "\n${GREEN}🐍 Starting Python Backend (port 8014)...${NC}"
