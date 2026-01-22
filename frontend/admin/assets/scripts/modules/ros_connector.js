@@ -1,5 +1,5 @@
-const LegacyROS = {
-    apiBase: '/api/ros',
+const ROSConnector = {
+    apiBase: '/api/hardware',
 
     async launchScript(scriptName) {
         try {
@@ -42,7 +42,7 @@ const LegacyROS = {
 // UI Handler
 document.addEventListener('DOMContentLoaded', () => {
     const scripts = [
-        { id: 'btn-start_all', script: 'start_all', name: 'เริ่มระบบทั้งหมด', combo: ['bringup', 'nav2'] },
+        { id: 'btn-start_all', script: 'start_all', name: 'เริ่มระบบทั้งหมด', combo: ['bringup', 'ros2_bridge', 'nav2'] },
         { id: 'btn-setstart', script: 'setstart', name: 'จุดเริ่มต้น' },
         { id: 'btn-twisz', script: 'twisz', name: 'หมุนตาม' },
         { id: 'btn-m_viz2', script: 'm_viz2', name: 'เปิดแผนที่' },
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function updateStatus() {
         try {
-            const data = await LegacyROS.getStatus();
+            const data = await ROSConnector.getStatus();
             const running = data.running_scripts || {};
 
             scripts.forEach(item => {
@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.removeEventListener('keydown', this.handleKeyDown);
             window.removeEventListener('keyup', this.handleKeyUp);
             if (this.interval) clearInterval(this.interval);
-            LegacyROS.moveRobot(0, 0); // Stop robot
+            ROSConnector.moveRobot(0, 0); // Stop robot
             this.resetDebugUI();
         },
 
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (this.keys.d || this.keys.ArrowRight) wz -= 1.0;
 
             // Send command
-            LegacyROS.moveRobot(vx, wz);
+            ROSConnector.moveRobot(vx, wz);
             this.updateDebugUI(vx, wz);
         },
 
@@ -212,13 +212,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (isRunning) {
                             // Stop all scripts in combo (reverse order)
                             for (let i = item.combo.length - 1; i >= 0; i--) {
-                                await LegacyROS.stopScript(item.combo[i]);
+                                await ROSConnector.stopScript(item.combo[i]);
                             }
                             alert(`หยุด ${item.name} แล้ว`);
                         } else {
                             // Launch all scripts in combo (in order)
                             for (const scriptName of item.combo) {
-                                await LegacyROS.launchScript(scriptName);
+                                await ROSConnector.launchScript(scriptName);
                             }
                             alert(`เริ่ม ${item.name} แล้ว (Bringup + Nav2)`);
                         }
@@ -236,10 +236,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.disabled = true;
                 try {
                     if (isRunning) {
-                        await LegacyROS.stopScript(item.script);
+                        await ROSConnector.stopScript(item.script);
                         alert(`หยุด ${item.name} แล้ว`);
                     } else {
-                        await LegacyROS.launchScript(item.script);
+                        await ROSConnector.launchScript(item.script);
                         alert(`เริ่ม ${item.name} แล้ว`);
                     }
                     await updateStatus();
@@ -292,18 +292,18 @@ document.addEventListener('DOMContentLoaded', () => {
             vx = Math.max(-1, Math.min(1, vx));
             wz = Math.max(-1, Math.min(1, wz));
 
-            LegacyROS.moveRobot(vx, wz);
+            ROSConnector.moveRobot(vx, wz);
         });
 
         manager.on('end', () => {
             // Stop immediately on release
-            LegacyROS.moveRobot(0.0, 0.0);
+            ROSConnector.moveRobot(0.0, 0.0);
         });
     }
 });
 
 // Add Move function to LegacyROS object (Patching it in)
-LegacyROS.moveRobot = async function (vx, wz) {
+ROSConnector.moveRobot = async function (vx, wz) {
     try {
         await fetch(`${this.apiBase}/move`, {
             method: 'POST',

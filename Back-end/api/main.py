@@ -106,6 +106,7 @@ app.include_router(admin_api.router, prefix="/api/admin")
 app.include_router(chat_api.router, prefix="/api/chat")   
 # avatar_api ถูกรวมเข้า chat_api แล้ว (ดู docs/02_แผนงานปัจจุบัน/05_แผนรวมระบบ_API.md)
 app.include_router(import_api.router, prefix="/api/admin/import")  # Smart ETL Import
+app.include_router(text_import_api.router, prefix="/api/admin/import/text") # 🆕 Text Import
 app.include_router(sheets_api.router, prefix="/api/admin/sheets")  # Google Sheets Sync
 app.include_router(analytics_api.router, prefix="/api/analytics")  # Feedback & Stats
 app.include_router(line_webhook.router, prefix="/api/v1/line")     # LINE Webhook
@@ -113,6 +114,7 @@ app.include_router(alert_api.router, prefix="/api")                 # Smart News
 app.include_router(assistant_api.router, prefix="/api") # 🆕 Google Assistant Proxy (/api/assistant/query)
 app.include_router(knowledge_api.router, prefix="/api")  # 🧠 Knowledge Gaps (Self-Correcting RAG)
 app.include_router(legacy_ros_api.router) # 🤖 Legacy ROS Control
+app.include_router(hardware_api.router, prefix="/api/hardware") # 🆕 Hardware Control API
 
 
 @app.get("/health", tags=["Health"])

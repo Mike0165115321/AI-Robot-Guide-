@@ -4,7 +4,7 @@
 class HardwareManager {
     constructor() {
         console.log("HardwareManager Init (New IDs)");
-        this.apiBase = '/api/ros';
+        this.apiBase = '/api/hardware';
 
         // New IDs
         this.statusLabel = document.getElementById('sys-status-label');
