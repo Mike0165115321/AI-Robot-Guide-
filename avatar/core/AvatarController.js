@@ -169,4 +169,12 @@ export class AvatarController {
     curious() { this.setMood('curious'); }
     sleepy() { this.setMood('sleepy'); }
     idle() { this.setMood('normal'); }
+
+    // 🆕 Update Voice Level (Real-time Lip Sync)
+    updateVoiceLevel(volume) {
+        // Only update if current mood supports it (e.g., SpeakingMood)
+        if (this.currentMoodInstance && typeof this.currentMoodInstance.updateVoiceLevel === 'function') {
+            this.currentMoodInstance.updateVoiceLevel(volume);
+        }
+    }
 }
