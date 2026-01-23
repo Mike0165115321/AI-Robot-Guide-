@@ -1,19 +1,24 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>น้องน่าน Avatar Studio 🎭✨</title>
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="styles-avatar.css">
     <link rel="stylesheet" href="styles-extended.css">
 </head>
+
 <body>
     <!-- Theme Toggle -->
     <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
-        <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="5"></circle>
             <line x1="12" y1="1" x2="12" y2="3"></line>
             <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -24,7 +29,8 @@
             <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
         </svg>
-        <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
     </button>
@@ -55,7 +61,8 @@
                     <div class="panel-header">
                         <h2>🎨 Control Panel</h2>
                         <button class="panel-toggle" id="panelToggle">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="15 18 9 12 15 6"></polyline>
                             </svg>
                         </button>
@@ -102,39 +109,48 @@
                             <h3 class="control-title">🎭 Skins</h3>
                             <div class="skin-grid">
                                 <button class="skin-btn active" data-skin="NanRobot">
-                                    <span class="skin-preview" style="background: linear-gradient(135deg, #40c4ff, #00e5ff);"></span>
+                                    <span class="skin-preview"
+                                        style="background: linear-gradient(135deg, #40c4ff, #00e5ff);"></span>
                                     <span class="skin-label">น่าน</span>
                                 </button>
                                 <button class="skin-btn" data-skin="GoldenNan">
-                                    <span class="skin-preview" style="background: linear-gradient(135deg, #ffd700, #ffb800);"></span>
+                                    <span class="skin-preview"
+                                        style="background: linear-gradient(135deg, #ffd700, #ffb800);"></span>
                                     <span class="skin-label">ทอง</span>
                                 </button>
                                 <button class="skin-btn" data-skin="NightNan">
-                                    <span class="skin-preview" style="background: linear-gradient(135deg, #8b9dc3, #6a7fdb);"></span>
+                                    <span class="skin-preview"
+                                        style="background: linear-gradient(135deg, #8b9dc3, #6a7fdb);"></span>
                                     <span class="skin-label">กลางคืน</span>
                                 </button>
                                 <button class="skin-btn" data-skin="SakuraNan">
-                                    <span class="skin-preview" style="background: linear-gradient(135deg, #ffb6c1, #ff91a4);"></span>
+                                    <span class="skin-preview"
+                                        style="background: linear-gradient(135deg, #ffb6c1, #ff91a4);"></span>
                                     <span class="skin-label">ซากุระ</span>
                                 </button>
                                 <button class="skin-btn" data-skin="CyberNan">
-                                    <span class="skin-preview" style="background: linear-gradient(135deg, #00ffff, #ff00ff);"></span>
+                                    <span class="skin-preview"
+                                        style="background: linear-gradient(135deg, #00ffff, #ff00ff);"></span>
                                     <span class="skin-label">ไซเบอร์</span>
                                 </button>
                                 <button class="skin-btn" data-skin="ForestNan">
-                                    <span class="skin-preview" style="background: linear-gradient(135deg, #4ade80, #22c55e);"></span>
+                                    <span class="skin-preview"
+                                        style="background: linear-gradient(135deg, #4ade80, #22c55e);"></span>
                                     <span class="skin-label">ป่า</span>
                                 </button>
                                 <button class="skin-btn" data-skin="OceanNan">
-                                    <span class="skin-preview" style="background: linear-gradient(135deg, #38bdf8, #0ea5e9);"></span>
+                                    <span class="skin-preview"
+                                        style="background: linear-gradient(135deg, #38bdf8, #0ea5e9);"></span>
                                     <span class="skin-label">ทะเล</span>
                                 </button>
                                 <button class="skin-btn" data-skin="SunsetNan">
-                                    <span class="skin-preview" style="background: linear-gradient(135deg, #fb923c, #f97316);"></span>
+                                    <span class="skin-preview"
+                                        style="background: linear-gradient(135deg, #fb923c, #f97316);"></span>
                                     <span class="skin-label">ตะวันตก</span>
                                 </button>
                                 <button class="skin-btn" data-skin="FestivalNan">
-                                    <span class="skin-preview" style="background: linear-gradient(135deg, #f43f5e, #8b5cf6);"></span>
+                                    <span class="skin-preview"
+                                        style="background: linear-gradient(135deg, #f43f5e, #8b5cf6);"></span>
                                     <span class="skin-label">เทศกาล</span>
                                 </button>
                             </div>
@@ -241,7 +257,7 @@
                     <div class="stage-background">
                         <div class="particle-container" id="particleContainer"></div>
                     </div>
-                    
+
                     <!-- Avatar Container -->
                     <div class="robot-container" id="robot-master-container">
                         <div class="robot-body">
@@ -349,7 +365,7 @@
             <div class="gallery-container">
                 <h1 class="section-title">🎨 Skin Gallery</h1>
                 <p class="section-subtitle">Explore all available skins and preview them in action</p>
-                
+
                 <div class="gallery-grid" id="galleryGrid">
                     <!-- Gallery items will be generated by JavaScript -->
                 </div>
@@ -361,7 +377,7 @@
             <div class="animations-container">
                 <h1 class="section-title">🎬 Animation Library</h1>
                 <p class="section-subtitle">Browse and preview all available animations</p>
-                
+
                 <div class="animation-categories">
                     <button class="category-btn active" data-category="all">All</button>
                     <button class="category-btn" data-category="dance">Dance</button>
@@ -380,24 +396,27 @@
             <div class="timeline-container">
                 <h1 class="section-title">⏱️ Animation Timeline</h1>
                 <p class="section-subtitle">Create custom animation sequences</p>
-                
+
                 <div class="timeline-editor">
                     <div class="timeline-toolbar">
                         <button class="toolbar-btn" id="playSequence">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
                                 <polygon points="5 3 19 12 5 21 5 3"></polygon>
                             </svg>
                             Play
                         </button>
                         <button class="toolbar-btn" id="pauseSequence">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="6" y="4" width="4" height="16"></rect>
                                 <rect x="14" y="4" width="4" height="16"></rect>
                             </svg>
                             Pause
                         </button>
                         <button class="toolbar-btn" id="stopSequence">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="3" y="3" width="18" height="18"></rect>
                             </svg>
                             Stop
@@ -439,11 +458,17 @@
     </main>
 
     <!-- Scripts -->
-    <script src="avatar_enhanced.js"></script>
+    <!-- Core Modules -->
+    <script type="module" src="index.js"></script>
+
+    <!-- Helper Scripts (Global) -->
     <script src="animations.js"></script>
     <script src="particles.js"></script>
     <script src="sounds.js"></script>
     <script src="timeline.js"></script>
-    <script src="app.js"></script>
+
+    <!-- Main App (Must run after Core) -->
+    <script type="module" src="app.js"></script>
 </body>
+
 </html>

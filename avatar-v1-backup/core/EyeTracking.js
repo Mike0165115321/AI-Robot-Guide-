@@ -1,59 +1,79 @@
 /**
- * core/EyeTracking.js - Advanced Mouse & Object Tracking for Eyes
+ * # ระบบติดตามตา (Eye Tracking)
+ * ทำให้ตาของ Avatar ติดตามตำแหน่งเมาส์
  */
 
+import { TIMING } from '../config/colors.js';
+
 export class EyeTracking {
-    constructor(controller) {
-        this.controller = controller;
+    constructor(eyes, face) {
+        this.eyes = eyes;
+        this.face = face;
         this.isEnabled = true;
-        this.maxMove = 12;
         this.lastMove = { x: 0, y: 0 };
+        this.maxMove = TIMING.eyeTracking.maxMove;
     }
 
-    init() {
-        document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        console.log('👁️ EyeTracking Initialized');
+    /**
+     * # เปิดการติดตามตา
+     */
+    enable() {
+        this.isEnabled = true;
     }
 
-    handleMouseMove(event) {
-        if (!this.isEnabled || !this.controller.face) return;
+    /**
+     * # ปิดการติดตามตา
+     */
+    disable() {
+        this.isEnabled = false;
+    }
 
-        const rect = this.controller.face.getBoundingClientRect();
+    /**
+     * # คำนวณและเคลื่อนตาตามตำแหน่งเมาส์
+     * @param {MouseEvent} event - Mouse event
+     */
+    track(event) {
+        if (!this.isEnabled || !this.face || !this.eyes.length) return;
+
+        const rect = this.face.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
 
         let moveX = (event.clientX - centerX) / 50;
         let moveY = (event.clientY - centerY) / 50;
 
-        // Clamp values
+        // จำกัดระยะการเคลื่อนที่
         moveX = Math.max(-this.maxMove, Math.min(this.maxMove, moveX));
         moveY = Math.max(-this.maxMove, Math.min(this.maxMove, moveY));
 
         this.lastMove = { x: moveX, y: moveY };
-        this.applyEyeTransform(moveX, moveY);
-    }
 
-    applyEyeTransform(x, y) {
-        if (!this.controller.eyes.length) return;
-
-        if (window.gsap) {
-            gsap.to(this.controller.eyes, {
-                x: x,
-                y: y,
-                duration: 0.4,
+        // ใช้ GSAP ถ้ามี ไม่งั้นใช้ CSS
+        if (typeof gsap !== 'undefined') {
+            gsap.to(this.eyes, {
+                x: moveX,
+                y: moveY,
+                duration: TIMING.eyeTracking.duration,
                 ease: 'power3.out'
             });
         } else {
-            this.controller.eyes.forEach(eye => {
-                eye.style.transform = `translate(${x}px, ${y}px)`;
+            this.eyes.forEach(eye => {
+                eye.style.transform = `translate(${moveX}px, ${moveY}px)`;
             });
         }
     }
 
-    setEnabled(status) {
-        this.isEnabled = status;
-        if (!status) {
-            this.applyEyeTransform(0, 0); // Reset to center
+    /**
+     * # รีเซ็ตตาไปตำแหน่งกลาง
+     */
+    reset() {
+        this.lastMove = { x: 0, y: 0 };
+        if (typeof gsap !== 'undefined') {
+            gsap.to(this.eyes, { x: 0, y: 0, duration: 0.3 });
+        } else {
+            this.eyes.forEach(eye => {
+                eye.style.transform = 'translate(0, 0)';
+            });
         }
     }
 }
