@@ -61,31 +61,14 @@ class AvatarManager {
         document.addEventListener('keydown', unlocker);
     }
 
-    // 🆕 Simulated Analysis Loop (Lightweight)
+    // 🆕 Simulation Loop REMOVED (Avatar has built-in mouth animation)
+    // The voiceData system was causing unnecessary processing overhead.
     startSimulationLoop() {
-        const update = () => {
-            if (!this.isPlaying || this.audioPlayer.paused) return;
-
-            // 🎭 Simulation Logic (Sine Wave + Jitter)
-            // Creates a natural "talking" pattern without audio analysis overhead
-            const time = Date.now() / 150;
-            // Base sine wave (breathing) + Random jitter (syllables)
-            const openAmount = ((Math.sin(time) + 1) * 0.3) + (Math.random() * 0.4);
-
-            // Send local only
-            this.sendLocalVisual({ type: 'voiceData', volume: Math.min(1.0, openAmount) });
-
-            this.animationFrameId = requestAnimationFrame(update);
-        };
-
-        cancelAnimationFrame(this.animationFrameId);
-        update();
+        // DISABLED - Avatar handles mouth animation internally
     }
 
     stopSimulationLoop() {
-        cancelAnimationFrame(this.animationFrameId);
-        // Send zero to close mouth
-        this.sendLocalVisual({ type: 'voiceData', volume: 0 });
+        // DISABLED - No-op
     }
 
     // 🆕 Local Visuals Only (High Frequency) - No Backend Spam

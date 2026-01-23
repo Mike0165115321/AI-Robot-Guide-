@@ -1,0 +1,37 @@
+/**
+ * # Utility Classes (Helpers)
+ * Reusable utility classes.
+ * Extracted from base.css without changes.
+ */
+
+.text-muted {
+    color: var(--color-text-muted);
+}
+
+.text-primary {
+    color: var(--color-primary);
+}
+
+.text-accent {
+    color: var(--color-accent);
+}
+
+.text-success {
+    color: var(--color-success);
+}
+
+.text-error {
+    color: var(--color-error);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.glow-accent {
+    box-shadow: var(--glow-accent);
+}
+
+.glow-primary {
+    box-shadow: var(--glow-primary);
+}
