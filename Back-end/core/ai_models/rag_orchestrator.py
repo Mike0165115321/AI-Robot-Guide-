@@ -206,18 +206,52 @@ class RAGOrchestrator:
         unique_queries = interpretation.get("sub_queries") or [corrected_query]
         entity = interpretation.get("entity")
         
+        # 🆕 [Broad Query Detection] ตรวจจับคำถามกว้างๆ
+        broad_query_keywords = ["แนะนำ", "ที่เที่ยว", "สถานที่", "น่าสนใจ", "ที่ไหนดี", "อะไรบ้าง", "มีอะไร", "recommend"]
+        is_broad_query = any(kw in corrected_query for kw in broad_query_keywords) and not entity
+        
+        if is_broad_query:
+            logging.info(f"🔍 [Broad Query] Detected! Expanding queries for better coverage...")
+            # Expand query ให้ specific มากขึ้น
+            unique_queries = [
+                corrected_query,
+                "วัดสำคัญ น่าน ยอดนิยม",
+                "สถานที่ท่องเที่ยว น่าน แนะนำ",
+                "ธรรมชาติ ดอย น่าน",
+            ]
+            logging.info(f"🔍 [Broad Query] Expanded to: {unique_queries}")
+        
         print(f"DEBUG PRINT: _handle_informational CALLED. Entity=[{entity}]")
         logging.info(f"🔎 [DEBUG] _handle_informational Called. Args Entity: {entity}, Kwargs Interpretation Keys: {interpretation.keys()}")
         if entity:
-             logging.info(f"🔎 [DEBUG] Entity is present: '{entity}'")
+            logging.info(f"🔎 [DEBUG] Entity is present: '{entity}'")
         else:
-             logging.info(f"🔎 [DEBUG] Entity is NONE or EMPTY.")
+            logging.info(f"🔎 [DEBUG] Entity is NONE or EMPTY.")
         
         
         # 🛡️ Construct Metadata Filter (Location + Category)
-        # 2024-12-16: User requested to DISABLE location/district filtering for simplicity.
-        # location_filter = interpretation.get("location_filter", {}) 
-        location_filter = {} # Force empty to disable
+        # 🆕 [District Detection] ตรวจจับชื่ออำเภอจากคำถาม
+        NAN_DISTRICTS = [
+            "เมืองน่าน", "เมือง", "แม่จริม", "บ้านหลวง", "นาน้อย", "ปัว", "ท่าวังผา", 
+            "เวียงสา", "ทุ่งช้าง", "เชียงกลาง", "นาหมื่น", "สันติสุข", "บ่อเกลือ", 
+            "สองแคว", "ภูเพียง"
+        ]
+        
+        # ค้นหาชื่ออำเภอในคำถาม
+        detected_district = None
+        for district in NAN_DISTRICTS:
+            # ตรวจจับทั้ง "อำเภอปัว" และ "ปัว" หรือ "ที่ปัว"
+            if f"อำเภอ{district}" in corrected_query or f"อ.{district}" in corrected_query:
+                detected_district = district
+                break
+            elif district in corrected_query and len(district) > 2:  # ป้องกัน match คำสั้นเกินไป
+                detected_district = district
+                break
+        
+        location_filter = {}
+        if detected_district:
+            location_filter["district"] = detected_district
+            logging.info(f"📍 [District Filter] ตรวจพบอำเภอ: '{detected_district}' - จะค้นหาเฉพาะในอำเภอนี้")
         
         category = interpretation.get("category")
         
@@ -404,21 +438,24 @@ class RAGOrchestrator:
         # ให้คะแนนความเหมือน (Score) ยิ่งเยอะยิ่งเกี่ยวข้องกันมาก
         scores = await asyncio.to_thread(self.reranker.predict, sentence_pairs, show_progress_bar=False)
         
-        # ️ [Score Boosting] ดันคะแนน Trending/Direct ให้ชนะ Semantic เสมอ
+        # 🆕 [Score Boosting V2] ดันคะแนน Trending/Direct/Recommended ให้ชนะ Semantic
         final_scores = []
         for score, (doc, _) in zip(scores, docs_with_synthetic):
             boosted_score = float(score)
             if doc.get('is_direct_match'):
-                boosted_score = max(boosted_score, 0.99) # Direct Match = Almost 1.0
+                boosted_score = max(boosted_score, 0.95)  # Direct Match = Near perfect
+            elif doc.get('is_recommended') and is_broad_query:
+                # 🆕 Recommended items ได้ boost สูงสำหรับคำถามกว้าง
+                boosted_score = max(boosted_score, 0.80)
+                logging.info(f"🌟 [Boost] Recommended item '{doc.get('title')}' boosted to {boosted_score:.2f}")
             elif doc.get('is_trending'):
-                # Trending items get a floor, but can go higher if relevant
-                boosted_score = max(boosted_score, 0.85) 
+                boosted_score = max(boosted_score, 0.75)
             final_scores.append(boosted_score)
         
         # 🔍 [Debug Log] แสดงคะแนน Reranking ของแต่ละเอกสาร
         logging.info(f"📊 [Reranking] กำลังจัดลำดับเอกสาร {len(final_scores)} รายการ...")
         for i, (score, (doc, _)) in enumerate(zip(final_scores, docs_with_synthetic)):
-            logging.info(f"   🔹 เอกสาร: {doc.get('title')} | คะแนน: {score:.4f} | Trending: {doc.get('is_trending', False)} | Direct: {doc.get('is_direct_match', False)}")
+            logging.info(f"   🔹 เอกสาร: {doc.get('title')} | คะแนน: {score:.4f} | Recommended: {doc.get('is_recommended', False)} | Trending: {doc.get('is_trending', False)}")
 
         # เรียงลำดับใหม่ตามคะแนน Boosted (มากไปน้อย)
         reranked_results = sorted(zip(final_scores, docs_with_synthetic), key=lambda x: x[0], reverse=True)
@@ -431,16 +468,21 @@ class RAGOrchestrator:
         # เลือกเฉพาะเอกสารที่มีคะแนนสูงสุด Top K อันดับแรก
         top_k = settings.TOP_K_RERANK_VOICE if mode == "voice" else settings.TOP_K_RERANK_TEXT
         
-        # 🛡️ [Self-Correction] Confidence Check
+        # 🛡️ [Self-Correction] Confidence Check - Updated for Broad Queries
         is_low_confidence = False
         if reranked_results:
             top_score = reranked_results[0][0]
-            # Trust Trending AND Direct Matches
-            has_trusted_source = any(d.get('is_trending') or d.get('is_direct_match') for _, (d, _) in reranked_results[:top_k])
+            # 🆕 Trust Recommended items for broad queries too
+            has_trusted_source = any(
+                d.get('is_trending') or d.get('is_direct_match') or d.get('is_recommended') 
+                for _, (d, _) in reranked_results[:top_k]
+            )
             
-            if top_score < settings.RAG_CONFIDENCE_THRESHOLD and not has_trusted_source:
-                # Only flag low confidence if NO trusted items are in top K
-                # (Trending/Direct items are high value regardless of semantic score)
+            # 🆕 Broad queries with trusted sources should not be flagged as low confidence
+            if is_broad_query and has_trusted_source:
+                logging.info(f"✅ [Confidence] Broad query with trusted sources - NOT flagging low confidence")
+                is_low_confidence = False
+            elif top_score < settings.RAG_CONFIDENCE_THRESHOLD and not has_trusted_source:
                 is_low_confidence = True
                 logging.warning(f"⚠️ [Low Confidence] คะแนนสูงสุด ({top_score:.4f}) ต่ำกว่าเกณฑ์ ({settings.RAG_CONFIDENCE_THRESHOLD})")
                 
