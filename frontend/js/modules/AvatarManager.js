@@ -119,25 +119,68 @@ class AvatarManager {
             this.stop();
         }
 
-        // Chunking Logic (Simplified for brevity, same as before)
-        const cleanText = text;
-        const chunks = [cleanText]; // For now assume short text or rely on backend split if needed
-        // NOTE: In production, keep the full chunking logic if texts are very long.
-        // Restoring Chunking Logic briefly:
+        // ✅ Word Boundary Chunking - ตัดที่ ~200 ตัวอักษรแต่ไม่ตัดกลางคำ
+        const chunks = this._splitTextIntoChunks(text, 200);
+        console.log(`📦 [TTS] แบ่งข้อความเป็น ${chunks.length} ก้อน`);
 
-        // ... (Omitting complex chunking for cleaner file, assuming texts are manageable or using previous logic if strictly needed)
-        // Let's actually keep the queue logic simple.
-
-        this.audioQueue.push({
-            text: text,
-            lang: lang,
-            mood: mood,
-            onComplete: onComplete
+        // Push each chunk to queue
+        chunks.forEach((chunk, index) => {
+            const isLast = (index === chunks.length - 1);
+            this.audioQueue.push({
+                text: chunk,
+                lang: lang,
+                mood: mood,
+                onComplete: isLast ? onComplete : null // Only call onComplete on last chunk
+            });
         });
 
         if (!this.isPlaying) {
             this.processQueue();
         }
+    }
+
+    /**
+     * 📦 Word Boundary Chunking
+     * แบ่งข้อความเป็นก้อนๆ โดยไม่ตัดกลางคำ
+     * - ตัดเมื่อความยาวเกิน threshold
+     * - แต่จะเดินหน้าต่อจนเจอ space/เว้นวรรค
+     * 
+     * @param {string} text - ข้อความที่จะแบ่ง
+     * @param {number} threshold - ขนาดขั้นต่ำต่อ chunk (~200)
+     * @returns {string[]} - Array ของ chunks
+     */
+    _splitTextIntoChunks(text, threshold = 200) {
+        if (!text || text.length <= threshold) {
+            return [text];
+        }
+
+        const chunks = [];
+        let currentChunk = '';
+
+        // Split by spaces (works for both Thai and English)
+        const words = text.split(/(\s+)/); // Keep whitespace in result
+
+        for (const word of words) {
+            currentChunk += word;
+
+            // Check if we've passed the threshold
+            if (currentChunk.length >= threshold) {
+                // Push current chunk and reset
+                const trimmed = currentChunk.trim();
+                if (trimmed) {
+                    chunks.push(trimmed);
+                }
+                currentChunk = '';
+            }
+        }
+
+        // Push remaining text
+        const remaining = currentChunk.trim();
+        if (remaining) {
+            chunks.push(remaining);
+        }
+
+        return chunks.length > 0 ? chunks : [text];
     }
 
     stop() {
