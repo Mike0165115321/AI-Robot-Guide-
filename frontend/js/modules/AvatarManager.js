@@ -61,31 +61,14 @@ class AvatarManager {
         document.addEventListener('keydown', unlocker);
     }
 
-    // 🆕 Simulated Analysis Loop (Lightweight)
+    // 🆕 Simulation Loop REMOVED (Avatar has built-in mouth animation)
+    // The voiceData system was causing unnecessary processing overhead.
     startSimulationLoop() {
-        const update = () => {
-            if (!this.isPlaying || this.audioPlayer.paused) return;
-
-            // 🎭 Simulation Logic (Sine Wave + Jitter)
-            // Creates a natural "talking" pattern without audio analysis overhead
-            const time = Date.now() / 150;
-            // Base sine wave (breathing) + Random jitter (syllables)
-            const openAmount = ((Math.sin(time) + 1) * 0.3) + (Math.random() * 0.4);
-
-            // Send local only
-            this.sendLocalVisual({ type: 'voiceData', volume: Math.min(1.0, openAmount) });
-
-            this.animationFrameId = requestAnimationFrame(update);
-        };
-
-        cancelAnimationFrame(this.animationFrameId);
-        update();
+        // DISABLED - Avatar handles mouth animation internally
     }
 
     stopSimulationLoop() {
-        cancelAnimationFrame(this.animationFrameId);
-        // Send zero to close mouth
-        this.sendLocalVisual({ type: 'voiceData', volume: 0 });
+        // DISABLED - No-op
     }
 
     // 🆕 Local Visuals Only (High Frequency) - No Backend Spam
@@ -136,25 +119,83 @@ class AvatarManager {
             this.stop();
         }
 
-        // Chunking Logic (Simplified for brevity, same as before)
-        const cleanText = text;
-        const chunks = [cleanText]; // For now assume short text or rely on backend split if needed
-        // NOTE: In production, keep the full chunking logic if texts are very long.
-        // Restoring Chunking Logic briefly:
+        // ✅ Word Boundary Chunking - ตัดที่ ~200 ตัวอักษรแต่ไม่ตัดกลางคำ
+        const chunks = this._splitTextIntoChunks(text, 200);
+        console.log(`📦 [TTS] แบ่งข้อความเป็น ${chunks.length} ก้อน`);
 
-        // ... (Omitting complex chunking for cleaner file, assuming texts are manageable or using previous logic if strictly needed)
-        // Let's actually keep the queue logic simple.
+        // 🚀 PARALLEL PREFETCH - ส่ง fetch ทุก chunk พร้อมกันทันที!
+        chunks.forEach((chunk, index) => {
+            const isLast = (index === chunks.length - 1);
 
-        this.audioQueue.push({
-            text: text,
-            lang: lang,
-            mood: mood,
-            onComplete: onComplete
+            // Create queue item with pending promise
+            const queueItem = {
+                text: chunk,
+                lang: lang,
+                mood: mood,
+                onComplete: isLast ? onComplete : null,
+                blobPromise: this.fetchTTS(chunk, lang), // 🚀 Start fetch immediately!
+                blob: null
+            };
+
+            this.audioQueue.push(queueItem);
+
+            // Resolve blob when ready (non-blocking)
+            queueItem.blobPromise.then(blob => {
+                queueItem.blob = blob;
+                console.log(`✅ [TTS] Prefetch chunk ${index + 1}/${chunks.length} ready`);
+            }).catch(err => {
+                console.error(`❌ [TTS] Prefetch chunk ${index + 1} failed:`, err);
+                queueItem.blob = null;
+            });
         });
 
         if (!this.isPlaying) {
             this.processQueue();
         }
+    }
+
+    /**
+     * 📦 Word Boundary Chunking
+     * แบ่งข้อความเป็นก้อนๆ โดยไม่ตัดกลางคำ
+     * - ตัดเมื่อความยาวเกิน threshold
+     * - แต่จะเดินหน้าต่อจนเจอ space/เว้นวรรค
+     * 
+     * @param {string} text - ข้อความที่จะแบ่ง
+     * @param {number} threshold - ขนาดขั้นต่ำต่อ chunk (~200)
+     * @returns {string[]} - Array ของ chunks
+     */
+    _splitTextIntoChunks(text, threshold = 200) {
+        if (!text || text.length <= threshold) {
+            return [text];
+        }
+
+        const chunks = [];
+        let currentChunk = '';
+
+        // Split by spaces (works for both Thai and English)
+        const words = text.split(/(\s+)/); // Keep whitespace in result
+
+        for (const word of words) {
+            currentChunk += word;
+
+            // Check if we've passed the threshold
+            if (currentChunk.length >= threshold) {
+                // Push current chunk and reset
+                const trimmed = currentChunk.trim();
+                if (trimmed) {
+                    chunks.push(trimmed);
+                }
+                currentChunk = '';
+            }
+        }
+
+        // Push remaining text
+        const remaining = currentChunk.trim();
+        if (remaining) {
+            chunks.push(remaining);
+        }
+
+        return chunks.length > 0 ? chunks : [text];
     }
 
     stop() {
@@ -175,11 +216,15 @@ class AvatarManager {
         const item = this.audioQueue.shift();
 
         try {
-            // Fetch TTS
-            console.log(`📥 Fetching TTS...`);
-            const blob = await this.fetchTTS(item.text, item.lang);
+            // 🚀 Use prefetched blob or wait for it
+            let blob = item.blob;
+            if (!blob && item.blobPromise) {
+                console.log(`⏳ [TTS] Waiting for prefetch...`);
+                blob = await item.blobPromise;
+            }
 
             if (!blob || blob.size < 100) {
+                console.warn(`⚠️ [TTS] Empty blob, skipping chunk`);
                 this.isPlaying = false;
                 this.processQueue();
                 return;

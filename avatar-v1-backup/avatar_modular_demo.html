@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="th">
+<!--
+    # Avatar Sandbox - Modular Version
+    ใช้โครงสร้าง ES6 Modules
+    ต้อง serve ผ่าน HTTP (ไม่ใช่ file://)
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>น้องน่าน Avatar Sandbox (Modular) 🤖</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <!-- Load avatar styles from original file -->
+    <link rel="stylesheet" href="styles-avatar.css">
+
+    <style>
+        /* Inline styles for demo page */
+        body {
+            font-family: 'Kanit', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            overflow: hidden;
+            margin: 0;
+        }
+
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-panel h3 {
+            color: white;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+
+        .mood-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .mood-btn {
+            padding: 8px 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            font-family: 'Kanit', sans-serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .mood-btn:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .mood-btn.active {
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+
+        .info-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 12px 25px;
+            border-radius: 30px;
+            color: white;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-panel strong {
+            color: var(--mood-eye-color);
+            transition: color 0.5s ease;
+        }
+
+        .version-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(74, 222, 128, 0.2);
+            color: #4ade80;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            border: 1px solid rgba(74, 222, 128, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Version Badge -->
+    <div class="version-badge">📦 Modular v2.0</div>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <h3>🎨 เปลี่ยนอารมณ์ (Mood)</h3>
+        <div class="mood-buttons">
+            <button class="mood-btn active" data-mood="normal">😊 ปกติ</button>
+            <button class="mood-btn" data-mood="speaking">🗣️ พูด</button>
+            <button class="mood-btn" data-mood="thinking">🤔 คิด</button>
+            <button class="mood-btn" data-mood="listening">👂 ฟัง</button>
+            <button class="mood-btn" data-mood="happy">😄 ดีใจ</button>
+            <button class="mood-btn" data-mood="curious">🧐 สงสัย</button>
+            <button class="mood-btn" data-mood="sleepy">😴 ง่วง</button>
+        </div>
+    </div>
+
+    <!-- ROBOT (same HTML structure) -->
+    <div class="robot-container" id="robot-master-container">
+        <div class="robot-body">
+            <div class="body-accent"></div>
+            <div class="robot-neck"></div>
+            <div class="robot-head">
+                <div class="head-top-accent"></div>
+                <div class="audio-waves">
+                    <div class="wave wave-1"></div>
+                    <div class="wave wave-2"></div>
+                    <div class="wave wave-3"></div>
+                </div>
+                <div class="robot-ear left-ear"></div>
+                <div class="robot-ear right-ear"></div>
+                <div class="robot-face" id="robot-face">
+                    <div class="robot-eye left" id="eye-left"></div>
+                    <div class="robot-eye right" id="eye-right"></div>
+                    <div class="robot-mouth"></div>
+                    <div class="thinking-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="question-mark">?</div>
+                </div>
+            </div>
+            <span class="robot-name">น่าน</span>
+            <div class="robot-arm left-arm" id="left-arm"></div>
+            <div class="robot-arm right-arm" id="right-arm"></div>
+        </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="info-panel">
+        สถานะ: <strong id="mood-display">ปกติ</strong> | โครงสร้างใหม่ ES6 Modules
+    </div>
+
+    <!-- Load modular avatar -->
+    <script type="module">
+        import NanAvatar from './index.js';
+
+        // Initialize
+        NanAvatar.init();
+
+        // Expose to window for debugging
+        window.NanAvatar = NanAvatar;
+
+        // Control panel bindings
+        document.querySelectorAll('.mood-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mood = btn.dataset.mood;
+                NanAvatar.setMood(mood);
+
+                // Update active state
+                document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Update display
+                document.getElementById('mood-display').textContent = btn.textContent;
+            });
+        });
+
+        console.log('🎉 Modular Avatar loaded!');
+    </script>
+</body>
+
+</html>

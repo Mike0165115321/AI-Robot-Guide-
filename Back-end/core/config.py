@@ -32,7 +32,7 @@ class Settings:
     QDRANT_PORT = int(os.getenv("QDRANT_PORT", 6333))
     QDRANT_COLLECTION_NAME = "nan_locations"
 
-    QDRANT_TOP_K: int = 5 # 🚀 [Optimized] Reduced from 8 to 5 to speed up Reranker
+    QDRANT_TOP_K: int = 8  # 🆕 [Broad Query Fix] เพิ่มจาก 5 → 8 เพื่อค้นหามากขึ้น
     IMAGE_FALLBACK_THRESHOLD: int = 2
     GOOGLE_IMAGE_MAX_RESULTS: int = 3
     SOURCE_CARD_IMAGE_LIMIT: int = 1
@@ -40,7 +40,7 @@ class Settings:
     TOP_K_RERANK_VOICE = 5
     TOP_K_RERANK_VOICE = 5
     TOP_K_RERANK_TEXT = 5
-    RAG_CONFIDENCE_THRESHOLD: float = 0.45 # คะแนนความมั่นใจขั้นต่ำ (0-1) ถ้าต่ำกว่านี้ถือว่าไม่มั่นใจ
+    RAG_CONFIDENCE_THRESHOLD: float = 0.30  # 🆕 [Broad Query Fix] ลดจาก 0.45 → 0.30
 
     GEMINI_API_KEYS = [key.strip() for key in os.getenv("GEMINI_API_KEYS", "").split(',') if key.strip()]
     GROQ_API_KEYS = [key.strip() for key in os.getenv("GROQ_API_KEYS", "").split(',') if key.strip()]

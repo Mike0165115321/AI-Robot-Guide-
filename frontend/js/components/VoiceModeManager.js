@@ -90,10 +90,23 @@ class VoiceModeManager {
     }
 
     /**
+     * 🆕 Activate voice mode (for Wake Word)
+     * เปิด voice mode โดยตรง ไม่ toggle
+     */
+    activateVoiceMode() {
+        if (!this.isVoiceMode) {
+            console.log('🎤 VoiceModeManager: Activated by Wake Word');
+            this._switchToVoiceMode();
+        }
+    }
+
+    /**
      * Force stop voice mode
      */
     stop() {
         this._switchToTextMode();
+        // 🆕 Resume wake word listener
+        window.resumeWakeWord?.();
     }
 
     /**
