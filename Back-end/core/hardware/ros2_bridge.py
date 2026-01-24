@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 import socket
 import json
+import signal
+import sys
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
-import time
 
 # UDP Configuration
 UDP_IP = "127.0.0.1"
@@ -18,6 +19,7 @@ class TeleopBridge(Node):
         
         # Setup UDP Socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((UDP_IP, UDP_PORT))
         self.sock.setblocking(False)  # Non-blocking mode
 
@@ -32,6 +34,7 @@ class TeleopBridge(Node):
             vx = float(cmd.get("vx", 0.0))
             wz = float(cmd.get("wz", 0.0))
             
+            self.get_logger().info(f"Received UDP: vx={vx}, wz={wz}")
             self.publish_velocity(vx, wz)
             
         except BlockingIOError:
@@ -44,17 +47,48 @@ class TeleopBridge(Node):
         msg.linear.x = vx
         msg.angular.z = wz
         self.publisher.publish(msg)
+    
+    def cleanup(self):
+        """Clean up resources before shutdown."""
+        try:
+            self.sock.close()
+        except:
+            pass
+
+# Global node reference for signal handler
+_node = None
+
+def signal_handler(signum, frame):
+    """Handle SIGTERM/SIGINT gracefully."""
+    global _node
+    if _node:
+        _node.get_logger().info("🛑 Received shutdown signal, cleaning up...")
+        _node.cleanup()
+    sys.exit(0)
 
 def main(args=None):
+    global _node
+    
+    # Register signal handlers
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    
     rclpy.init(args=args)
-    node = TeleopBridge()
+    _node = TeleopBridge()
+    
     try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
+        rclpy.spin(_node)
+    except (KeyboardInterrupt, SystemExit):
         pass
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        _node.cleanup()
+        _node.destroy_node()
+        try:
+            rclpy.shutdown()
+        except Exception:
+            # Ignore shutdown errors (already shutdown, etc.)
+            pass
 
 if __name__ == '__main__':
     main()
+

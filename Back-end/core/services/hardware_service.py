@@ -99,6 +99,17 @@ class HardwareService:
                 os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
 
             del self.running_processes[script_name]
+            
+            # --- Guarantee Cleanup for start_robot ---
+            if script_name == "start_robot":
+                logging.info("🧹 Forcing specific cleanup for Robot System Restart...")
+                # These are the commands verified by user to fix the motor/restart issue
+                subprocess.run(["pkill", "-f", "micro_ros_agent"], stderr=subprocess.DEVNULL)
+                subprocess.run(["pkill", "-f", "ros2_bridge.py"], stderr=subprocess.DEVNULL)
+                subprocess.run(["pkill", "-f", "qos_relay_node.py"], stderr=subprocess.DEVNULL)
+                subprocess.run(["pkill", "-f", "scan_relay.py"], stderr=subprocess.DEVNULL)  # Legacy
+            # ----------------------------------------
+
             logging.info(f"🛑 Stopped {script_name} (PID {proc.pid})")
             return {"status": "stopped", "pid": proc.pid}
 

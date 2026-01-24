@@ -113,7 +113,7 @@ app.include_router(line_webhook.router, prefix="/api/v1/line")     # LINE Webhoo
 app.include_router(alert_api.router, prefix="/api")                 # Smart News Alerts
 app.include_router(assistant_api.router, prefix="/api") # 🆕 Google Assistant Proxy (/api/assistant/query)
 app.include_router(knowledge_api.router, prefix="/api")  # 🧠 Knowledge Gaps (Self-Correcting RAG)
-app.include_router(hardware_api.router, prefix="/api/hardware") # 🆕 Hardware Control API
+app.include_router(hardware_api.router) # 🆕 Hardware Control API
 
 
 @app.get("/health", tags=["Health"])

@@ -17,8 +17,13 @@ echo -e "${BLUE}    🌐 AI Robot Guide - Web Development Mode${NC}"
 echo -e "${BLUE}══════════════════════════════════════════════════════════${NC}"
 
 cleanup() {
-    echo -e "\n${RED}🛑 Stopping all services...${NC}"
-    kill $BACKEND_PID $BRIDGE_PID 2>/dev/null
+    echo -e "\n${RED}🛑 Stopping Web Services...${NC}"
+    kill $BACKEND_PID 2>/dev/null
+    
+    # Hint to user
+    echo -e "${YELLOW}ℹ️  Robot processes (start_robot.sh) are NOT killed automatically.${NC}"
+    echo -e "${YELLOW}ℹ️  Use the 'Stop System' button in Settings or kill start_robot manually.${NC}"
+    
     exit
 }
 trap cleanup SIGINT SIGTERM
@@ -47,6 +52,9 @@ elif [ -d "Back-end/venv" ]; then
     echo -e "${GREEN}✅ Virtual environment activated (Back-end/venv)${NC}"
 fi
 
+# 2.5 Set Protobuf Python Implementation (Required for Google Assistant library)
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+
 
 
 # 2.1 Source ROS2 (Required for rclpy)
@@ -54,10 +62,10 @@ if [ -f "/opt/ros/humble/setup.bash" ]; then
     source /opt/ros/humble/setup.bash
     echo -e "${GREEN}✅ ROS2 Humble sourced!${NC}"
     
-    # Start ROS2 Bridge (UDP to /cmd_vel) using System Python
-    echo -e "${GREEN}🌉 Starting ROS2 Teleop Bridge...${NC}"
-    /usr/bin/python3 Back-end/scripts/ros2_bridge.py &
-    BRIDGE_PID=$!
+    # ROS2 Bridge is now managed by start_robot.sh or 'Start System' button
+    # /usr/bin/python3 Back-end/core/hardware/ros2_bridge.py &
+    # BRIDGE_PID=$!
+    :
 fi
 
 # 3. Start Python Backend

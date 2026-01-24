@@ -189,7 +189,7 @@
             <script>
                 (function () {
                     console.log("🚀 [HW] Script Loaded & Ready v3 (State Based)");
-                    const API_URL = '/api/ros';
+                    const API_URL = '/api/hardware';
                     const btn = document.getElementById('btn-toggle-system');
                     const link = document.getElementById('link-hardware-test');
                     const lbl = document.getElementById('lbl-system-status');
@@ -203,7 +203,7 @@
                             const res = await fetch(`${API_URL}/status`);
                             const data = await res.json();
 
-                            const isRunning = data.running_scripts && data.running_scripts['bringup'] === 'running';
+                            const isRunning = data.running_scripts && data.running_scripts['start_robot'] === 'running';
 
                             // Only update if not in transition
                             if (currentState !== "STARTING" && currentState !== "STOPPING") {
@@ -250,7 +250,9 @@
                                 console.log("📤 [HW] Sending STOP command...");
                                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังปิดระบบ (Stopping)...';
 
-                                await fetch(`${API_URL}/stop/bringup`, { method: 'POST' });
+                                await fetch(`${API_URL}/stop/start_robot`, { method: 'POST' });
+                                // Also ensure child processes are killed if needed, or rely on HardwareService cleanup
+                                // Ideally HardwareService killing start_robot should kill children if using setsid
 
                                 // Wait 2 seconds
                                 await new Promise(r => setTimeout(r, 2000));
@@ -265,17 +267,17 @@
                                 console.log("📤 [HW] Sending START command...");
                                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังเชื่อมต่อ (Connecting)...';
 
-                                await fetch(`${API_URL}/launch/bringup`, { method: 'POST' });
+                                await fetch(`${API_URL}/launch/start_robot`, { method: 'POST' });
 
                                 // Poll loop (10s)
                                 let success = false;
-                                for (let i = 0; i < 10; i++) {
+                                for (let i = 0; i < 20; i++) { // Increased timeout for full system
                                     await new Promise(r => setTimeout(r, 1000));
-                                    console.log(`⏳ [HW] Connection Attempt ${i + 1}/10...`);
+                                    console.log(`⏳ [HW] Connection Attempt ${i + 1}/20...`);
 
                                     const res = await fetch(`${API_URL}/status`);
                                     const data = await res.json();
-                                    if (data.running_scripts && data.running_scripts['bringup'] === 'running') {
+                                    if (data.running_scripts && data.running_scripts['start_robot'] === 'running') {
                                         success = true;
                                         break;
                                     }
