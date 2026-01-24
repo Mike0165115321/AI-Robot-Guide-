@@ -24,6 +24,10 @@ source /opt/ros/humble/setup.bash
 source /home/robot22/microros_ws/install/setup.bash
 source /home/robot22/ros2robot/install/setup.bash
 
+# กำหนด Path (ต้องกำหนดก่อนใช้งาน)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_ROOT="$(dirname "$SCRIPT_DIR")"
+
 # =================================================================================
 # 2. Cleanup ค้าง (กันกรณี process เก่าไม่ยอมตาย)
 # =================================================================================
@@ -38,7 +42,7 @@ sleep 1
 # 2.5 Reset ESP32/Teensy (บังคับให้มัน reconnect กับ Micro-ROS Agent)
 # =================================================================================
 echo -e "${GREEN}🔄 กำลัง Reset ESP32/Teensy...${NC}"
-ESP32_RESET_SCRIPT="$SCRIPT_DIR/../core/hardware/esp32_reset.py"
+ESP32_RESET_SCRIPT="$BACKEND_ROOT/core/hardware/esp32_reset.py"
 if [ -f "$ESP32_RESET_SCRIPT" ]; then
     python3 "$ESP32_RESET_SCRIPT" /dev/ttyACM0
 else
@@ -48,10 +52,8 @@ fi
 
 
 # =================================================================================
-# 3. กำหนด Path
+# 3. กำหนด Launch File Path
 # =================================================================================
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_ROOT="$(dirname "$SCRIPT_DIR")"
 LAUNCH_FILE="$BACKEND_ROOT/core/hardware/robot_system.launch.py"
 
 # =================================================================================
