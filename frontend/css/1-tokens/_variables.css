@@ -20,10 +20,10 @@
     --color-secondary-dark: #db2777;
     --color-secondary-light: #f472b6;
 
-    /* Colors - Background */
-    --color-bg: #020617;
-    --color-bg-secondary: #0f172a;
-    --color-bg-card: rgba(30, 41, 59, 0.7);
+    /* Colors - Background - Slightly Brighter */
+    --color-bg: #0a1628;
+    --color-bg-secondary: #131d33;
+    --color-bg-card: rgba(30, 41, 59, 0.8);
     --color-surface: #1e293b;
 
     /* Colors - Text */

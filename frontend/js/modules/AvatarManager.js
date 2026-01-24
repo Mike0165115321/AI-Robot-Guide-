@@ -123,14 +123,29 @@ class AvatarManager {
         const chunks = this._splitTextIntoChunks(text, 200);
         console.log(`📦 [TTS] แบ่งข้อความเป็น ${chunks.length} ก้อน`);
 
-        // Push each chunk to queue
+        // 🚀 PARALLEL PREFETCH - ส่ง fetch ทุก chunk พร้อมกันทันที!
         chunks.forEach((chunk, index) => {
             const isLast = (index === chunks.length - 1);
-            this.audioQueue.push({
+
+            // Create queue item with pending promise
+            const queueItem = {
                 text: chunk,
                 lang: lang,
                 mood: mood,
-                onComplete: isLast ? onComplete : null // Only call onComplete on last chunk
+                onComplete: isLast ? onComplete : null,
+                blobPromise: this.fetchTTS(chunk, lang), // 🚀 Start fetch immediately!
+                blob: null
+            };
+
+            this.audioQueue.push(queueItem);
+
+            // Resolve blob when ready (non-blocking)
+            queueItem.blobPromise.then(blob => {
+                queueItem.blob = blob;
+                console.log(`✅ [TTS] Prefetch chunk ${index + 1}/${chunks.length} ready`);
+            }).catch(err => {
+                console.error(`❌ [TTS] Prefetch chunk ${index + 1} failed:`, err);
+                queueItem.blob = null;
             });
         });
 
@@ -201,11 +216,15 @@ class AvatarManager {
         const item = this.audioQueue.shift();
 
         try {
-            // Fetch TTS
-            console.log(`📥 Fetching TTS...`);
-            const blob = await this.fetchTTS(item.text, item.lang);
+            // 🚀 Use prefetched blob or wait for it
+            let blob = item.blob;
+            if (!blob && item.blobPromise) {
+                console.log(`⏳ [TTS] Waiting for prefetch...`);
+                blob = await item.blobPromise;
+            }
 
             if (!blob || blob.size < 100) {
+                console.warn(`⚠️ [TTS] Empty blob, skipping chunk`);
                 this.isPlaying = false;
                 this.processQueue();
                 return;

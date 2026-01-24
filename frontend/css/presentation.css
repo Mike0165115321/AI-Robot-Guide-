@@ -9,23 +9,26 @@
 .presentation-panel {
     position: fixed;
     left: 5%;
-    top: 80px;
-    width: 45%;
-    max-height: 75vh;
-    background: rgba(15, 12, 41, 0.95);
-    border: 1px solid var(--color-border);
+    top: 150px;
+    width: 85%;
+    max-height: calc(100vh - 200px);
+    /* 100px top + 100px input bar */
+    background: linear-gradient(145deg, rgba(30, 35, 60, 0.98), rgba(20, 25, 50, 0.95));
+    border: 1px solid rgba(45, 212, 191, 0.2);
     border-radius: var(--radius-xl);
-    backdrop-filter: blur(15px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
     padding: var(--space-6);
     overflow-y: auto;
-    z-index: 50;
+    z-index: 60;
 
     /* Hidden by default */
     opacity: 0;
     visibility: hidden;
-    transform: translateX(-30px);
-    transition: all 0.4s ease;
+    transform: translateX(-50px);
+    transition: all 0.8s ease;
 }
 
 .presentation-panel.visible {

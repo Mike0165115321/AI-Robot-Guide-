@@ -37,7 +37,9 @@ class IdlePrompter {
         this.highlightTimer = null;
         this.isActive = false;
         this.lastInteraction = Date.now();
+        this.lastUserActivity = Date.now();  // 🆕 Track scroll, mouse, keyboard
         this.currentPromptIndex = -1;
+        this.activityListenersBound = false;  // 🆕 Prevent duplicate listeners
         this.highlightedEl = null;
 
         // === PROMPTS (Multi-Language) ===
@@ -116,8 +118,37 @@ class IdlePrompter {
     start() {
         if (this.isActive) return;
         this.isActive = true;
+        this.bindActivityListeners();  // 🆕 Track user activity
         this.scheduleNextPrompt();
         console.log('▶️ [IdlePrompter] Started');
+    }
+
+    /**
+     * 🆕 Bind listeners for user activity (scroll, mouse, keyboard)
+     */
+    bindActivityListeners() {
+        if (this.activityListenersBound) return;
+        this.activityListenersBound = true;
+
+        const updateActivity = () => {
+            this.lastUserActivity = Date.now();
+        };
+
+        // Debounced activity tracker
+        let activityTimeout = null;
+        const debouncedActivity = () => {
+            if (activityTimeout) clearTimeout(activityTimeout);
+            activityTimeout = setTimeout(updateActivity, 100);
+        };
+
+        // Listen to common user activities
+        document.addEventListener('scroll', debouncedActivity, { passive: true });
+        document.addEventListener('mousemove', debouncedActivity, { passive: true });
+        document.addEventListener('keydown', debouncedActivity, { passive: true });
+        document.addEventListener('click', updateActivity, { passive: true });
+        document.addEventListener('touchstart', debouncedActivity, { passive: true });
+
+        console.log('👂 [IdlePrompter] Activity listeners bound');
     }
 
     /**
@@ -214,6 +245,20 @@ class IdlePrompter {
         const busyMoods = ['speaking', 'thinking', 'listening'];
         if (busyMoods.includes(currentMood)) {
             console.log(`⏸️ [IdlePrompter] Skipped: Avatar mood is "${currentMood}"`);
+            return false;
+        }
+
+        // 🆕 7. Check if presentation panel is visible (user is reading)
+        const panel = document.querySelector('.presentation-panel');
+        if (panel && panel.classList.contains('visible')) {
+            console.log('⏸️ [IdlePrompter] Skipped: Presentation panel is visible');
+            return false;
+        }
+
+        // 🆕 8. Check recent user activity (scroll, mouse, keyboard)
+        const activityCooldown = 5000;  // 5 seconds after last activity
+        if (Date.now() - this.lastUserActivity < activityCooldown) {
+            console.log('⏸️ [IdlePrompter] Skipped: Recent user activity detected');
             return false;
         }
 
