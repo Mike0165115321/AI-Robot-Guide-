@@ -25,6 +25,7 @@ import idlePrompter from './modules/IdlePrompter.js';
 import { renderMarkdown } from './services/markdownService.js';
 import responseRenderer from './components/responseRenderer.js';
 import { quickScripts } from './data/scripts.js';
+import { wakeWordService } from './services/WakeWordService.js';
 
 // ==========================================
 // INIT
@@ -68,6 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 🆕 Start IdlePrompter (พูดชวนกดปุ่มทุก 15-30 วิ)
     idlePrompter.start();
+
+    // 🎤 Start Wake Word Detection
+    initWakeWordService();
 });
 
 function updateStaticText(lang) {
@@ -136,6 +140,107 @@ function initServices() {
     // 5. Init UI
     uiManager.updateAIModeButton();
 }
+
+// ==========================================
+// WAKE WORD SERVICE
+// ==========================================
+
+/**
+ * เริ่ม Wake Word Detection
+ * ฟังอยู่เบื้องหลัง เมื่อได้ยิน "สวัสดีน้องน่าน" จะเปิดใช้งาน
+ */
+function initWakeWordService() {
+    // ตรวจสอบว่า browser รองรับหรือไม่
+    if (wakeWordService.getStatus() === 'unsupported') {
+        console.warn('⚠️ Wake Word not supported in this browser');
+        return;
+    }
+
+    // Callback เมื่อตรวจพบ wake word
+    wakeWordService.on('detected', async (transcript) => {
+        console.log('✨ Wake Word Detected:', transcript);
+
+        // หยุด IdlePrompter ชั่วคราว
+        idlePrompter.pause();
+
+        // น้องน่านทักทายกลับ
+        const greeting = 'สวัสดีค่ะ มีอะไรให้น้องน่านช่วยไหมคะ?';
+
+        // TTS ทักทาย และรอให้พูดจบ
+        await avatarManager.speak(greeting);
+
+        // เปิด STT mode รอฟังคำถาม
+        console.log('🎤 Entering STT mode...');
+        voiceModeManager.activateVoiceMode();
+
+        // Resume wake word หลัง STT จบ (จัดการใน voiceModeManager)
+    });
+
+    // Callback เมื่อสถานะเปลี่ยน
+    wakeWordService.on('status', (status) => {
+        console.log(`🎤 Wake Word Status: ${status}`);
+        updateWakeWordIndicator(status);
+    });
+
+    // Callback เมื่อเกิด error
+    wakeWordService.on('error', (error) => {
+        console.error('❌ Wake Word Error:', error);
+        if (error === 'microphone_denied') {
+            uiManager.showToast('กรุณาอนุญาตใช้ไมโครโฟนเพื่อเปิดใช้ Wake Word');
+        }
+    });
+
+    // เริ่มฟัง (หลังจาก user interact กับหน้าเว็บแล้ว)
+    document.addEventListener('click', startWakeWordOnce, { once: true });
+    document.addEventListener('touchstart', startWakeWordOnce, { once: true });
+}
+
+function startWakeWordOnce() {
+    if (wakeWordService.getStatus() === 'stopped') {
+        console.log('🎤 Starting Wake Word Service...');
+        wakeWordService.start();
+    }
+}
+
+/**
+ * อัปเดต UI indicator แสดงสถานะ wake word
+ */
+function updateWakeWordIndicator(status) {
+    let indicator = $('#wake-word-indicator');
+
+    // สร้าง indicator ถ้ายังไม่มี
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'wake-word-indicator';
+        indicator.className = 'wake-word-indicator';
+        document.body.appendChild(indicator);
+    }
+
+    // อัปเดตสถานะ
+    indicator.className = `wake-word-indicator wake-word-${status}`;
+
+    switch (status) {
+        case 'listening':
+            indicator.innerHTML = '🎤 กำลังฟัง "น้องน่าน"...';
+            indicator.style.display = 'block';
+            break;
+        case 'paused':
+            indicator.innerHTML = '⏸️ หยุดชั่วคราว';
+            break;
+        case 'stopped':
+            indicator.style.display = 'none';
+            break;
+        default:
+            indicator.style.display = 'none';
+    }
+}
+
+// 🆕 Export function to pause/resume wake word from other modules
+window.pauseWakeWord = () => wakeWordService.pause();
+window.resumeWakeWord = () => {
+    wakeWordService.resume();
+    idlePrompter.resume();
+};
 
 function loadAvatar() {
     const wrapper = $('#avatar-wrapper');

@@ -239,3 +239,46 @@
     border-top: 1px solid var(--color-border);
     background: var(--color-bg-secondary);
 }
+
+/* ==========================================
+   WAKE WORD INDICATOR
+   ========================================== */
+.wake-word-indicator {
+    position: fixed;
+    bottom: 120px;
+    left: 20px;
+    padding: 8px 16px;
+    background: rgba(45, 212, 191, 0.15);
+    border: 1px solid rgba(45, 212, 191, 0.3);
+    border-radius: 20px;
+    font-size: 14px;
+    color: var(--color-primary);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+    display: none;
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.wake-word-indicator.wake-word-listening {
+    display: block;
+}
+
+.wake-word-indicator.wake-word-paused {
+    display: block;
+    background: rgba(251, 191, 36, 0.15);
+    border-color: rgba(251, 191, 36, 0.3);
+    color: var(--color-warning);
+    animation: none;
+}
+
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgba(45, 212, 191, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 15px rgba(45, 212, 191, 0.5);
+    }
+}
