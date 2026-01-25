@@ -530,6 +530,8 @@ void destroy_entities()
   micro_ros_init_successful = false;
 }
 
+unsigned long connection_start_time = 0;  // Track when connection started
+
 void setup() {
   set_microros_transports();
 
@@ -687,16 +689,33 @@ void counter_tick()
 void loop() {
   switch (state) {
     case WAITING_AGENT:
-      EXECUTE_EVERY_N_MS(500, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_AVAILABLE : WAITING_AGENT;);
+      // Turbo Mode: Check for agent every 100ms instead of 500ms
+      EXECUTE_EVERY_N_MS(200, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_AVAILABLE : WAITING_AGENT;);
       break;
     case AGENT_AVAILABLE:
       state = (true == create_entities()) ? AGENT_CONNECTED : WAITING_AGENT;
+      if (state == AGENT_CONNECTED) {
+        connection_start_time = millis(); // Mark connection start
+        digitalWrite(LED_PIN, 1); // Solid on immediately
+      }
       if (state == WAITING_AGENT) {
         destroy_entities();
       };
       break;
     case AGENT_CONNECTED:
-      EXECUTE_EVERY_N_MS(200, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_CONNECTED : AGENT_DISCONNECTED;);
+      EXECUTE_EVERY_N_MS(500, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_CONNECTED : AGENT_DISCONNECTED;);
+      
+      // If just disconnected, warn user immediately
+      if (state == AGENT_DISCONNECTED) {
+          // Only blink if we were connected for at least 2 seconds (Real drop, not startup glitch)
+          if (millis() - connection_start_time > 2000) {
+             for(int i=0; i<20; i++) { 
+                digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+                delay(30);
+             }
+          }
+      }
+
       if (state == AGENT_CONNECTED) {
         computePID1(desiredRPM1, p1);
         computePID2(desiredRPM2, p2);
@@ -717,6 +736,11 @@ void loop() {
   if (state == AGENT_CONNECTED) {
     digitalWrite(LED_PIN, 1);
   } else {
-    digitalWrite(LED_PIN, 0);
+    // Blink LED when waiting for agent (Faster blink for Turbo Mode)
+    static unsigned long prev_blink_time = 0;
+    if (millis() - prev_blink_time > 150) {
+      prev_blink_time = millis();
+      digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+    }
   }
 }

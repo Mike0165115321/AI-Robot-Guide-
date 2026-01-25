@@ -50,6 +50,9 @@ if [ -d ".venv-robot" ]; then
 elif [ -d "Back-end/venv" ]; then
     source Back-end/venv/bin/activate
     echo -e "${GREEN}✅ Virtual environment activated (Back-end/venv)${NC}"
+elif [ -d "Back-end/.venv-robot" ]; then
+    source Back-end/.venv-robot/bin/activate
+    echo -e "${GREEN}✅ Virtual environment activated (Back-end/.venv-robot)${NC}"
 fi
 
 # 2.5 Set Protobuf Python Implementation (Required for Google Assistant library)

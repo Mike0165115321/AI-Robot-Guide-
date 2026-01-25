@@ -43,6 +43,83 @@
 }
 
 /* ==========================================
+   Robot Status Indicator (Traffic Light)
+   ========================================== */
+.robot-status-indicator {
+    position: fixed;
+    top: 20px;
+    left: 85px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.robot-status-indicator .status-light {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.robot-status-indicator .status-text {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Offline State (Red) */
+.robot-status-indicator.offline .status-light {
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+.robot-status-indicator.offline {
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Connecting State (Yellow - Pulsing) */
+.robot-status-indicator.connecting .status-light {
+    background: #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+    animation: pulse-yellow 1.2s infinite;
+}
+
+.robot-status-indicator.connecting {
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+@keyframes pulse-yellow {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 0.7;
+    }
+}
+
+/* Ready State (Green) */
+.robot-status-indicator.ready .status-light {
+    background: #22c55e;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.7);
+}
+
+.robot-status-indicator.ready {
+    border-color: rgba(34, 197, 94, 0.4);
+}
+
+/* ==========================================
    Slide-out Menu Panel
    ========================================== */
 .menu-panel {
@@ -328,6 +405,22 @@
         left: 15px;
         width: 45px;
         height: 45px;
+    }
+
+    .robot-status-indicator {
+        top: 15px;
+        left: 70px;
+        padding: 8px 12px;
+        gap: 8px;
+    }
+
+    .robot-status-indicator .status-light {
+        width: 12px;
+        height: 12px;
+    }
+
+    .robot-status-indicator .status-text {
+        font-size: 0.75rem;
     }
 
     .joystick-fullscreen #joystick-zone {

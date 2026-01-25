@@ -17,6 +17,19 @@ class TeleopBridge(Node):
         self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
         self.get_logger().info(f"🌉 ROS2 Teleop Bridge Started. Listening on UDP {UDP_PORT}")
         
+        # Heartbeat tracking: Subscribe to robot's feedback topic
+        self.last_heartbeat_time = 0.0
+        self.heartbeat_sub = self.create_subscription(
+            Twist,
+            'feedback_vel',  # Topic from base_control.ino
+            self.heartbeat_callback,
+            10
+        )
+        self.get_logger().info("💓 Heartbeat listener started on /feedback_vel")
+        
+        # Timer to write heartbeat status to shared file
+        self.create_timer(1.0, self.write_heartbeat_status)  # Every 1 second
+        
         # Setup UDP Socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -25,6 +38,28 @@ class TeleopBridge(Node):
 
         # Timer to check UDP
         self.create_timer(0.01, self.check_udp) # 100Hz check
+
+    def heartbeat_callback(self, msg):
+        """Called when we receive telemetry from the robot."""
+        self.last_heartbeat_time = self.get_clock().now().nanoseconds / 1e9
+    
+    def write_heartbeat_status(self):
+        """Write heartbeat status to a shared file for other processes to read."""
+        import time
+        current_time = time.time()
+        is_connected = (current_time - self.last_heartbeat_time) < 3.0  # 3 second timeout
+        
+        status = {
+            "connected": is_connected,
+            "last_heartbeat": self.last_heartbeat_time,
+            "updated_at": current_time
+        }
+        
+        try:
+            with open('/tmp/robot_heartbeat.json', 'w') as f:
+                json.dump(status, f)
+        except Exception as e:
+            self.get_logger().warn(f"Failed to write heartbeat: {e}")
 
     def check_udp(self):
         try:

@@ -32,6 +32,9 @@ BACKEND_ROOT="$(dirname "$SCRIPT_DIR")"
 # 2. Cleanup ค้าง (กันกรณี process เก่าไม่ยอมตาย)
 # =================================================================================
 echo -e "${GREEN}🧹 กำลังล้าง process เก่าที่อาจค้างอยู่...${NC}"
+# Kill existing launch processes first to prevent port conflict
+pkill -f "robot_system.launch.py" 2>/dev/null
+sleep 2
 pkill -f "micro_ros_agent" 2>/dev/null
 pkill -f "ros2_bridge.py" 2>/dev/null
 pkill -f "qos_relay_node.py" 2>/dev/null
@@ -41,16 +44,14 @@ sleep 1
 # =================================================================================
 # 2.5 Reset ESP32/Teensy (บังคับให้มัน reconnect กับ Micro-ROS Agent)
 # =================================================================================
-echo -e "${GREEN}🔄 กำลัง Reset ESP32/Teensy...${NC}"
-ESP32_RESET_SCRIPT="$BACKEND_ROOT/core/hardware/esp32_reset.py"
-if [ -f "$ESP32_RESET_SCRIPT" ]; then
-    python3 "$ESP32_RESET_SCRIPT" /dev/ttyACM0
-else
-    echo -e "${RED}⚠️ ไม่พบ esp32_reset.py, ใช้ sleep แทน...${NC}"
-    sleep 2
-fi
-
-
+# echo -e "${GREEN}🔄 กำลัง Reset ESP32/Teensy...${NC}"
+# ESP32_RESET_SCRIPT="$BACKEND_ROOT/core/hardware/esp32_reset.py"
+# if [ -f "$ESP32_RESET_SCRIPT" ]; then
+#     python3 "$ESP32_RESET_SCRIPT" /dev/ttyACM0
+# else
+#     echo -e "${RED}⚠️ ไม่พบ esp32_reset.py, ใช้ sleep แทน...${NC}"
+#     sleep 2
+# fi
 # =================================================================================
 # 3. กำหนด Launch File Path
 # =================================================================================

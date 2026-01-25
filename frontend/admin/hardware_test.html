@@ -18,6 +18,12 @@
             <i class="fas fa-bars"></i>
         </button>
 
+        <!-- Robot Status Indicator -->
+        <div id="robot-status" class="robot-status-indicator offline">
+            <div class="status-light"></div>
+            <span class="status-text">ระบบปิดอยู่</span>
+        </div>
+
         <!-- Slide-out Menu Panel -->
         <div id="menu-panel" class="menu-panel">
             <div class="menu-header">
@@ -138,6 +144,33 @@
             menuToggle.addEventListener('click', openMenu);
             menuClose.addEventListener('click', closeMenu);
             menuOverlay.addEventListener('click', closeMenu);
+
+            // Robot Status Polling
+            const statusIndicator = document.getElementById('robot-status');
+            const statusText = statusIndicator.querySelector('.status-text');
+
+            async function updateRobotStatus() {
+                try {
+                    const response = await fetch('/api/hardware/robot-status');
+                    if (!response.ok) throw new Error('API Error');
+
+                    const data = await response.json();
+                    const status = data.status || 'offline';
+                    const message = data.message || 'ระบบปิดอยู่';
+
+                    // Update CSS classes
+                    statusIndicator.className = 'robot-status-indicator ' + status;
+                    statusText.textContent = message;
+                } catch (error) {
+                    console.error('Robot status error:', error);
+                    statusIndicator.className = 'robot-status-indicator offline';
+                    statusText.textContent = 'ไม่สามารถเชื่อมต่อ';
+                }
+            }
+
+            // Initial check and start polling every 2 seconds
+            updateRobotStatus();
+            setInterval(updateRobotStatus, 2000);
         });
     </script>
 </body>
