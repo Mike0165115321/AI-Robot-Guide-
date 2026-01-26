@@ -231,6 +231,49 @@
             white-space: normal;
             overflow: visible;
         }
+
+        /* 🆕 Detail Modal Styles */
+        .detail-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--text-light);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .ai-response-box {
+            background: rgba(102, 126, 234, 0.1);
+            border-color: rgba(102, 126, 234, 0.3);
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .sessions-box {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .session-tag {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+
+        .action-btn.view {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .action-btn.view:hover {
+            background: rgba(59, 130, 246, 0.4);
+        }
     </style>
 </head>
 
@@ -398,6 +441,42 @@
         </div>
     </div>
 
+    <!-- Detail Modal (🆕 ดูรายละเอียด) -->
+    <div class="modal" id="detail-modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>🔍 รายละเอียดคำถาม</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="detail-content">
+                <div class="form-group">
+                    <label>❓ คำถาม</label>
+                    <div id="detail-query" class="detail-box"></div>
+                </div>
+                <div class="form-group">
+                    <label>🤖 AI ตอบไปว่า</label>
+                    <div id="detail-ai-response" class="detail-box ai-response-box"></div>
+                </div>
+                <div class="form-group">
+                    <label>📊 คะแนนความมั่นใจ</label>
+                    <div id="detail-score" class="detail-box"></div>
+                </div>
+                <div class="form-group">
+                    <label>📅 ถามครั้งแรก / ล่าสุด</label>
+                    <div id="detail-dates" class="detail-box"></div>
+                </div>
+                <div class="form-group">
+                    <label>👥 Sessions (ผู้ถาม)</label>
+                    <div id="detail-sessions" class="detail-box sessions-box"></div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button class="btn" onclick="closeModal()" style="background: rgba(255,255,255,0.1);">ปิด</button>
+                <button class="btn btn-cta" onclick="openResolveFromDetail()">✍️ ตอบคำถามนี้</button>
+            </div>
+        </div>
+    </div>
+
     <script src="assets/scripts/config.js"></script>
     <script src="assets/scripts/auth.js"></script>
     <script>
@@ -463,9 +542,10 @@
                 const score = (gap.max_score * 100).toFixed(1);
 
                 const actions = gap.status === 'PENDING' ? `
+                    <button class="action-btn view" onclick="openDetailModal('${gap._id}')">🔍</button>
                     <button class="action-btn resolve" onclick="openResolveModal('${gap._id}')">✍️ ตอบ</button>
                     <button class="action-btn dismiss" onclick="openDismissModal('${gap._id}')">❌</button>
-                ` : '<span style="color: var(--text-muted);">-</span>';
+                ` : `<button class="action-btn view" onclick="openDetailModal('${gap._id}')">🔍</button>`;
 
                 return `
                     <tr>
@@ -537,6 +617,63 @@
         function closeModal() {
             document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
         }
+
+        // 🆕 Detail Modal Functions
+        let currentDetailGapId = null;
+
+        function openDetailModal(gapId) {
+            const gap = currentGaps.find(g => g._id === gapId);
+            if (!gap) return;
+
+            currentDetailGapId = gapId;
+
+            // Populate detail fields
+            document.getElementById('detail-query').textContent = gap.query;
+
+            // AI Response (ใหม่!)
+            const aiResponse = gap.ai_response || 'ไม่มีข้อมูล (คำถามเก่าก่อนอัปเดตระบบ)';
+            document.getElementById('detail-ai-response').textContent = aiResponse;
+
+            // Score
+            const scorePercent = (gap.max_score * 100).toFixed(1);
+            document.getElementById('detail-score').innerHTML = `
+                <span style="font-size: 1.5rem; font-weight: bold; color: ${gap.max_score < 0.3 ? '#ef4444' : '#f59e0b'};">
+                    ${scorePercent}%
+                </span>
+                <span style="color: var(--text-muted); margin-left: 0.5rem;">
+                    (เกณฑ์ปกติ: 45%+)
+                </span>
+            `;
+
+            // Dates
+            const firstAsked = gap.first_asked ? new Date(gap.first_asked).toLocaleString('th-TH') : '-';
+            const lastAsked = gap.last_asked ? new Date(gap.last_asked).toLocaleString('th-TH') : '-';
+            document.getElementById('detail-dates').innerHTML = `
+                <div>📅 ครั้งแรก: <strong>${firstAsked}</strong></div>
+                <div>🕐 ล่าสุด: <strong>${lastAsked}</strong></div>
+                <div>🔢 ถามรวม: <strong>${gap.count} ครั้ง</strong></div>
+            `;
+
+            // Sessions
+            const sessionsContainer = document.getElementById('detail-sessions');
+            if (gap.sessions && gap.sessions.length > 0) {
+                sessionsContainer.innerHTML = gap.sessions.map(s =>
+                    `<span class="session-tag">${s.substring(0, 8)}...</span>`
+                ).join('');
+            } else {
+                sessionsContainer.innerHTML = '<span style="color: var(--text-muted);">ไม่มีข้อมูล Session</span>';
+            }
+
+            document.getElementById('detail-modal').classList.add('active');
+        }
+
+        function openResolveFromDetail() {
+            closeModal();
+            if (currentDetailGapId) {
+                openResolveModal(currentDetailGapId);
+            }
+        }
+
 
         // ========== Form Submissions ==========
 

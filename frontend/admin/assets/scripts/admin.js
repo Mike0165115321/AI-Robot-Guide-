@@ -447,10 +447,8 @@ async function handleAddLocationSubmit(event) {
         alert("กรุณากรอก Image Prefix (ต้องตรงกับ Slug) ก่อนอัปโหลดรูปภาพ");
         addBtn.disabled = false; addBtn.textContent = 'Add Location'; return;
     }
-    if (imageFile && imagePrefixInput !== slug) {
-        alert("Image Prefix ต้องตรงกับ Slug ที่กรอก");
-        addBtn.disabled = false; addBtn.textContent = 'Add Location'; return;
-    }
+    // [Relaxed Validation]
+    // if (imageFile && imagePrefixInput !== slug) { ... }
 
     const finalImagePrefixForMeta = imagePrefixInput === slug ? slug : null;
 
@@ -558,14 +556,9 @@ async function handleEditFormSubmit(event) {
     const imageFile = document.getElementById('edit-form-image-file').files[0];
     let finalImagePrefix = imagePrefixInput;
 
-    if (imagePrefixInput && imagePrefixInput !== slug) {
-        alert("Image Prefix ต้องตรงกับ Slug (หรือไม่ต้องกรอกเพื่อลบ)");
-        saveBtn.disabled = false; saveBtn.textContent = 'Save Changes'; return;
-    }
-    if (imageFile && imagePrefixInput !== slug) {
-        alert("Image Prefix ต้องตรงกับ Slug เมื่ออัปโหลดไฟล์ใหม่");
-        saveBtn.disabled = false; saveBtn.textContent = 'Save Changes'; return;
-    }
+    // [Relaxed Validation] อนุญาตให้ Image Prefix ไม่ตรงกับ Slug ได้
+    // if (imagePrefixInput && imagePrefixInput !== slug) { ... }
+    // if (imageFile && imagePrefixInput !== slug) { ... }
 
     if (imageFile && slug) {
         const imageFormData = new FormData();

@@ -16,7 +16,8 @@ class NavigationService:
         prefixes = [
             "นำทางไปยัง", "นำทางไปที่", "นำทางไป", 
             "ขอเส้นทางไปยัง", "ขอเส้นทางไปที่", "ขอเส้นทางไป",
-            "พาไปที่", "พาไป", "ไปที่", "ไป"
+            "พาไปที่", "พาไป", "ไปที่", "ไป",
+            "อยากไป", "อยากดู", "อยากรู้เรื่อง"  # 🆕 เพิ่ม prefix ที่พบบ่อย
         ]
         # Sort by length descending to match longest prefix first
         prefixes.sort(key=len, reverse=True)
@@ -27,6 +28,25 @@ class NavigationService:
                 # Remove prefix and strip again
                 text = text[len(prefix):].strip()
                 break # Only remove one prefix
+        
+        # 🆕 ลบคำถาม/คำท้ายที่ติดมา เช่น "รู้จักมั้ยครับ", "อยู่ไหนคะ"
+        suffixes = [
+            "รู้จักมั้ยครับ", "รู้จักไหมครับ", "รู้จักมั้ยคะ", "รู้จักไหมคะ",
+            "รู้จักมั้ย", "รู้จักไหม", "รู้จักป่าว",
+            "อยู่ไหนครับ", "อยู่ไหนคะ", "อยู่ไหน", "อยู่ที่ไหน",
+            "ไปยังไงครับ", "ไปยังไงคะ", "ไปยังไง",
+            "เป็นยังไงครับ", "เป็นยังไงคะ", "เป็นยังไง",
+            "ดีไหมครับ", "ดีไหมคะ", "ดีไหม", "ดีมั้ย",
+            "น่าไปไหม", "น่าไปมั้ย",
+            "ครับ", "ค่ะ", "คะ", "นะคะ", "นะครับ"
+        ]
+        suffixes.sort(key=len, reverse=True)
+        
+        for suffix in suffixes:
+            if text.endswith(suffix):
+                text = text[:-len(suffix)].strip()
+                break  # Only remove one suffix
+        
         return text
 
     def calculate_distance(self, lat1, lon1, lat2, lon2) -> float:
@@ -73,10 +93,14 @@ class NavigationService:
         locations.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else 99999)
         return locations
 
-    async def handle_get_directions(self, entity_slug: str, user_lat: float = None, user_lon: float = None) -> dict:
-        # 1. Clean up the entity name (remove common verbs)
-        clean_slug = self._clean_navigation_entity(entity_slug)
-        logging.info(f"🗺️  [V-Maps] Handling Directions for: '{entity_slug}' -> Cleaned: '{clean_slug}'")
+    async def handle_get_directions(self, entity_slug: str, user_lat: float = None, user_lon: float = None, skip_cleaning: bool = False) -> dict:
+        # 1. Clean up the entity name (remove common verbs) if needed
+        if skip_cleaning:
+             clean_slug = entity_slug.strip()
+             logging.info(f"🗺️  [V-Maps] Skipping cleaning (LLM Trusted): '{clean_slug}'")
+        else:
+             clean_slug = self._clean_navigation_entity(entity_slug)
+             logging.info(f"🗺️  [V-Maps] Handling Directions for: '{entity_slug}' -> Cleaned: '{clean_slug}'")
         
         # 2. Search by Slug (Exact)
         doc = await asyncio.to_thread(self.mongo_manager.get_location_by_slug, clean_slug)

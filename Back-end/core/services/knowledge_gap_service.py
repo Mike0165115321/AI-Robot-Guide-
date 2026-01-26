@@ -31,7 +31,8 @@ class KnowledgeGapService:
         query: str, 
         score: float, 
         session_id: str = None,
-        context: str = None
+        context: str = None,
+        ai_response: str = None  # 🆕 AI ตอบไปว่าอะไร
     ) -> Optional[str]:
         """
         บันทึกคำถามที่ AI ตอบไม่ได้ลง MongoDB
@@ -60,19 +61,24 @@ class KnowledgeGapService:
 
             if existing:
                 # Increment count and update last_asked
+                update_fields = {
+                    "$inc": {"count": 1},
+                    "$set": {"last_asked": now},
+                    "$push": {
+                        "sessions": {
+                            "$each": [session_id] if session_id else [],
+                            "$slice": -10  # Keep last 10 sessions
+                        }
+                    }
+                }
+                # 🆕 อัปเดต ai_response ล่าสุดด้วย (ถ้ามี)
+                if ai_response:
+                    update_fields["$set"]["ai_response"] = ai_response
+                    
                 await asyncio.to_thread(
                     self.collection.update_one,
                     {"_id": existing["_id"]},
-                    {
-                        "$inc": {"count": 1},
-                        "$set": {"last_asked": now},
-                        "$push": {
-                            "sessions": {
-                                "$each": [session_id] if session_id else [],
-                                "$slice": -10  # Keep last 10 sessions
-                            }
-                        }
-                    }
+                    update_fields
                 )
                 logger.info(f"📝 [KnowledgeGap] คำถามซ้ำ (count: {existing['count'] + 1}): '{query[:50]}...'")
                 return str(existing["_id"])
@@ -88,6 +94,7 @@ class KnowledgeGapService:
                     "status": "PENDING",  # PENDING | RESOLVED | DISMISSED
                     "sessions": [session_id] if session_id else [],
                     "context": context,  # Optional: context from RAG search
+                    "ai_response": ai_response,  # 🆕 AI ตอบไปว่าอะไร
                     "resolved_answer": None,
                     "resolved_by": None,
                     "resolved_at": None,

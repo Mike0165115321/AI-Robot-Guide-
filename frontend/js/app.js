@@ -406,6 +406,12 @@ function renderResponsePanel(data) {
         panelHtml += uiManager.renderMusicList(data.action_payload);
     }
 
+    // 🆕 Fix: Handle Map Embed (Previously missing!)
+    if (data.action === 'SHOW_MAP_EMBED' && data.action_payload) {
+        console.log("🗺️ Rendering Map Embed:", data.action_payload);
+        panelHtml += responseRenderer.renderMapEmbed(data.action_payload);
+    }
+
     if (data.payload) {
         panelHtml += responseRenderer.render(data.payload);
     }

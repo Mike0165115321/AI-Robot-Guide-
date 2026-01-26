@@ -85,71 +85,95 @@ class QueryInterpreter:
             frontline_result["is_complex"] = False
             return frontline_result
             
-        f_reply = frontline_result.get("reply")
-        f_meta = frontline_result.get("metadata", {})
+        # 2. If Frontline returns RAG_QUERY (or fallback), ask Groq LLM for deep analysis
+        logging.info(f"🧠 [Interpreter] Frontline fallback. Asking Groq ({self.model_to_use}) to analyze: '{corrected_query}'")
         
-        # Default Interpretation Structure
-        interpretation = {
-            "intent": "INFORMATIONAL", # Default to RAG
-            "corrected_query": query,
-            "entity": None,
-            "is_complex": False,
-            "sub_queries": [query],
-            "location_filter": {},
-            "category": None,
-            "reply": None # New field for direct answers
-        }
-        """
-    1.  **INFORMATIONAL (ค่าเริ่มต้น):**
-    - ใช้สำหรับ **ทุกคำถาม** ที่เกี่ยวกับจังหวัดน่าน, อากาศ, ร้านอาหาร, ที่พัก, สถานที่ท่องเที่ยว, ประวัติศาสตร์, วัฒนธรรม, การเดินทาง
-    - แม้จะเป็นคำถามสั้นๆ เช่น "ที่นั่นสวยไหม", "มีกาแฟไหม", "หิวข้าว" ให้ถือเป็น INFORMATIONAL เพื่อให้ระบบค้นหาข้อมูลจริง
-    - ห้ามใช้ SMALL_TALK กับคำถามที่ต้องการข้อมูลสถานที่หรือความรู้
-    2.  **SMALL_TALK:**
-    - ใช้สำหรับ **การทักทายทั่วไป** (สวัสดี, สบายดีไหม), คำถามส่วนตัวเกี่ยวกับ AI (ชื่ออะไร, ชอบสีอะไร), หรือการพูดคุยเล่นที่ไม่เกี่ยวกับข้อมูลจังหวัดน่าน
-    - ถ้าผู้ใช้ชมว่า "เก่งมาก", "ขอบคุณ" ให้ถือเป็น SMALL_TALK
-    3.  **PLAY_MUSIC:** สั่งเปิดเพลง หรือขอฟังเพลง
-    4.  **SYSTEM_COMMAND:** สั่งงานระบบ (ตอนนี้อาจจะไม่ค่อยมี)
-    5.  **WELCOME_GREETING:** คำทักทายแรกเริ่ม (เช่น สวัสดีคับ)
-        """
+        system_prompt = """You are the 'Brain' of an AI Guide Robot named 'Nong Nan' (น้องน่าน).
+Your job is to interpret the user's intent and extract structural data for the RAG system.
 
-        # **entity:**
-        # - "PLAY_MUSIC" -> ชื่อเพลง/ศิลปิน
-        # - "INFORMATIONAL" -> สถานที่ หรือ key word ที่ต้องการค้นหา
-        # - "NAVIGATE_TO" -> สถานที่ปลายทาง
-        # - "WELCOME_GREETING" -> null
-        # - "SMALL_TALK" -> null
+### OUTPUT FORMAT (JSON ONLY):
+{
+  "intent": "String",       // INFORMATIONAL, PLAY_MUSIC, NAVIGATE_TO, SMALL_TALK, WELCOME_GREETING, CALCULATE
+  "entity": "String|null",  // Specific place/song/object mentioned (Clean text, no politeness particles)
+  "category": "String|null",// attraction, accommodation, food, souvenir, culture, cafe, nature
+  "sub_queries": ["Str"],   // Break down complex queries into searchable keywords (Thai)
+  "corrected_query": "Str", // Fix typos if necessary
+  "is_complex":Boolean,     // True if multi-step reasoning is needed
+  "location_filter": {      // Extract district if mentioned
+     "district": "String|null" // e.g., "เมืองน่าน", "ปัว"
+  }
+}
 
-        # **sub_queries:** แตกคำถามเป็นข่อยๆ เพื่อค้นหาใน RAG (เฉพาะภาษาไทย)
-        # **is_complex:** True ถ้าคำถามซับซ้อนต้องใช้หลาย steps หรือการวิเคราะห์สูง
-        # **location_filter:** {"district": "อำเภอ...", "subdistrict": "ตำบล..."} (ถ้าระบุเจาะจง) (เช่น "วัดสวยๆ") ให้ส่ง `null`.
-        # - อื่นๆ -> `null`
+### INTENT RULES:
+- **NAVIGATE_TO**: User wants to go somewhere, asks for route/map/location.
+  - Query: "อยากไปวัดพระธาตุเขาน้อย รู้จักมั้ยครับ" -> intent: "NAVIGATE_TO", entity: "วัดพระธาตุเขาน้อย" (Cut 'อยากไป', 'รู้จักมั้ย')
+  - Query: "พาไปร้านกาแฟหน่อย" -> intent: "NAVIGATE_TO", entity: "ร้านกาแฟ", category: "cafe"
+  - Query: "วัดภูมินทร์อยู่ไหน" -> intent: "NAVIGATE_TO", entity: "วัดภูมินทร์"
+- **INFORMATIONAL**: General knowledge, history, description, "what is it?".
+  - Query: "วัดภูมินทร์สร้างเมื่อไหร่" -> intent: "INFORMATIONAL", entity: "วัดภูมินทร์"
+  - Query: "แนะนำที่เที่ยวปัว" -> intent: "INFORMATIONAL", entity: null, location_filter: {"district": "ปัว"}, category: "attraction"
+- **PLAY_MUSIC**: asking to play a song.
+- **CALCULATE**: Math questions (e.g. 50*3)
+- **SMALL_TALK**: Greeting, personal questions.
 
-        # **category** (Dynamic):
-        # - ระบุหมวดหมู่ภาษาอังกฤษตัวเล็ก เช่น: `accommodation`, `food`, `attraction`, `souvenir`, `culture`, `cafe`, `nature`.
-        # - ถ้าไม่แน่ใจให้ `null`.
-        # - **สำหรับอำเภอ:** ถ้าถาม "ในเมือง" -> `"district": "เมืองน่าน"`. ถามภาพรวมทั้งจังหวัด -> `"district": null`.
+### ENTITY EXTRACTION RULES:
+- STRICTLY REMOVE all action verbs (ไป, อยากไป, พาไป) and politeness particles (ครับ, ค่ะ, รู้จักไหม).
+- Return ONLY the official name of the place/object.
 
-        # **ตัวอย่างการตัดสินใจ:**
-        # Examples (for context in prompt):
-        # "หิวข้าว แนะนำหน่อย" -> `intent: INFORMATIONAL`, `category: food`
-        # "น่านมีอะไรน่าเที่ยว" -> `intent: INFORMATIONAL`, `category: attraction`
-        # "เธอชื่ออะไร" -> `intent: SMALL_TALK`
+### EXAMPLE:
+User: "อยากไปดอยเสมอดาว รู้จักป่าวครับ"
+JSON:
+{
+  "intent": "NAVIGATE_TO",
+  "entity": "ดอยเสมอดาว",
+  "category": "nature",
+  "sub_queries": ["ดอยเสมอดาว", "ที่กางเต็นท์ดอยเสมอดาว"],
+  "corrected_query": "อยากไปดอยเสมอดาว",
+  "is_complex": false,
+  "location_filter": {}
+}
+"""
 
-        logging.info(f"✍️🧠 [Interpreter] Frontline returned fallback/RAG. Proceeding with default INFORMATIONAL intent for: '{corrected_query}'")
-        
-        # Determine intent for RAG
-        # If Frontline explicitly said RAG_QUERY, we use that (or map to INFORMATIONAL)
-        if f_intent == "RAG_QUERY":
-             interpretation["intent"] = "INFORMATIONAL" # Map to what RAG expects
-        
-        logging.info(f"✅ [Interpreter] Final Routing: {interpretation['intent']}")
-        return interpretation
+        try:
+            if not self.client:
+                 raise Exception("Groq Client is not initialized")
+
+            response = await self.client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": corrected_query}
+                ],
+                model=self.model_to_use,
+                temperature=0.1, # Low temp for strict JSON
+                response_format={"type": "json_object"}
+            )
+            
+            content = response.choices[0].message.content
+            interpretation = json.loads(content)
+            
+            # Fallback/Safety Check
+            if not interpretation.get("intent"): interpretation["intent"] = "INFORMATIONAL"
+            if not interpretation.get("sub_queries"): interpretation["sub_queries"] = [corrected_query]
+            
+            logging.info(f"✅ [Interpreter] Groq Analysis: {interpretation}")
+            return interpretation
+
+        except Exception as e:
+            logging.error(f"❌ [Interpreter] Groq Interpretation Failed: {e}")
+            # Fallback to simple logic
+            return {
+                "intent": "INFORMATIONAL",
+                "corrected_query": corrected_query,
+                "entity": None,
+                "is_complex": False,
+                "sub_queries": [corrected_query],
+                "location_filter": {}
+            }
 
     async def close(self):
         """Gracefully close resources."""
         if self.client:
             await self.client.close()
-            logging.info("🧠 [Interpreter] Groq Client closed.")
         
 
 
