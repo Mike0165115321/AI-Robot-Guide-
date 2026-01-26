@@ -110,7 +110,7 @@ class AvatarManager {
     // SPEECH
     // ==========================================
 
-    speak(text, mood = 'normal', lang = 'th', onComplete = null, interrupt = true) {
+    speak(text, mood = 'normal', lang = null, onComplete = null, interrupt = true) {
         if (!text) return;
 
         if (text.length < 100) uiManager.updateSpeech(text);

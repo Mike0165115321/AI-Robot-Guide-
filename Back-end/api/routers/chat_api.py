@@ -377,7 +377,7 @@ async def get_navigation(
 # 🆕 TTS Endpoint
 class TTSRequest(BaseModel):
     text: str
-    language: str = "th"
+    language: Optional[str] = None
 
 @router.get("/languages")
 async def get_supported_languages():

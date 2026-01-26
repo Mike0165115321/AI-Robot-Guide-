@@ -423,25 +423,31 @@ class FabManager {
      * Show FAQ Widget
      */
     showFaqWidget() {
-        const questions = [
-            "แนะนำที่เที่ยวน่านหน่อย",
-            "วัดสำคัญในน่านมีที่ไหนบ้าง",
-            "ร้านอาหารพื้นเมืองที่ห้ามพลาด",
-            "โรงแรมที่พักในเมืองน่าน",
-            "ของฝากน่านมีอะไรบ้าง"
-        ];
+        const lang = localStorage.getItem('app_language') || 'th';
+
+        // i18n for FAQ
+        const faqData = {
+            title: { th: '❓ คำถามที่พบบ่อย', en: '❓ Frequently Asked Questions', ja: '❓ よくある質問', zh: '❓ 常见问题', ru: '❓ Часто задаваемые вопросы', hi: '❓ अक्सर पूछे जाने वाले प्रश्न', ms: '❓ Soalan Lazim' },
+            questions: [
+                { th: 'แนะนำที่เที่ยวน่านหน่อย', en: 'Recommend places to visit in Nan', ja: '南の観光地を教えて', zh: '推荐南部的旅游景点', ru: 'Порекомендуйте места для посещения в Нане', hi: 'नान में घूमने की जगहें सुझाएं', ms: 'Cadangkan tempat menarik di Nan' },
+                { th: 'วัดสำคัญในน่านมีที่ไหนบ้าง', en: 'What are important temples in Nan?', ja: '南の重要なお寺はどこ？', zh: '南部有哪些重要的寺庙？', ru: 'Какие важные храмы в Нане?', hi: 'नान में महत्वपूर्ण मंदिर कौन से हैं?', ms: 'Apakah kuil penting di Nan?' },
+                { th: 'ร้านอาหารพื้นเมืองที่ห้ามพลาด', en: 'Local restaurants not to miss', ja: '見逃せない地元のレストラン', zh: '不可错过的当地餐厅', ru: 'Местные рестораны, которые нельзя пропустить', hi: 'स्थानीय रेस्तरां जो मिस नहीं करने चाहिए', ms: 'Restoran tempatan yang tidak boleh dilepaskan' },
+                { th: 'โรงแรมที่พักในเมืองน่าน', en: 'Hotels in Nan city', ja: '南市内のホテル', zh: '南市的酒店', ru: 'Отели в городе Нан', hi: 'नान शहर में होटल', ms: 'Hotel di bandar Nan' },
+                { th: 'ของฝากน่านมีอะไรบ้าง', en: 'What souvenirs are from Nan?', ja: '南のお土産は何がある？', zh: '南部有什么纪念品？', ru: 'Какие сувениры из Нана?', hi: 'नान से क्या स्मृति चिन्ह मिलते हैं?', ms: 'Apakah cenderamata dari Nan?' }
+            ]
+        };
 
         const content = `
             <div style="display: flex; flex-direction: column; gap: 10px;">
-                ${questions.map(q => `
-                    <button class="faq-btn" data-q="${q}">
-                        💬 ${q}
+                ${faqData.questions.map(q => `
+                    <button class="faq-btn" data-q="${q[lang] || q.th}">
+                        💬 ${q[lang] || q.th}
                     </button>
                 `).join('')}
             </div>
         `;
 
-        const widget = this._showWidget('❓ คำถามที่พบบ่อย', content);
+        const widget = this._showWidget(faqData.title[lang] || faqData.title.th, content);
 
         widget.querySelectorAll('.faq-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -456,26 +462,33 @@ class FabManager {
      * Show Music Widget
      */
     showMusicWidget() {
-        const genres = [
-            { name: 'คำเมือง', icon: '🎻', color: '#10b981' },
-            { name: 'ลูกทุ่ง', icon: '🌾', color: '#ec4899' },
-            { name: 'ป๊อปสบายๆ', icon: '🎸', color: '#f59e0b' },
-            { name: 'บรรเลง', icon: '🎹', color: '#6366f1' }
-        ];
+        const lang = localStorage.getItem('app_language') || 'th';
 
-        // Simple HTML Structure
+        // i18n for Music Widget
+        const musicData = {
+            title: { th: '🎵 ฟังเพลง', en: '🎵 Listen to Music', ja: '🎵 音楽を聴く', zh: '🎵 听音乐', ru: '🎵 Слушать музыку', hi: '🎵 संगीत सुनें', ms: '🎵 Dengar Lagu' },
+            subtitle: { th: 'เลือกแนวเพลง หรือพิมพ์ชื่อเพลง:', en: 'Choose a genre or type a song name:', ja: 'ジャンルを選ぶか曲名を入力:', zh: '选择流派或输入歌曲名称:', ru: 'Выберите жанр или введите название:', hi: 'शैली चुनें या गाने का नाम टाइप करें:', ms: 'Pilih genre atau taip nama lagu:' },
+            placeholder: { th: 'พิมพ์ชื่อเพลง...', en: 'Type song name...', ja: '曲名を入力...', zh: '输入歌曲名称...', ru: 'Введите название песни...', hi: 'गाने का नाम टाइप करें...', ms: 'Taip nama lagu...' },
+            genres: [
+                { th: 'คำเมือง', en: 'Northern Thai', ja: '北部タイ', zh: '北部泰式', ru: 'Северный Тайский', hi: 'उत्तरी थाई', ms: 'Thai Utara', icon: '🎻', color: '#10b981' },
+                { th: 'ลูกทุ่ง', en: 'Luk Thung', ja: 'ルクトゥン', zh: '乡村', ru: 'Лук Тунг', hi: 'लुक थुंग', ms: 'Luk Thung', icon: '🌾', color: '#ec4899' },
+                { th: 'ป๊อปสบายๆ', en: 'Easy Pop', ja: 'イージーポップ', zh: '轻松流行', ru: 'Поп', hi: 'आसान पॉप', ms: 'Pop Santai', icon: '🎸', color: '#f59e0b' },
+                { th: 'บรรเลง', en: 'Instrumental', ja: '器楽曲', zh: '器乐', ru: 'Инструментал', hi: 'वाद्य', ms: 'Instrumental', icon: '🎹', color: '#6366f1' }
+            ]
+        };
+
         const content = `
-            <p style="margin-bottom: 15px; opacity: 0.8;">เลือกแนวเพลง หรือพิมพ์ชื่อเพลง:</p>
+            <p style="margin-bottom: 15px; opacity: 0.8;">${musicData.subtitle[lang] || musicData.subtitle.th}</p>
             <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
-                ${genres.map(g => `
-                    <button class="genre-btn" data-genre="เพลง${g.name}" 
+                ${musicData.genres.map(g => `
+                    <button class="genre-btn" data-genre="เพลง${g.th}" 
                         style="background: ${g.color}20; border-color: ${g.color}60; color: ${g.color}">
-                        ${g.icon} ${g.name}
+                        ${g.icon} ${g[lang] || g.th}
                     </button>
                 `).join('')}
             </div>
             <div style="display: flex; gap: 8px;">
-                <input type="text" class="music-input" placeholder="พิมพ์ชื่อเพลง..." 
+                <input type="text" class="music-input" placeholder="${musicData.placeholder[lang] || musicData.placeholder.th}" 
                     style="flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(0,0,0,0.3); color: white;">
                 <button class="music-search-btn" style="padding: 10px 15px; background: #10b981; border: none; border-radius: 8px; color: white; cursor: pointer;">
                     <span style="pointer-events: none;">🔍</span>
@@ -484,7 +497,7 @@ class FabManager {
             <div class="music-results" style="margin-top: 15px;"></div>
         `;
 
-        const widget = this._showWidget('🎵 ฟังเพลง', content);
+        const widget = this._showWidget(musicData.title[lang] || musicData.title.th, content);
 
         // Common Search Function
         const searchMusic = (term) => {
@@ -495,12 +508,12 @@ class FabManager {
             this._closeWidget(widget);
         };
 
-        // 1. Bind Genre Buttons (User confirmed these work)
+        // 1. Bind Genre Buttons
         widget.querySelectorAll('.genre-btn').forEach(btn => {
             btn.addEventListener('click', () => searchMusic(btn.dataset.genre));
         });
 
-        // 2. Bind Input & Search Button (Simple Logic)
+        // 2. Bind Input & Search Button
         const input = widget.querySelector('.music-input');
         const searchBtn = widget.querySelector('.music-search-btn');
 
@@ -510,7 +523,6 @@ class FabManager {
                 if (term) {
                     searchMusic(term);
                 } else {
-                    // Simple feedback, no complex animations if user dislikes complexity
                     input.focus();
                     input.style.borderColor = '#ef4444';
                     setTimeout(() => input.style.borderColor = 'rgba(255,255,255,0.2)', 500);
@@ -527,6 +539,15 @@ class FabManager {
      * Show Navigation Widget
      */
     showNavWidget() {
+        const lang = localStorage.getItem('app_language') || 'th';
+
+        // i18n for Navigation Widget
+        const navData = {
+            title: { th: '🗺️ นำทาง', en: '🗺️ Navigation', ja: '🗺️ ナビゲーション', zh: '🗺️ 导航', ru: '🗺️ Навигация', hi: '🗺️ नेविगेशन', ms: '🗺️ Navigasi' },
+            subtitle: { th: 'เลือกสถานที่ยอดนิยม:', en: 'Choose a popular location:', ja: '人気のスポットを選択:', zh: '选择热门地点:', ru: 'Выберите популярное место:', hi: 'लोकप्रिय स्थान चुनें:', ms: 'Pilih lokasi popular:' },
+            placeholder: { th: 'หรือพิมพ์ชื่อสถานที่...', en: 'Or type a place name...', ja: 'または場所名を入力...', zh: '或输入地点名称...', ru: 'Или введите название места...', hi: 'या जगह का नाम टाइप करें...', ms: 'Atau taip nama tempat...' }
+        };
+
         const locations = [
             { name: 'วัดภูมินทร์', icon: '🛕' },
             { name: 'ดอยเสมอดาว', icon: '⛰️' },
@@ -535,7 +556,7 @@ class FabManager {
         ];
 
         const content = `
-            <p style="margin-bottom: 15px; opacity: 0.8;">เลือกสถานที่ยอดนิยม:</p>
+            <p style="margin-bottom: 15px; opacity: 0.8;">${navData.subtitle[lang] || navData.subtitle.th}</p>
             <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
                 ${locations.map(loc => `
                     <button class="nav-loc-btn" data-loc="${loc.name}" 
@@ -545,7 +566,7 @@ class FabManager {
                 `).join('')}
             </div>
             <div style="display: flex; gap: 8px;">
-                <input type="text" class="nav-input" placeholder="หรือพิมพ์ชื่อสถานที่..." 
+                <input type="text" class="nav-input" placeholder="${navData.placeholder[lang] || navData.placeholder.th}" 
                     style="flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(0,0,0,0.3); color: white;">
                 <button class="nav-search-btn" style="padding: 10px 15px; background: #3b82f6; border: none; border-radius: 8px; color: white; cursor: pointer;">
                     🗺️
@@ -553,10 +574,9 @@ class FabManager {
             </div>
         `;
 
-        const widget = this._showWidget('🗺️ นำทาง', content);
+        const widget = this._showWidget(navData.title[lang] || navData.title.th, content);
 
         const navigate = (place) => {
-            // ใช้ "นำทางไป" ให้ชัดเจนขึ้น
             const text = `นำทางไป ${place}`;
             this.callbacks.onSendMessage?.(text);
             this._closeWidget(widget);
@@ -582,6 +602,19 @@ class FabManager {
      * Show Calculator Widget (Scientific)
      */
     showCalcWidget() {
+        const lang = localStorage.getItem('app_language') || 'th';
+
+        // i18n for Calculator Widget
+        const calcTitle = {
+            th: '🔢 เครื่องคิดเลขวิทยาศาสตร์',
+            en: '🔢 Scientific Calculator',
+            ja: '🔢 関数電卓',
+            zh: '🔢 科学计算器',
+            ru: '🔢 Научный калькулятор',
+            hi: '🔢 वैज्ञानिक कैलकुलेटर',
+            ms: '🔢 Kalkulator Saintifik'
+        };
+
         const widget = document.createElement('div');
         widget.className = 'fab-widget';
         widget.style.width = '360px';
@@ -590,7 +623,7 @@ class FabManager {
         widget.innerHTML = `
             <div style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 15px; border-radius: 16px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <h3 style="margin: 0; font-size: 1rem; color: #10b981;">🔢 เครื่องคิดเลขวิทยาศาสตร์</h3>
+                    <h3 style="margin: 0; font-size: 1rem; color: #10b981;">${calcTitle[lang] || calcTitle.th}</h3>
                     <button class="fab-widget-close" style="background: none; border: none; color: #aaa; font-size: 1.2rem; cursor: pointer;">✕</button>
                 </div>
                 
