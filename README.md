@@ -80,6 +80,7 @@ Unlike typical "To-Do List" or "Calculators" toy projects, this is a **Context-A
 *   **Advanced RAG Implementation:** Built a dynamic vector search system using **Qdrant** with a 3-layer intent filter to prevent hallucinations.
 *   **Real-time Interaction:** Mastered `WebSocket` communication for full-duplex audio streaming, creating a natural "Walkie-Talkie" experience.
 *   **System Resilience:** Engineered "Graceful Degradation" patterns—if the primary cloud TTS fails, it seamlessly switches to local edge-TTS or Google gTTS without user interruption.
+*   **Global Accessibility (i18n):** Implemented a robust **Multi-language Support System** (7 languages) for UI widgets, with **Smart TTS** that auto-detects and switches accents based on the spoken language (e.g., Fluent English vs. Native Thai).
 
 ---
 
