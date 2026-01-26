@@ -9,4 +9,9 @@ source /home/robot22/ros2robot/install/setup.bash
 cd "$(dirname "$0")/../core/hardware"
 
 echo "🌉 Starting ROS 2 Bridge..."
-python3 ros2_bridge.py
+# Start ros2_bridge in background
+python3 ros2_bridge.py &
+
+echo "🚗 Starting Kinematics Bridge (cmd_vel -> wheel_command)..."
+# Start kinematics_bridge in foreground (so script doesn't exit immediately)
+python3 kinematics_bridge.py

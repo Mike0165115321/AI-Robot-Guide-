@@ -75,7 +75,7 @@ fi
 echo -e "\n${GREEN}🐍 Starting Python Backend (port 8014)...${NC}"
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 cd Back-end
-python3 -m uvicorn api.main:app --host 0.0.0.0 --port 8014 --reload &
+python3 -m uvicorn api.main:app --host 0.0.0.0 --port 8014 --reload --no-access-log &
 BACKEND_PID=$!
 cd ..
 

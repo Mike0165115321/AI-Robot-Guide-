@@ -272,30 +272,78 @@
 /* ==========================================
    Full-Screen Joystick
    ========================================== */
-.joystick-fullscreen {
+/* ==========================================
+   Dual Joystick Overlay
+   ========================================== */
+.joystick-overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     display: flex;
-    justify-content: center;
+    z-index: 100;
+    /* Ensure it's above other elements */
+    pointer-events: none;
+    /* Let clicks pass through if needed, but nipplejs handles events in zones */
+}
+
+.joystick-zone {
+    width: 50%;
+    height: 100%;
+    position: relative;
+    pointer-events: auto;
+    /* Re-enable events for joystick areas */
+}
+
+#joystick-left-zone {
+    border-right: 1px dashed rgba(255, 255, 255, 0.05);
+    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+}
+
+#joystick-right-zone {
+    background: radial-gradient(circle at center, rgba(34, 197, 94, 0.05) 0%, transparent 50%);
+}
+
+/* Hints Positioning */
+.joystick-hint {
+    position: absolute;
+    bottom: 40px;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.9rem;
+    pointer-events: none;
+    display: flex;
     align-items: center;
-    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.15) 0%, transparent 60%);
+    gap: 8px;
+}
+
+.joystick-hint.left {
+    left: 25%;
+    transform: translateX(-50%);
+}
+
+.joystick-hint.right {
+    left: 75%;
+    transform: translateX(-50%);
+}
+
+/* Legacy Fullscreen (Initially hidden, shown by JS if fallback needed) */
+.joystick-fullscreen {
+    display: none;
+    /* Hidden by default, JS will show if needed */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
 }
 
 .joystick-fullscreen #joystick-zone {
-    width: 500px;
-    height: 500px;
-}
-
-.joystick-fullscreen .joystick-hint {
-    position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 1rem;
+    width: 100%;
+    height: 100%;
 }
 
 /* ==========================================
@@ -434,9 +482,54 @@
         padding: 10px 15px;
     }
 
+    /* Responsive: Stack joysticks on very small screens? No, landscape preferred for robots */
+    /* Or scale them down */
     .keyboard-debug-floating .key-box {
-        width: 40px;
-        height: 40px;
-        font-size: 1rem;
+        width: 35px;
+        height: 35px;
+        font-size: 0.9rem;
     }
+}
+
+/* ==========================================
+   Speed Slider
+   ========================================== */
+.speed-control-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 5px;
+}
+
+.speed-control-container label {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+.speed-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.2);
+    outline: none;
+    transition: all 0.2s;
+}
+
+.speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #2dd4bf;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(45, 212, 191, 0.5);
+    transition: transform 0.2s;
+}
+
+.speed-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
 }
