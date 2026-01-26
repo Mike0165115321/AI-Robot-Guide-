@@ -62,6 +62,15 @@
                 </button>
             </div>
 
+            <!-- Speed Control -->
+            <div class="menu-section">
+                <h4><i class="fas fa-tachometer-alt"></i> ความเร็วสูงสุด (Speed Limit)</h4>
+                <div class="speed-control-container">
+                    <label for="speed-slider">Max: <span id="speed-value">50</span>%</label>
+                    <input type="range" id="speed-slider" min="10" max="100" value="50" class="speed-slider">
+                </div>
+            </div>
+
             <!-- Back Link -->
             <div class="menu-footer">
                 <a href="settings.html" class="menu-link">
@@ -73,35 +82,46 @@
         <!-- Overlay -->
         <div id="menu-overlay" class="menu-overlay"></div>
 
-        <!-- Full-Screen Joystick -->
-        <div class="joystick-fullscreen">
+        <!-- Dual Joystick Overlay -->
+        <div class="joystick-overlay">
+            <div id="joystick-left-zone" class="joystick-zone"></div>
+            <div id="joystick-right-zone" class="joystick-zone"></div>
+        </div>
+
+        <!-- Fallback: Legacy Single Joystick (shown if Dual fails) -->
+        <div class="joystick-fullscreen" id="joystick-legacy-container" style="display:none;">
             <div id="joystick-zone"></div>
+        </div>
 
-            <!-- Usage Instructions -->
-            <div class="usage-instructions">
-                <div class="instruction-item">
-                    <i class="fas fa-bars"></i>
-                    <span>กดปุ่มซ้ายบน เพื่อเปิดเมนูควบคุม</span>
-                </div>
-                <div class="instruction-item">
-                    <i class="fas fa-hand-pointer"></i>
-                    <span>ลากวงกลมเพื่อบังคับทิศทางหุ่นยนต์</span>
-                </div>
-                <div class="instruction-item">
-                    <i class="fas fa-keyboard"></i>
-                    <span>หรือใช้ปุ่ม W A S D บน Keyboard</span>
-                </div>
+        <!-- Usage Instructions (Updated) -->
+        <div class="usage-instructions">
+            <div class="instruction-item">
+                <i class="fas fa-bars"></i>
+                <span>กดปุ่มซ้ายบน เพื่อเปิดเมนู</span>
             </div>
+            <div class="instruction-item">
+                <i class="fas fa-gamepad"></i>
+                <span>Left Stick: เคลื่อนที่ (Move)</span>
+            </div>
+            <div class="instruction-item">
+                <i class="fas fa-sync"></i>
+                <span>Right Stick: หมุนตัว (Rotate)</span>
+            </div>
+        </div>
 
-            <div class="joystick-hint">
-                <i class="fas fa-info-circle"></i> ลากเพื่อบังคับทิศทาง
-            </div>
+        <div class="joystick-hint left">
+            <i class="fas fa-arrows-alt"></i> เดินหน้า / ถอยหลัง / สไลด์
+        </div>
+        <div class="joystick-hint right">
+            <i class="fas fa-sync"></i> หมุนซ้าย / ขวา
         </div>
 
         <!-- Keyboard Debug Panel (Hidden by default) -->
         <div id="keyboard-debug-panel" class="keyboard-debug-floating">
             <div class="key-row">
+                <div id="key-q" class="key-box">Q</div>
                 <div id="key-w" class="key-box">W</div>
+                <div id="key-e" class="key-box">E</div>
             </div>
             <div class="key-row">
                 <div id="key-a" class="key-box">A</div>
@@ -110,6 +130,7 @@
             </div>
             <div class="debug-values">
                 <div>Vx: <span id="debug-vx">0.0</span></div>
+                <div>Vy: <span id="debug-vy">0.0</span></div>
                 <div>Wz: <span id="debug-wz">0.0</span></div>
             </div>
         </div>

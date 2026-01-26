@@ -548,27 +548,11 @@ void setup() {
   ledcSetup(m2_pwm_channel, freq, resolution);
   ledcSetup(m3_pwm_channel, freq, resolution);
   ledcSetup(m4_pwm_channel, freq, resolution);
-  
-  // Setup LEDC for DIR pins (Channels 5-8) to prevent crash on analogWrite
-  const int m1_dir_channel = 5;
-  const int m2_dir_channel = 6;
-  const int m3_dir_channel = 7;
-  const int m4_dir_channel = 8;
-
-  ledcSetup(m1_dir_channel, freq, resolution);
-  ledcSetup(m2_dir_channel, freq, resolution);
-  ledcSetup(m3_dir_channel, freq, resolution);
-  ledcSetup(m4_dir_channel, freq, resolution);
 
   ledcAttachPin(m1_pwm_pin, m1_pwm_channel);
   ledcAttachPin(m2_pwm_pin, m2_pwm_channel);
   ledcAttachPin(m3_pwm_pin, m3_pwm_channel);
   ledcAttachPin(m4_pwm_pin, m4_pwm_channel);
-
-  ledcAttachPin(m1_dir_pin, m1_dir_channel);
-  ledcAttachPin(m2_dir_pin, m2_dir_channel);
-  ledcAttachPin(m3_dir_pin, m3_dir_channel);
-  ledcAttachPin(m4_dir_pin, m4_dir_channel);
 
 
   pinMode(encoder1_a, INPUT_PULLUP);
@@ -719,9 +703,7 @@ void loop() {
       };
       break;
     case AGENT_CONNECTED:
-      // More robust ping: Check every 2s, 100ms timeout, 3 attempts
-      // This prevents single packet loss from disconnecting the robot
-      EXECUTE_EVERY_N_MS(2000, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 3)) ? AGENT_CONNECTED : AGENT_DISCONNECTED;);
+      EXECUTE_EVERY_N_MS(500, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_CONNECTED : AGENT_DISCONNECTED;);
       
       // If just disconnected, warn user immediately
       if (state == AGENT_DISCONNECTED) {

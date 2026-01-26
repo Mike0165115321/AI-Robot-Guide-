@@ -11,7 +11,12 @@ HEARTBEAT_FILE = Path("/tmp/robot_heartbeat.json")
 
 class MoveCommand(BaseModel):
     vx: float
+    vy: float = 0.0  # Strafing (Mecanum)
     wz: float
+
+class SpeedConfig(BaseModel):
+    max_linear: float = None
+    max_angular: float = None
 
 @router.post("/launch/{script_name}")
 async def launch_script(script_name: str, background_tasks: BackgroundTasks):
@@ -81,13 +86,24 @@ async def robot_status():
     except Exception as e:
         return {"status": "offline", "message": f"Error: {str(e)}"}
 
+@router.post("/config/speed")
+async def set_speed_config(config: SpeedConfig):
+    """Set robot maximum speed limits."""
+    hardware_service.set_max_speed(config.max_linear, config.max_angular)
+    return {"status": "updated", "config": hardware_service.get_speed_config()}
+
+@router.get("/config/speed")
+async def get_speed_config():
+    """Get current speed configuration."""
+    return hardware_service.get_speed_config()
+
 @router.post("/move")
 async def move_robot(cmd: MoveCommand):
     """
     Send velocity command to ROS 2 Bridge via UDP.
     """
     try:
-        success = await hardware_service.send_move_command(cmd.vx, cmd.wz)
+        success = await hardware_service.send_move_command(cmd.vx, cmd.vy, cmd.wz)
         return {"status": "ok", "sent_udp": success}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

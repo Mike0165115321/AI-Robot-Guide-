@@ -33,6 +33,10 @@ class HardwareService:
         self.udp_port = 9999
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         
+        # Speed Configuration (Adjustable at runtime)
+        self.max_linear_speed = 0.5   # m/s (default)
+        self.max_angular_speed = 1.0  # rad/s (default)
+        
         self.initialized = True
         logging.info("🔧 HardwareService initialized")
 
@@ -150,24 +154,52 @@ class HardwareService:
 
         return status_dict
 
-    async def send_move_command(self, vx: float, wz: float) -> bool:
+    async def send_move_command(self, vx: float, vy: float = 0.0, wz: float = 0.0) -> bool:
         """
-        Send velocity command to ROS 2 Bridge via UDP using strict limits.
+        Send velocity command to ROS 2 Bridge via UDP.
+        Supports 3-axis control for Mecanum wheels (vx, vy, wz).
+        Frontend sends normalized values (-1.0 to 1.0).
+        Kinematics Bridge handles conversion to RPM.
         """
         try:
-            # Scale inputs (Frontend sends -1.0 to 1.0)
-            MAX_LINEAR = 0.5   # m/s
-            MAX_ANGULAR = 1.0  # rad/s
+            # Scale inputs using instance-level max speeds (Slider Control)
+            # Default Max Linear: 0.5, Max Angular: 1.0
+            # User slider adjusts these values via /config/speed
+            final_vx = max(min(vx, 1.0), -1.0) * self.max_linear_speed
+            final_vy = max(min(vy, 1.0), -1.0) * self.max_linear_speed
+            final_wz = max(min(wz, 1.0), -1.0) * self.max_angular_speed * -1  # Invert angular
 
-            final_vx = max(min(vx, 1.0), -1.0) * MAX_LINEAR
-            final_wz = max(min(wz, 1.0), -1.0) * MAX_ANGULAR * -1 # Invert angular
+            # Note: Kinematics Bridge BASE_RPM is now 120.
+            # If max_linear_speed is 0.5 -> sends 0.5 -> kinematics uses 0.5 * 120 = 60 RPM (Safe default)
+            # If max_linear_speed is 1.0 -> sends 1.0 -> kinematics uses 1.0 * 120 = 120 RPM (Fast)
 
-            payload = json.dumps({"vx": final_vx, "wz": final_wz}).encode('utf-8')
+            payload = json.dumps({"vx": final_vx, "vy": final_vy, "wz": final_wz}).encode('utf-8')
             self.sock.sendto(payload, (self.udp_ip, self.udp_port))
             return True
         except Exception as e:
             logging.error(f"UDP Send failed: {e}")
             raise e
 
+    def set_max_speed(self, linear: float = None, angular: float = None):
+        """
+        Set maximum speed limits at runtime.
+        - linear: Max linear speed in m/s (affects vx, vy)
+        - angular: Max angular speed in rad/s (affects wz)
+        """
+        if linear is not None:
+            self.max_linear_speed = max(0.1, min(linear, 2.0))  # Clamp 0.1 - 2.0 m/s
+            logging.info(f"⚙️ Max Linear Speed set to {self.max_linear_speed} m/s")
+        if angular is not None:
+            self.max_angular_speed = max(0.1, min(angular, 3.0))  # Clamp 0.1 - 3.0 rad/s
+            logging.info(f"⚙️ Max Angular Speed set to {self.max_angular_speed} rad/s")
+
+    def get_speed_config(self) -> dict:
+        """Return current speed configuration."""
+        return {
+            "max_linear_speed": self.max_linear_speed,
+            "max_angular_speed": self.max_angular_speed
+        }
+
 # Global Instance
 hardware_service = HardwareService()
+

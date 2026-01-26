@@ -67,19 +67,24 @@ class TeleopBridge(Node):
             cmd = json.loads(data.decode('utf-8'))
             
             vx = float(cmd.get("vx", 0.0))
+            vy = float(cmd.get("vy", 0.0))
             wz = float(cmd.get("wz", 0.0))
             
-            self.get_logger().info(f"Received UDP: vx={vx}, wz={wz}")
-            self.publish_velocity(vx, wz)
+            # Reduce log frequency - only log non-zero commands or periodic status
+            if vx != 0 or vy != 0 or wz != 0:
+                 self.get_logger().debug(f"Received UDP: vx={vx}, vy={vy}, wz={wz}")
+            
+            self.publish_velocity(vx, vy, wz)
             
         except BlockingIOError:
             pass # No data
         except Exception as e:
             self.get_logger().error(f"Error parsing UDP: {e}")
 
-    def publish_velocity(self, vx: float, wz: float):
+    def publish_velocity(self, vx: float, vy: float, wz: float):
         msg = Twist()
         msg.linear.x = vx
+        msg.linear.y = vy
         msg.angular.z = wz
         self.publisher.publish(msg)
     
