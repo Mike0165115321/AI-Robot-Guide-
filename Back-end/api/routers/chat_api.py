@@ -1,4 +1,5 @@
 import logging
+import time  # 🆕 For response time measurement
 from fastapi import APIRouter, HTTPException, Depends, status, File, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 import os
@@ -172,10 +173,13 @@ async def handle_text_chat(
         
         result = None
         user_intent = None # To track for analytics
+        response_time_ms = 0  # 🆕 Initialize response time
 
         if isinstance(query_data, dict) and (action := query_data.get("action")):
             # 🚀 [แก้ไข] เพิ่มการ log session_id
             logging.info(f"⚡️ [API-Text] ได้รับ EXPLICIT ACTION: '{action}' | Session: '{session_id}' | Mode: {ai_mode}")
+            
+            start_time = time.time()  # 🆕 Start timer
             
             if action == "GET_DIRECTIONS":
                 entity_slug = query_data.get("entity_slug")
@@ -186,19 +190,30 @@ async def handle_text_chat(
                     raise HTTPException(status_code=400, detail="Missing data for GET_DIRECTIONS")
                 
                 result = await orchestrator.handle_get_directions(entity_slug, user_lat, user_lon)
+                user_intent = "NAVIGATION"
             
             else:
                 logging.warning(f"ได้รับ action ที่ไม่รู้จัก: {action}")
                 result = {"answer": "ขออภัยค่ะ ไม่รู้จักคำสั่ง Action นี้ค่ะ", "action": None}
+                user_intent = "UNKNOWN"
+            
+            response_time_ms = (time.time() - start_time) * 1000  # 🆕 Calculate response time
 
         elif isinstance(query_data, str):
             logging.info(f"💬 [API-Text] ได้รับ IMPLICIT query: '{query_data}' | Session: '{session_id}' | Mode: {ai_mode}")
+            
+            start_time = time.time()  # 🆕 Start timer
+            
             result = await orchestrator.answer_query(
                 query=query_data, 
                 mode='text', 
                 session_id=session_id,
                 ai_mode=ai_mode  # 🆕 Pass ai_mode to orchestrator! 
             )
+            
+            response_time_ms = (time.time() - start_time) * 1000  # 🆕 Calculate response time
+            user_intent = result.get("intent", "INFORMATIONAL")  # 🆕 Get intent from result
+            
         else:
             raise HTTPException(status_code=400, detail="Invalid query format.")
         
@@ -210,17 +225,23 @@ async def handle_text_chat(
 
         logging.info(f"✅ [API-Text] กำลังส่งคำตอบกลับไปยังไคลเอนต์")
         
-        # 📊 Async Log to Analytics
+        # 📊 Async Log to Analytics (Enhanced with all fields)
         user_query_str = query_data if isinstance(query_data, str) else str(query_data)
         topic = result.get("category") or result.get("topic")
         location_title = result.get("title") or result.get("location_title")
+        confidence_score = result.get("confidence_score") or result.get("confidence")  # 🆕 Get confidence
         
         await analytics.log_interaction(
             session_id=session_id,
             user_query=user_query_str,
             response=result.get("answer", ""),
             topic=topic,
-            location_title=location_title
+            location_title=location_title,
+            # 🆕 Enhanced fields for dashboard
+            response_time_ms=response_time_ms,
+            confidence_score=confidence_score,
+            intent=user_intent,
+            ai_mode=ai_mode
         )
 
         # 🆕 Add avatar_mood for REST API responses too
