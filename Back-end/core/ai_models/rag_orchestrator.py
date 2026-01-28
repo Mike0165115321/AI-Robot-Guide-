@@ -84,8 +84,21 @@ class RAGOrchestrator:
         source_info: List[dict] = []
         static_image_gallery: List[str] = []
         processed_prefixes = set()
+        processed_titles = set()  # 🆕 Track processed titles to prevent duplicates
+        
         for doc in docs_to_show:
             if not doc: continue
+            
+            # 🆕 Skip duplicate titles (use core title for fuzzy matching)
+            import re
+            title = doc.get("title", "N/A")
+            # Extract core title by removing parenthetical suffixes like "(Wat Phumin)"
+            core_title = re.sub(r'\s*\([^)]*\)\s*$', '', title).strip()
+            if core_title in processed_titles or title in processed_titles:
+                logging.debug(f"⏭️ [Dedup] Skipping duplicate title: {title} (core: {core_title})")
+                continue
+            processed_titles.add(core_title)
+            processed_titles.add(title)
             
             # Safe access: Handle if metadata is None or missing
             metadata = doc.get("metadata") or {}
@@ -102,7 +115,7 @@ class RAGOrchestrator:
                     processed_prefixes.add(prefix)
             
             source_info.append({
-                "title": doc.get("title", "N/A"),
+                "title": title,
                 "summary": doc.get("summary", ""),
                 "image_urls": doc_images[: settings.SOURCE_CARD_IMAGE_LIMIT],
             })
