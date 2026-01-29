@@ -19,6 +19,7 @@ echo -e "${BLUE}═════════════════════�
 cleanup() {
     echo -e "\n${RED}🛑 Stopping Web Services...${NC}"
     kill $BACKEND_PID 2>/dev/null
+    kill $BRIDGE_PID 2>/dev/null
     
     # Hint to user
     echo -e "${YELLOW}ℹ️  Robot processes (start_robot.sh) are NOT killed automatically.${NC}"
@@ -32,6 +33,7 @@ trap cleanup SIGINT SIGTERM
 echo -e "\n${YELLOW}🧹 Cleaning up old processes...${NC}"
 pkill -f "ros2_bridge.py" 2>/dev/null
 fuser -k 8014/tcp 2>/dev/null
+fuser -k 8015/tcp 2>/dev/null
 sleep 1
 
 # 1. Start Docker Databases
@@ -70,6 +72,15 @@ if [ -f "/opt/ros/humble/setup.bash" ]; then
     # BRIDGE_PID=$!
     :
 fi
+
+# 2.9 Start Nav Bridge (Sidecar) for ROS 2 (Python 3.10)
+echo -e "\n${GREEN}🌉 Starting Nav Bridge (ROS 2 Sidecar - Port 8015)...${NC}"
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+# Use the dedicated bridge virtual environment which has access to ROS 2 via PYTHONPATH (sourced above)
+# Start Nav Bridge with Hot Reload (Uvicorn)
+Back-end/.venv-bridge/bin/python3 -m uvicorn nav_bridge.bridge_server:app --app-dir Back-end --host 0.0.0.0 --port 8015 --reload &
+BRIDGE_PID=$!
+sleep 2
 
 # 3. Start Python Backend
 echo -e "\n${GREEN}🐍 Starting Python Backend (port 8014)...${NC}"

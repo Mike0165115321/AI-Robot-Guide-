@@ -66,12 +66,23 @@ class KinematicsBridge(Node):
         # But to be safe, let's handle smooth ramping here.
         
         # Base RPM for 100% input
-        BASE_RPM = 120.0 
+        # Updated Kinematics (Mecanum Inverse Kinematics)
+        # Lx = 0.165, Ly = 0.12, R = 0.05
+        # Geometry Factor = Lx + Ly = 0.285
+        GEOM_FACTOR = 0.285
+        WHEEL_RADIUS = 0.05
+        
+        # Convert Linear (m/s) to Angular (rad/s)
+        # v_wheel = v_robot +/- (Lx+Ly)*w_robot
+        # rpm = (v_wheel / R) * 60 / 2pi
+        
+        def to_rpm(v_linear):
+            return (v_linear / WHEEL_RADIUS) * 9.5493 # 9.5493 = 60/2pi
 
-        rpm_fl = (vx - vy - wz) * BASE_RPM
-        rpm_fr = (vx + vy + wz) * BASE_RPM
-        rpm_rl = (vx + vy - wz) * BASE_RPM
-        rpm_rr = (vx - vy + wz) * BASE_RPM
+        rpm_fl = to_rpm(vx - vy - GEOM_FACTOR * wz)
+        rpm_fr = to_rpm(vx + vy + GEOM_FACTOR * wz)
+        rpm_rl = to_rpm(vx + vy - GEOM_FACTOR * wz)
+        rpm_rr = to_rpm(vx - vy + GEOM_FACTOR * wz)
         
         self.target_rpm = [rpm_fl, rpm_fr, rpm_rl, rpm_rr]
         self.last_cmd_time = self.get_clock().now().nanoseconds / 1e9

@@ -115,7 +115,7 @@ float ki = 0.004;
 float kd = 0.0;
 
 //Motor pulse parameters
-float PPR = 2160; // (From manufacturer)
+float PPR = 890; // (Updated as per user measurement)
 long p1, p2, p3, p4;
 
 //M1 Wheel control parameter

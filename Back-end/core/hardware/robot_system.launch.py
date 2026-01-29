@@ -58,6 +58,9 @@ def generate_launch_description():
     # QoS Relay Script
     qos_relay_script = str(components_dir / 'qos_relay_node.py')
     ros2_bridge_script = str(backend_hardware_dir / 'ros2_bridge.py')
+    ros2_bridge_script = str(backend_hardware_dir / 'ros2_bridge.py')
+    odometry_script = str(backend_hardware_dir / 'odometry_node.py') # Added new script
+    kinematics_script = str(backend_hardware_dir / 'kinematics_bridge.py') # Added kinematics bridge
     
     # =================================================================================
     # Launch Arguments
@@ -78,10 +81,17 @@ def generate_launch_description():
     )
     
     # 2. Robot Core Odom - คำนวณ Odometry จาก Encoder
-    robot_core_odom_node = Node(
-        package='ctrobot',
-        executable='robot_core_odom',
-        name='navrobot_core_odom',
+    # robot_core_odom_node = Node(
+    #     package='ctrobot',
+    #     executable='robot_core_odom',
+    #     name='navrobot_core_odom',
+    #     output='screen',
+    # )
+
+    # 2. [NEW] Mecanum Odometry - ใช้ Python Script แทนตัวเดิมที่แก้ค่าไม่ได้
+    odometry_process = ExecuteProcess(
+        cmd=['/usr/bin/python3', odometry_script],
+        name='odometry_node',
         output='screen',
     )
     
@@ -100,6 +110,13 @@ def generate_launch_description():
         ),
         launch_arguments={'params_file': lidar_params_file}.items(),
     )
+
+    # 4.5 ROS Bridge Server (WebSocket) - Execute via command line because it's an XML launch file
+    rosbridge_node = ExecuteProcess(
+        cmd=['ros2', 'launch', 'rosbridge_server', 'rosbridge_websocket_launch.xml', 'port:=9090'],
+        name='rosbridge_websocket',
+        output='screen',
+    )
     
     # 5. QoS Relay Node - แก้ปัญหา Best Effort -> Reliable
     # (ใช้ ExecuteProcess แทน Node เพราะเป็น standalone script)
@@ -113,6 +130,13 @@ def generate_launch_description():
     ros2_bridge_process = ExecuteProcess(
         cmd=['/usr/bin/python3', ros2_bridge_script],
         name='ros2_bridge',
+        output='screen',
+    )
+    
+    # 6.5 Kinematics Bridge - Converts cmd_vel to wheel_commands
+    kinematics_process = ExecuteProcess(
+        cmd=['/usr/bin/python3', kinematics_script],
+        name='kinematics_bridge',
         output='screen',
     )
     
@@ -149,7 +173,8 @@ def generate_launch_description():
     # Delayed Nodes
     delayed_odom_node = TimerAction(
         period=3.0,  # รอให้ Micro-ROS Agent เชื่อมต่อกับ ESP32 ก่อน
-        actions=[robot_core_odom_node],
+        # actions=[robot_core_odom_node],
+        actions=[odometry_process], # Use new node
     )
     
     delayed_qos_relay = TimerAction(
@@ -172,7 +197,9 @@ def generate_launch_description():
         # Stage 2: Hardware Foundation (Lidar, TF, Bridge - ทันที เพราะไม่ต้องรอ Micro-ROS)
         static_tf_base_laser,
         lidar_node,
+        rosbridge_node, # Added rosbridge
         ros2_bridge_process,
+        kinematics_process, # Added kinematics
         
         # Stage 3: Robot Core Odom (รอหลัง Micro-ROS connect)
         delayed_odom_node,
@@ -180,6 +207,6 @@ def generate_launch_description():
         # Stage 4: QoS Bridge (after lidar stabilizes)
         delayed_qos_relay,
         
-        # Stage 5: Navigation (after everything is ready)
-        delayed_nav2,
+        # Stage 5: Navigation (Moved to Web UI Map Manager)
+        # delayed_nav2,
     ])

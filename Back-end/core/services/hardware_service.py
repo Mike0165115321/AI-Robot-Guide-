@@ -6,6 +6,9 @@ import socket
 import json
 from typing import Dict, Optional
 from pathlib import Path
+import httpx
+
+BRIDGE_URL = "http://localhost:8015"
 
 # Path to the scripts directory
 # Assuming this file is in Back-end/core/services/
@@ -173,12 +176,18 @@ class HardwareService:
             # If max_linear_speed is 0.5 -> sends 0.5 -> kinematics uses 0.5 * 120 = 60 RPM (Safe default)
             # If max_linear_speed is 1.0 -> sends 1.0 -> kinematics uses 1.0 * 120 = 120 RPM (Fast)
 
-            payload = json.dumps({"vx": final_vx, "vy": final_vy, "wz": final_wz}).encode('utf-8')
-            self.sock.sendto(payload, (self.udp_ip, self.udp_port))
+            # HTTP Proxy to Nav Bridge (Port 8015)
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    f"{BRIDGE_URL}/hardware/move",
+                    json={"vx": final_vx, "vy": final_vy, "wz": final_wz},
+                    timeout=1.0
+                )
             return True
         except Exception as e:
-            logging.error(f"UDP Send failed: {e}")
-            raise e
+            logging.error(f"Hardware Proxy failed: {e}")
+            # raise e # Don't crash main backend on bridge fail, just log
+            return False
 
     def set_max_speed(self, linear: float = None, angular: float = None):
         """
