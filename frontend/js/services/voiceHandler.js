@@ -24,16 +24,13 @@ const DEFAULT_CONFIG = {
     NOISE_FLOOR: 0.01,            // เพิ่ม Noise floor ให้สูงขึ้นนิดหน่อย
     SPEECH_THRESHOLD: 0.25,       // ลด Threshold ลงให้พอดีกับ Amplification ใหม่
     AMPLIFICATION: 2.0,           // ⚠️ ลดลงจาก 45 เพื่อแก้ปัญหา volume สูงเกินไป
-    SILENCE_DELAY_MS: 1500,       // รอ 1.5 วินาทีเพื่อให้แน่ใจว่าจบประโยคจริง
+    SILENCE_DELAY_MS: 2500,       // รอ 2.5 วินาทีเพื่อให้แน่ใจว่าจบประโยคจริง
     SPEECH_CONFIRMATION_FRAMES: 5, // เพิ่ม frames เพื่อความชัวร์ว่าเป็นเสียงพูดจริง
     MIN_BLOB_SIZE_BYTES: 1000,    // ขนาดไฟล์เสียงขั้นต่ำ (ป้องกันเสียงสั้นเกินไป)
     SMOOTHING_FACTOR: 0.2,        // ค่า smoothing สำหรับ volume
     MAX_RECORDING_MS: 15000       // บันทึกได้สูงสุด 15 วินาที
 };
 
-// =============================================
-// VOICE HANDLER CLASS
-// =============================================
 export class VoiceHandler {
     /**
      * @param {Object} callbacks - Callback functions

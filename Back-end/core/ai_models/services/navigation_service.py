@@ -2,14 +2,29 @@ import math
 import logging
 import asyncio
 from typing import List, Dict, Any, Optional
+from bson import ObjectId
 from core.database.mongodb_manager import MongoDBManager
+from core.database.qdrant_manager import QdrantManager
 from .prompt_engine import PromptEngine
+from core.services.knowledge_gap_service import KnowledgeGapService
+
+# 🆕 Threshold สำหรับ Semantic Navigation Search
+SEMANTIC_NAV_HIGH_CONFIDENCE = 0.70   # ใช้เลยไม่ต้องถาม
+SEMANTIC_NAV_LOW_CONFIDENCE = 0.50    # ถามยืนยันก่อน
 
 class NavigationService:
-    def __init__(self, mongo_manager: MongoDBManager, prompt_engine: PromptEngine):
+    def __init__(
+        self, 
+        mongo_manager: MongoDBManager, 
+        prompt_engine: PromptEngine, 
+        qdrant_manager: QdrantManager = None,
+        knowledge_gap_service: KnowledgeGapService = None
+    ):
         self.mongo_manager = mongo_manager
         self.prompt_engine = prompt_engine
-        logging.info("🗺️ [NavigationService] Initialized.")
+        self.qdrant_manager = qdrant_manager
+        self.knowledge_gap_service = knowledge_gap_service
+        logging.info("🗺️ [NavigationService] Initialized (Hybrid Search Enabled).")
 
     def _clean_navigation_entity(self, text: str) -> str:
         """ลบคำกริยานำทางออกจากชื่อสถานที่ เช่น 'ไป วัด...', 'นำทางไป...'"""
@@ -115,9 +130,86 @@ class NavigationService:
             if clean_slug != entity_slug:
                  doc = await asyncio.to_thread(self.mongo_manager.get_location_by_title, entity_slug)
             
+            # 🆕 [Hybrid Navigation] Qdrant Semantic Search Fallback!
+            if (not doc or not doc.get("location_data")) and self.qdrant_manager:
+                logging.info(f"🔍 [Hybrid Nav] MongoDB not found, trying Qdrant semantic search for: '{clean_slug}'")
+                
+                try:
+                    # ค้นหาแบบ Semantic (ไม่ filter เพราะ payload ไม่มี doc_type)
+                    qdrant_results = await self.qdrant_manager.search_similar(
+                        query_text=f"{clean_slug} จังหวัดน่าน",
+                        top_k=3
+                    )
+                    
+                    if qdrant_results:
+                        top_result = qdrant_results[0]
+                        top_score = top_result.score if hasattr(top_result, 'score') else 0.0
+                        payload = top_result.payload if hasattr(top_result, 'payload') else {}
+                        
+                        # 🆕 ดึง title จาก payload หรือ parse จาก text_content
+                        matched_title = payload.get("title")
+                        if not matched_title:
+                            # Parse from text_content: "หัวข้อ: วัดพระธาตุแช่แห้ง..."
+                            text_content = payload.get("text_content", "")
+                            if "หัวข้อ:" in text_content:
+                                matched_title = text_content.split("หัวข้อ:")[1].split("(")[0].strip()
+                            else:
+                                matched_title = text_content[:50].strip() or "Unknown"
+                        
+                        mongo_id = payload.get("mongo_id")
+                        
+                        logging.info(f"🎯 [Hybrid Nav] Qdrant found: '{matched_title}' (score: {top_score:.4f}, mongo_id: {mongo_id})")
+                        
+                        # ✅ High Confidence: ใช้เลย!
+                        if top_score >= SEMANTIC_NAV_HIGH_CONFIDENCE and mongo_id:
+                            logging.info(f"✅ [Hybrid Nav] High confidence match! Fetching from MongoDB: '{matched_title}'")
+                            # Fetch full doc from MongoDB using mongo_id
+                            fetched_doc = await asyncio.to_thread(
+                                lambda mid=mongo_id: self.mongo_manager.get_collection("nan_locations").find_one({"_id": ObjectId(mid)})
+                            )
+                            if fetched_doc and fetched_doc.get("location_data"):
+                                # ✅ SUCCESS! ใช้ doc ที่ fetch มา
+                                doc = fetched_doc
+                                doc["_semantic_match"] = True
+                                doc["_original_query"] = clean_slug
+                                logging.info(f"✅ [Hybrid Nav] Successfully fetched: '{doc.get('title')}' with location_data!")
+                        
+                        # ⚠️ Medium Confidence: ถามยืนยัน
+                        elif top_score >= SEMANTIC_NAV_LOW_CONFIDENCE and mongo_id:
+                            logging.info(f"⚠️ [Hybrid Nav] Medium confidence - asking confirmation for: '{matched_title}'")
+                            return {
+                                "answer": f"คุณหมายถึง **{matched_title}** หรือเปล่าคะ? 🤔\n\nกดเพื่อยืนยันนำทางไปที่นี่ค่ะ",
+                                "action": "CONFIRM_NAVIGATION",
+                                "action_payload": {
+                                    "suggested_entity": matched_title,
+                                    "mongo_id": mongo_id,
+                                    "original_query": clean_slug,
+                                    "confidence": round(top_score, 4)
+                                },
+                                "sources": [], "image_url": None, "image_gallery": []
+                            }
+                        else:
+                            logging.info(f"❌ [Hybrid Nav] Low confidence ({top_score:.4f}) - not using")
+                            
+                except Exception as e:
+                    logging.error(f"❌ [Hybrid Nav] Qdrant search failed: {e}")
+            
+            # ❌ ไม่เจอทั้ง MongoDB และ Qdrant
             if not doc or not doc.get("location_data"):
+                not_found_answer = f"ขออภัยค่ะ ไม่พบพิกัดของ **{clean_slug}** ในระบบ ลองระบุชื่อสถานที่อีกครั้งนะคะ"
+                
+                # 🧠 [Self-Correcting RAG] Log navigation failures to Knowledge Gaps!
+                if self.knowledge_gap_service:
+                    await self.knowledge_gap_service.log_unanswered(
+                        query=f"นำทางไป {clean_slug}",
+                        score=0.0,  # Not found = 0 score
+                        ai_response=not_found_answer,
+                        context=f"[NAVIGATION] ไม่พบสถานที่: {entity_slug} -> cleaned: {clean_slug}"
+                    )
+                    logging.info(f"🧠 [Knowledge Gap] Logged NOT FOUND navigation: '{clean_slug}'")
+                
                 return {
-                    "answer": f"ขออภัยค่ะ ไม่พบพิกัดของ **{clean_slug}** ในระบบ ลองระบุชื่อสถานที่อีกครั้งนะคะ", 
+                    "answer": not_found_answer, 
                     "action": None, "sources": [], "image_url": None
                 }
 

@@ -41,6 +41,11 @@
 
         <!-- Skin Carousel (Top Right) -->
         <div class="skin-carousel-wrapper">
+            <!-- 🆕 ปุ่มเปิด/ปิดเสียงแจ้งเตือน -->
+            <button class="alert-tts-toggle" id="alert-tts-toggle" title="เปิด/ปิดเสียงแจ้งเตือนข่าวสาร" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white; 
+                       padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-right: 8px; font-size: 1rem;">
+                🔔
+            </button>
             <button class="skin-toggle-btn" id="skin-toggle">🎨</button>
             <div class="skin-carousel" id="skin-carousel">
                 <div class="skin-list" id="skin-list">
@@ -94,10 +99,15 @@
                     <div class="voice-pulse"></div>
                     <span class="voice-status" data-i18n="chat_listening">กำลังฟัง... 👂</span>
                 </div>
-                <!-- Added Mute Button for Voice Mode -->
-                <button class="btn-mode" id="btn-stop-tts-voice" title="หยุดเสียงพูด"
+                <!-- หยุดเสียง AI (ยังคงอยู่ใน Voice Mode) -->
+                <button class="btn-mode" id="btn-stop-tts-voice" title="หยุดเสียง AI"
                     style="display: none; background: #ef4444; color: white; margin-right: 8px;">🔇</button>
-                <button class="btn-stop-voice" id="btn-stop-voice" data-i18n="chat_stop_voice">หยุดพูด</button>
+                <!-- หยุด TTS แต่ยังคงอยู่ใน Voice Mode -->
+                <button class="btn-stop-voice" id="btn-stop-voice" data-i18n="chat_stop_voice"
+                    title="หยุดเสียง AI แล้วถามต่อ">หยุดพูด</button>
+                <!-- ออกจาก Voice Mode -->
+                <button class="btn-exit-voice" id="btn-exit-voice" title="ออกจากโหมดเสียง"
+                    style="background: transparent; border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 12px; border-radius: 8px; margin-left: 8px; cursor: pointer;">✕</button>
             </div>
         </div>
 

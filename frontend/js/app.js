@@ -456,16 +456,22 @@ function handleAvatarMessage(data) {
 
 function handleAlertMessage(data) {
     console.log('🚨 Alert Received:', data);
+    const shouldSpeak = stateManager.get('alertTTSEnabled'); // 🆕 เช็คว่าเปิดเสียงแจ้งเตือนหรือไม่
+
     if (data.type === 'connection_established') {
         if (data.recent_alerts && data.recent_alerts.length > 0) {
             data.recent_alerts.forEach(alert => uiManager.showToastAlert(alert));
-            const latestAlert = data.recent_alerts[data.recent_alerts.length - 1];
-            avatarManager.speak(`มีแจ้งเตือนค้างอยู่ค่ะ ${latestAlert.summary}`, 'worried');
+            if (shouldSpeak) {
+                const latestAlert = data.recent_alerts[data.recent_alerts.length - 1];
+                avatarManager.speak(`มีแจ้งเตือนค้างอยู่ค่ะ ${latestAlert.summary}`, 'worried');
+            }
         }
     } else if (data.type === 'alert') {
         uiManager.showToastAlert(data);
-        avatarManager.speak(`มีแจ้งเตือนด่วนค่ะ! ${data.summary}`, 'worried', 'th');
         uiManager.updateSpeech(`⚠️ แจ้งเตือน: ${data.summary}`);
+        if (shouldSpeak) {
+            avatarManager.speak(`มีแจ้งเตือนด่วนค่ะ! ${data.summary}`, 'worried', 'th');
+        }
     }
 }
 
@@ -511,6 +517,23 @@ function bindEvents() {
         skinCarousel.classList.toggle('open');
         skinToggle.classList.toggle('active');
     });
+
+    // 🆕 Alert TTS Toggle Button
+    const alertTTSToggle = $('#alert-tts-toggle');
+    if (alertTTSToggle) {
+        // Set initial state
+        updateAlertTTSButton(alertTTSToggle);
+
+        on(alertTTSToggle, 'click', () => {
+            const current = stateManager.get('alertTTSEnabled');
+            stateManager.set('alertTTSEnabled', !current);
+            localStorage.setItem('alertTTSEnabled', (!current).toString());
+            updateAlertTTSButton(alertTTSToggle);
+
+            const msg = !current ? 'เปิดเสียงแจ้งเตือนข่าวสารแล้วค่ะ 🔔' : 'ปิดเสียงแจ้งเตือนข่าวสารแล้วค่ะ 🔕';
+            uiManager.updateSpeech(msg);
+        });
+    }
 
     delegate(document.body, 'click', '.skin-btn', (e, target) => {
         $$('.skin-btn').forEach(b => b.classList.remove('active'));
@@ -578,6 +601,14 @@ function stopSpeaking() {
     if (stateManager.get('isVoiceMode')) {
         voiceModeManager.resumeRecording();
     }
+}
+
+// 🆕 Helper: อัปเดตสถานะปุ่มเสียงแจ้งเตือน
+function updateAlertTTSButton(btn) {
+    const isEnabled = stateManager.get('alertTTSEnabled');
+    btn.innerHTML = isEnabled ? '🔔' : '🔕';
+    btn.title = isEnabled ? 'เสียงแจ้งเตือนข่าวสาร: เปิด (กดเพื่อปิด)' : 'เสียงแจ้งเตือนข่าวสาร: ปิด (กดเพื่อเปิด)';
+    btn.style.opacity = isEnabled ? '1' : '0.5';
 }
 
 window.submitFeedback = async (type, btn) => {

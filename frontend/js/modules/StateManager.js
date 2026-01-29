@@ -18,7 +18,8 @@ class StateManager {
             silenceTimer: null, // For auto-submit in voice mode
             longPressTimer: null,
             isLongPress: false,
-            avatarMood: 'neutral'
+            avatarMood: 'neutral',
+            alertTTSEnabled: localStorage.getItem('alertTTSEnabled') === 'true' // 🆕 เปิด/ปิดเสียงแจ้งเตือน (ค่าเริ่มต้น: ปิด)
         };
 
         StateManager.instance = this;

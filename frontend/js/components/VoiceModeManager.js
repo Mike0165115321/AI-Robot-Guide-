@@ -58,7 +58,8 @@ class VoiceModeManager {
             voiceMode: $('#voice-mode'),
             rainbowBtn: $('#btn-voice-toggle'),
             voiceStatus: $('.voice-status'),
-            stopBtn: $('#btn-stop-voice')
+            stopBtn: $('#btn-stop-voice'),
+            exitBtn: $('#btn-exit-voice')  // 🆕 ปุ่มออกจาก Voice Mode
         };
     }
 
@@ -67,14 +68,20 @@ class VoiceModeManager {
      * @private
      */
     _bindEvents() {
-        const { rainbowBtn, stopBtn } = this.elements;
+        const { rainbowBtn, stopBtn, exitBtn } = this.elements;
 
         if (rainbowBtn) {
             rainbowBtn.addEventListener('click', () => this.toggle());
         }
 
+        // หยุด TTS แต่ยังคงอยู่ใน Voice Mode
         if (stopBtn) {
-            stopBtn.addEventListener('click', () => this.stop());
+            stopBtn.addEventListener('click', () => this.stopTTSOnly());
+        }
+
+        // ออกจาก Voice Mode กลับไป Text Mode
+        if (exitBtn) {
+            exitBtn.addEventListener('click', () => this.stop());
         }
     }
 
@@ -101,12 +108,40 @@ class VoiceModeManager {
     }
 
     /**
-     * Force stop voice mode
+     * Force stop voice mode (exit to text mode)
      */
     stop() {
         this._switchToTextMode();
         // 🆕 Resume wake word listener
         window.resumeWakeWord?.();
+    }
+
+    /**
+     * 🆕 หยุดแค่ TTS แต่ยังคงอยู่ใน Voice Mode
+     * ใช้สำหรับปุ่ม "หยุดพูด" ใน Voice Mode
+     */
+    stopTTSOnly() {
+        console.log('🔇 VoiceModeManager: Stopping TTS only, staying in voice mode');
+
+        // 1. หยุด VAD ก่อน (ถ้ากำลัง record อยู่)
+        if (this.isRecording) {
+            speechService.stopVAD(true); // Interrupted = true เพื่อไม่ส่ง audio
+            this.isRecording = false;
+        }
+
+        // 2. หยุด TTS
+        import('../modules/AvatarManager.js').then(module => {
+            module.default.stop();  // หยุด TTS
+
+            // 3. เริ่ม recording ใหม่หลังหยุด TTS
+            setTimeout(() => {
+                if (this.isVoiceMode) {
+                    console.log('🎤 VoiceModeManager: Restarting VAD after stop...');
+                    this._updateStatus('กำลังฟัง... 👂');
+                    this._startRecording();
+                }
+            }, 300);
+        });
     }
 
     /**

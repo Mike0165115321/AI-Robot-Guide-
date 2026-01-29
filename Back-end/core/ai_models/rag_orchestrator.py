@@ -55,8 +55,13 @@ class RAGOrchestrator:
         self.query_interpreter = query_interpreter
         self.session_manager = SessionManager(mongo_manager)
         self.prompt_engine = PromptEngine()
-        self.nav_service = NavigationService(mongo_manager, self.prompt_engine)
         self.image_service = ImageService(mongo_manager)
+        
+        # 🧠 [Self-Correcting RAG] Knowledge Gap Service - Initialize BEFORE NavigationService!
+        self.knowledge_gap_service = KnowledgeGapService(mongo_manager, qdrant_manager)
+        
+        # 🗺️ NavigationService ต้องได้รับ qdrant_manager และ knowledge_gap_service สำหรับ Hybrid Search
+        self.nav_service = NavigationService(mongo_manager, self.prompt_engine, qdrant_manager, self.knowledge_gap_service)
 
         self.reranker_model_name = settings.RERANKER_MODEL_NAME
         self.device = settings.DEVICE
@@ -74,9 +79,6 @@ class RAGOrchestrator:
             query_interpreter=self.query_interpreter,
             orchestrator_callback=self.answer_query
         )
-        
-        # 🧠 [Self-Correcting RAG] Knowledge Gap Service
-        self.knowledge_gap_service = KnowledgeGapService(mongo_manager, qdrant_manager)
         
         logging.info("✅ RAG Orchestrator พร้อมใช้งาน")
 
@@ -440,8 +442,20 @@ class RAGOrchestrator:
                  docs_with_synthetic.append((doc, synthetic_doc))
         
         if not docs_with_synthetic:
-             return {
-                "answer": f"น้องน่านพยายามหาข้อมูลเกี่ยวกับ **'{corrected_query}'** แล้วแต่ไม่เจอเลยค่ะ 😅 ลองถามเรื่องอื่น หรือใช้คำถามอื่นดูมั้ยคะ?",
+            # 🧠 [Self-Correcting RAG] Log questions with NO RESULTS to Knowledge Gaps!
+            no_result_answer = f"น้องน่านพยายามหาข้อมูลเกี่ยวกับ **'{corrected_query}'** แล้วแต่ไม่เจอเลยค่ะ 😅 ลองถามเรื่องอื่น หรือใช้คำถามอื่นดูมั้ยคะ?"
+            
+            await self.knowledge_gap_service.log_unanswered(
+                query=corrected_query,
+                score=0.0,  # No results = 0 score
+                session_id=session_id,
+                ai_response=no_result_answer,
+                context="[NO DOCUMENTS FOUND BY RAG]"
+            )
+            logging.info(f"🧠 [Knowledge Gap] Logged NO RESULTS query: '{corrected_query}'")
+            
+            return {
+                "answer": no_result_answer,
                 "action": None,
                 "sources": [], "image_url": None, "image_gallery": []
             }

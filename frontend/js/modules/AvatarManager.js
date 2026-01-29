@@ -11,6 +11,7 @@
 import avatarService from '../services/avatarService.js';
 import stateManager from './StateManager.js';
 import uiManager from './UIManager.js';
+import { voiceModeManager } from '../components/VoiceModeManager.js';
 
 class AvatarManager {
     constructor() {
@@ -271,6 +272,12 @@ class AvatarManager {
                 this.sendCommand({ type: 'resumeIdle' });
             }
             if (this.onAudioStateChange) this.onAudioStateChange(false);
+
+            // 🎤 Resume STT หลัง TTS จบ (ถ้าอยู่ใน Voice Mode)
+            if (stateManager.get('isVoiceMode')) {
+                console.log('🎤 TTS finished, resuming STT...');
+                setTimeout(() => voiceModeManager.resumeRecording(), 300);
+            }
         }
     }
 
