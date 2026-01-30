@@ -61,7 +61,7 @@ class QueryInterpreter:
             logging.info(f"⚡ [Interpreter] Fast-Track Greeting Detected: {query}")
             return {
                 "intent": "SMALL_TALK",
-                "reply": "สวัสดีครับ มีอะไรให้น้องน่านช่วยไหมครับ?",
+                "reply": "สวัสดีค่ะ มีอะไรให้น้องน่านช่วยไหมคะ?",
                 "entity": None,
                 "is_complex": False,
                 "sub_queries": [],
