@@ -10,7 +10,7 @@ import google.generativeai as genai
 from core.config import settings
 from core.ai_models.key_manager import gemini_key_manager
 
-MAX_RETRIES = 4  # ลองใหม่เท่ากับจำนวน keys
+MAX_RETRIES = 10  # ลองใหม่เท่ากับจำนวน keys
 
 async def get_gemini_response(
     user_query: str,

@@ -155,9 +155,17 @@ class GoogleSheetsService:
         
         try:
             gid = getattr(self, '_public_gid', '0')
-            csv_url = f"https://docs.google.com/spreadsheets/d/{self.sheet_id}/export?format=csv&gid={gid}"
+            import time
+            csv_url = f"https://docs.google.com/spreadsheets/d/{self.sheet_id}/export?format=csv&gid={gid}&_t={int(time.time())}"
             
-            response = requests.get(csv_url, timeout=30.0, allow_redirects=True)
+            # Add cache-control headers to request
+            headers = {
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+            
+            response = requests.get(csv_url, headers=headers, timeout=30.0, allow_redirects=True)
             
             if response.status_code != 200:
                 error_msg = f"❌ ดึง CSV ล้มเหลว: HTTP {response.status_code}"
@@ -508,9 +516,12 @@ def get_sheets_service(mongo_manager=None, qdrant_manager=None) -> GoogleSheetsS
     global _sheets_service
     if _sheets_service is None:
         _sheets_service = GoogleSheetsService(mongo_manager, qdrant_manager)
-    elif mongo_manager and not _sheets_service.mongo:
-        _sheets_service.mongo = mongo_manager
-    elif qdrant_manager and not _sheets_service.qdrant:
-        _sheets_service.qdrant = qdrant_manager
+    else:
+        # 🔧 FIX: Use separate if statements instead of elif
+        # This allows both mongo and qdrant to be injected in the same call
+        if mongo_manager and not _sheets_service.mongo:
+            _sheets_service.mongo = mongo_manager
+        if qdrant_manager and not _sheets_service.qdrant:
+            _sheets_service.qdrant = qdrant_manager
         
     return _sheets_service

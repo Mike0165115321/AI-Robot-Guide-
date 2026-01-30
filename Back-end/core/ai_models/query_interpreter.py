@@ -58,10 +58,10 @@ class QueryInterpreter:
         # Bypasses both Google Assistant and RAG for instant "Sawasdee" response
         greetings = ["สวัสดี", "หวัดดี", "ดีคับ", "ทักทาย", "hello", "hi"]
         if any(g in query.lower() for g in greetings):
-             logging.info(f"⚡ [Interpreter] Fast-Track Greeting Detected: {query}")
-             return {
+            logging.info(f"⚡ [Interpreter] Fast-Track Greeting Detected: {query}")
+            return {
                 "intent": "SMALL_TALK",
-                "reply": "สวัสดีครับ มีอะไรให้น้องน่านช่วยไหมครับ?",
+                "reply": "สวัสดีค่ะ มีอะไรให้น้องน่านช่วยไหมคะ?",
                 "entity": None,
                 "is_complex": False,
                 "sub_queries": [],
@@ -95,23 +95,23 @@ Your job is to interpret the user's intent and extract structural data for the R
 {
   "intent": "String",       // INFORMATIONAL, PLAY_MUSIC, NAVIGATE_TO, SMALL_TALK, WELCOME_GREETING, CALCULATE
   "entity": "String|null",  // Specific place/song/object mentioned (Clean text, no politeness particles)
-  "category": "String|null",// attraction, accommodation, food, souvenir, culture, cafe, nature
+"category": "String|null",// attraction, accommodation, food, souvenir, culture, cafe, nature
   "sub_queries": ["Str"],   // Break down complex queries into searchable keywords (Thai)
   "corrected_query": "Str", // Fix typos if necessary
   "is_complex":Boolean,     // True if multi-step reasoning is needed
   "location_filter": {      // Extract district if mentioned
      "district": "String|null" // e.g., "เมืองน่าน", "ปัว"
-  }
+}
 }
 
 ### INTENT RULES:
 - **NAVIGATE_TO**: User wants to go somewhere, asks for route/map/location.
-  - Query: "อยากไปวัดพระธาตุเขาน้อย รู้จักมั้ยครับ" -> intent: "NAVIGATE_TO", entity: "วัดพระธาตุเขาน้อย" (Cut 'อยากไป', 'รู้จักมั้ย')
-  - Query: "พาไปร้านกาแฟหน่อย" -> intent: "NAVIGATE_TO", entity: "ร้านกาแฟ", category: "cafe"
-  - Query: "วัดภูมินทร์อยู่ไหน" -> intent: "NAVIGATE_TO", entity: "วัดภูมินทร์"
+- Query: "อยากไปวัดพระธาตุเขาน้อย รู้จักมั้ยครับ" -> intent: "NAVIGATE_TO", entity: "วัดพระธาตุเขาน้อย" (Cut 'อยากไป', 'รู้จักมั้ย')
+- Query: "พาไปร้านกาแฟหน่อย" -> intent: "NAVIGATE_TO", entity: "ร้านกาแฟ", category: "cafe"
+- Query: "วัดภูมินทร์อยู่ไหน" -> intent: "NAVIGATE_TO", entity: "วัดภูมินทร์"
 - **INFORMATIONAL**: General knowledge, history, description, "what is it?".
-  - Query: "วัดภูมินทร์สร้างเมื่อไหร่" -> intent: "INFORMATIONAL", entity: "วัดภูมินทร์"
-  - Query: "แนะนำที่เที่ยวปัว" -> intent: "INFORMATIONAL", entity: null, location_filter: {"district": "ปัว"}, category: "attraction"
+- Query: "วัดภูมินทร์สร้างเมื่อไหร่" -> intent: "INFORMATIONAL", entity: "วัดภูมินทร์"
+- Query: "แนะนำที่เที่ยวปัว" -> intent: "INFORMATIONAL", entity: null, location_filter: {"district": "ปัว"}, category: "attraction"
 - **PLAY_MUSIC**: asking to play a song.
 - **CALCULATE**: Math questions (e.g. 50*3)
 - **SMALL_TALK**: Greeting, personal questions.
@@ -124,19 +124,19 @@ Your job is to interpret the user's intent and extract structural data for the R
 User: "อยากไปดอยเสมอดาว รู้จักป่าวครับ"
 JSON:
 {
-  "intent": "NAVIGATE_TO",
-  "entity": "ดอยเสมอดาว",
-  "category": "nature",
-  "sub_queries": ["ดอยเสมอดาว", "ที่กางเต็นท์ดอยเสมอดาว"],
-  "corrected_query": "อยากไปดอยเสมอดาว",
-  "is_complex": false,
-  "location_filter": {}
+"intent": "NAVIGATE_TO",
+"entity": "ดอยเสมอดาว",
+"category": "nature",
+"sub_queries": ["ดอยเสมอดาว", "ที่กางเต็นท์ดอยเสมอดาว"],
+"corrected_query": "อยากไปดอยเสมอดาว",
+"is_complex": false,
+"location_filter": {}
 }
 """
 
         try:
             if not self.client:
-                 raise Exception("Groq Client is not initialized")
+                raise Exception("Groq Client is not initialized")
 
             response = await self.client.chat.completions.create(
                 messages=[
