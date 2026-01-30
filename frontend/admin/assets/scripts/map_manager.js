@@ -1120,6 +1120,52 @@ window.gotoWaypoint = async function (name, x, y, theta) {
     } catch (e) { alert("Navigation Error: " + e); }
 }
 
+
+
+async function startAutoWalk() {
+    const mapName = document.getElementById('nav-map-name').innerText;
+    if (!confirm(`เริ่มเดินอัตโนมัติสำหรับแผนที่ "${mapName}"?`)) return;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/navigation/autowalk/${mapName}`, { method: 'POST' });
+        if (res.ok) {
+            document.getElementById('btn-autowalk').style.display = 'none';
+            document.getElementById('btn-stopwalk').style.display = 'block';
+            document.getElementById('autowalk-status-bar').style.display = 'block';
+            console.log("Auto Walk started");
+        } else {
+            const err = await res.json();
+            alert("เริ่มเดินอัตโนมัติไม่สำเร็จ: " + (err.detail || "Unknown Error"));
+        }
+    } catch (e) { alert("Error: " + e); }
+}
+window.startAutoWalk = startAutoWalk;
+
+async function stopAutoWalk() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/navigation/stop`, { method: 'POST' });
+        if (res.ok) {
+            document.getElementById('btn-autowalk').style.display = 'block';
+            document.getElementById('btn-stopwalk').style.display = 'none';
+            document.getElementById('autowalk-status-bar').style.display = 'none';
+            console.log("Auto Walk stopped");
+        }
+    } catch (e) { alert("Error stopping: " + e); }
+}
+window.stopAutoWalk = stopAutoWalk;
+
+// Poll for Auto Walk Status (Optional but good for feedback)
+setInterval(async () => {
+    const statusDiv = document.getElementById('autowalk-status-bar');
+    if (!statusDiv || statusDiv.offsetParent === null) return; // Only if visible
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/navigation/pose`); // We check pose to see if it's alive, but better if we had an is_walking endpoint
+        // For now, reliance on start/stop buttons is enough.
+        // If we want real sequencing feedback, we need to add a specific endpoint to backend.
+    } catch (e) { }
+}, 2000);
+
 // Close Button (Helper)
 window.closeMapping = function () {
     document.getElementById('mapping-wizard').style.display = 'none';

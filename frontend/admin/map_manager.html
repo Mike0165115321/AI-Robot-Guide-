@@ -277,6 +277,10 @@
             <div>
                 <h2 style="margin:0; font-size: 1.2rem; color: #a5b4fc;">🚀 Navigation: <span id="nav-map-name"
                         style="color: white; font-weight:bold;">-</span></h2>
+                <div id="autowalk-status-bar"
+                    style="display: none; margin-top: 5px; font-size: 0.85rem; color: #34d399;">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> Auto Walk กำลังทำงาน...
+                </div>
             </div>
             <div>
                 <!-- RViz Tools -->
@@ -324,6 +328,16 @@
                             <i class="fa-solid fa-map-pin"></i> Save Robot Pose
                         </button>
                     </div>
+                    <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+                        <button id="btn-autowalk" onclick="startAutoWalk()" class="btn btn-submit"
+                            style="flex:1; font-size: 0.9rem; background: #22c55e;">
+                            <i class="fa-solid fa-person-walking"></i> Auto Walk
+                        </button>
+                        <button id="btn-stopwalk" onclick="stopAutoWalk()" class="btn btn-cta"
+                            style="flex:1; font-size: 0.9rem; background: #ef4444; display: none;">
+                            <i class="fa-solid fa-stop"></i> Stop Walk
+                        </button>
+                    </div>
 
                     <div id="waypoint-list"
                         style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px;">
@@ -347,7 +361,7 @@
     <script src="assets/scripts/config.js"></script>
     <script src="assets/scripts/auth.js"></script>
     <script src="assets/scripts/utils.js"></script>
-    <script src="assets/scripts/map_manager.js"></script>
+    <script src="assets/scripts/map_manager.js?v=1.1"></script>
 </body>
 
 </html>

@@ -148,7 +148,15 @@ async def open_rviz():
 async def goto_pose(goal: NavGoal):
     return await navigation_service.navigate_to(goal.x, goal.y, goal.theta)
 
+@router.post("/autowalk/{map_name}")
+async def start_autowalk(map_name: str):
+    """Trigger the auto-walk sequence for a given map."""
+    result = await navigation_service.auto_walk(map_name)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
 @router.post("/stop")
 async def stop_navigation():
-    # Placeholder
-    return {"status": "stopped"}
+    navigation_service.is_autowalking = False
+    return await navigation_service.stop_navigation()

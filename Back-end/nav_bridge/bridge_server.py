@@ -82,7 +82,11 @@ class NavBridgeNode(Node):
         # RViz Goal Subscription
         self.goal_sub = self.create_subscription(PoseStamped, '/goal_pose', self._goal_callback, 10)
         self.latest_rviz_goal = None
+
+        # Navigation Status tracking
+        self.nav_status = "IDLE" # IDLE, ACTIVE, SUCCEEDED, FAILED, CANCELED
         
+        self.get_logger().info("Bridge Server Status initialized to IDLE")
         self.get_logger().info("🌉 Nav Bridge Node Initialized")
 
     def _goal_callback(self, msg: PoseStamped):
@@ -367,8 +371,39 @@ def goto_pose(goal: NavGoal):
     msg.pose.pose.orientation.w = cy * cp * cr + sy * sp * sr
     msg.pose.pose.orientation.z = sy * cp * cr - cy * sp * sr
     
-    nav_node.nav_client.send_goal_async(msg)
+    nav_node.nav_client.wait_for_server()
+    
+    send_goal_future = nav_node.nav_client.send_goal_async(msg)
+    nav_node.nav_status = "ACTIVE"
+    
+    def goal_response_callback(future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            nav_node.get_logger().info('Goal rejected')
+            nav_node.nav_status = "FAILED"
+            return
+
+        nav_node.get_logger().info('Goal accepted')
+        get_result_future = goal_handle.get_result_async()
+        get_result_future.add_done_callback(get_result_callback)
+
+    def get_result_callback(future):
+        from action_msgs.msg import GoalStatus
+        result = future.result()
+        if result.status == GoalStatus.STATUS_SUCCEEDED:
+            nav_node.get_logger().info('Goal succeeded!')
+            nav_node.nav_status = "SUCCEEDED"
+        else:
+            nav_node.get_logger().info(f'Goal failed with status: {result.status}')
+            nav_node.nav_status = "FAILED"
+
+    send_goal_future.add_done_callback(goal_response_callback)
     return {"status": "sent"}
+
+@app.get("/nav/status")
+def get_nav_status():
+    if not nav_node: return {"status": "UNKNOWN"}
+    return {"status": nav_node.nav_status}
 
 @app.get("/nav/last_rviz_goal")
 def get_last_rviz_goal():

@@ -1,7 +1,8 @@
 import json
 import httpx
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
+import asyncio
 
 BRIDGE_URL = "http://localhost:8015"
 
@@ -9,6 +10,7 @@ class NavigationService:
     def __init__(self, waypoint_file: str):
         self.waypoint_file = Path(waypoint_file)
         self.waypoints = self._load_waypoints()
+        self.is_autowalking = False
         
     def set_ros_node(self, node):
         pass
@@ -130,6 +132,72 @@ class NavigationService:
                 return res.json()
             except Exception as e:
                 return {"error": str(e)}
+
+    async def get_nav_status(self) -> str:
+        async with httpx.AsyncClient() as client:
+            try:
+                res = await client.get(f"{BRIDGE_URL}/nav/status")
+                if res.status_code == 200:
+                    return res.json().get("status", "UNKNOWN")
+                return "UNKNOWN"
+            except Exception:
+                return "UNKNOWN"
+
+    async def stop_navigation(self):
+        # We don't have a direct 'stop' in Bridge yet, but we can send an empty velocity
+        # Or just wait for its implementation. For now, let's keep it simple.
+        async with httpx.AsyncClient() as client:
+            try:
+                await client.post(f"{BRIDGE_URL}/hardware/move", json={"vx": 0.0, "vy": 0.0, "wz": 0.0})
+                return {"status": "stopped"}
+            except Exception as e:
+                return {"error": str(e)}
+
+    async def auto_walk(self, map_name: str):
+        if self.is_autowalking:
+            return {"error": "Already autowalking"}
+        
+        waypoints = self.get_waypoints(map_name)
+        if not waypoints:
+            return {"error": f"No waypoints found for map: {map_name}"}
+            
+        self.is_autowalking = True
+        
+        async def run_sequence():
+            try:
+                for wp in waypoints:
+                    if not self.is_autowalking:
+                        break
+                    
+                    print(f"DEBUG: Navigating to waypoint: {wp['name']}")
+                    await self.navigate_to(wp['x'], wp['y'], wp['theta'])
+                    
+                    # Wait for status to become ACTIVE
+                    for _ in range(10): # 5 seconds timeout
+                        status = await self.get_nav_status()
+                        if status == "ACTIVE":
+                            break
+                        await asyncio.sleep(0.5)
+                    
+                    # Polling for SUCCESS or FAILURE
+                    while self.is_autowalking:
+                        status = await self.get_nav_status()
+                        if status in ["SUCCEEDED", "FAILED", "CANCELED"]:
+                            break
+                        await asyncio.sleep(1.0)
+                    
+                    if status != "SUCCEEDED":
+                        print(f"DEBUG: Waypoint {wp['name']} failed or was canceled")
+                        # Should we continue or stop? Let's continue for now.
+                    
+                    await asyncio.sleep(2.0) # Pause between waypoints
+            finally:
+                self.is_autowalking = False
+                print("DEBUG: Auto Walk sequence finished")
+
+        # Start in background
+        asyncio.create_task(run_sequence())
+        return {"status": "autowalk_started", "waypoint_count": len(waypoints)}
 
 
     async def save_last_rviz_goal(self, map_name: str, point_name: str) -> Dict:
