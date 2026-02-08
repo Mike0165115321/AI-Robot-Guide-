@@ -48,3 +48,4 @@ numpy
 
 # LINE Integration
 line-bot-sdk
+pyserial

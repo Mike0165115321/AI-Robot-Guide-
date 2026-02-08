@@ -18,7 +18,12 @@ from core.ai_models.youtube_handler import youtube_handler_instance
 from core.config import settings
 from utils.file_cleaner import start_background_cleanup
 from api.dependencies import get_rag_orchestrator 
-from api.routers import admin_api, chat_api, import_api, sheets_api, analytics_api, line_webhook, alert_api, auth_api, assistant_api
+from api.routers import admin_api, chat_api, import_api, sheets_api, analytics_api, line_webhook, alert_api, auth_api, assistant_api, knowledge_api, text_import_api, hardware_api
+
+# ROS 2 Imports - REMOVED (Handled by Nav Bridge)
+# import rclpy / threading handled in sidecar
+from core.services.navigation_service import navigation_service
+from core.services.mapping_service import mapping_service
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("uvicorn").propagate = False
@@ -58,7 +63,7 @@ async def lifespan(app: FastAPI):
     news_scheduler.start()
     logging.info("✅ [Lifespan] News Scheduler เริ่มทำงาน")
     
-    logging.info("✅ [Lifespan] เริ่มต้นเสร็จสมบูรณ์ พร้อมให้บริการ")
+    # ROS 2 handled by external bridge process
     
     yield 
     logging.info("⏳ [Lifespan] กำลังปิดแอปพลิเคชัน...")
@@ -106,11 +111,16 @@ app.include_router(admin_api.router, prefix="/api/admin")
 app.include_router(chat_api.router, prefix="/api/chat")   
 # avatar_api ถูกรวมเข้า chat_api แล้ว (ดู docs/02_แผนงานปัจจุบัน/05_แผนรวมระบบ_API.md)
 app.include_router(import_api.router, prefix="/api/admin/import")  # Smart ETL Import
+app.include_router(text_import_api.router, prefix="/api/admin/import/text") # 🆕 Text Import
 app.include_router(sheets_api.router, prefix="/api/admin/sheets")  # Google Sheets Sync
 app.include_router(analytics_api.router, prefix="/api/analytics")  # Feedback & Stats
 app.include_router(line_webhook.router, prefix="/api/v1/line")     # LINE Webhook
 app.include_router(alert_api.router, prefix="/api")                 # Smart News Alerts
 app.include_router(assistant_api.router, prefix="/api") # 🆕 Google Assistant Proxy (/api/assistant/query)
+app.include_router(knowledge_api.router, prefix="/api")  # 🧠 Knowledge Gaps (Self-Correcting RAG)
+app.include_router(hardware_api.router) # 🆕 Hardware Control API
+from api.routers import navigation_api
+app.include_router(navigation_api.router) # 🆕 Navigation & Mapping API
 
 
 @app.get("/health", tags=["Health"])
@@ -218,10 +228,14 @@ async def serve_frontend(request: Request, full_path: str):
         "admin/index.html": "admin/index.html",
         "admin/admin.html": "admin/index.html", # Alias for legacy link
         "admin/settings.html": "admin/settings.html", # ⚙️ Settings Page
+        "admin/knowledge-gaps.html": "admin/knowledge-gaps.html", # 🧠 Knowledge Gaps
+        "admin/dashboard.html": "admin/dashboard.html", # 📊 Enhanced Dashboard
         "import": "admin/import.html",
         "robot_avatar": "robot_avatar.html",
         "travel_mode": "travel_mode.html",
-        "alerts": "alerts.html"
+        "alerts": "alerts.html",
+        "admin/hardware_test.html": "admin/hardware_test.html",
+        "admin/map_manager.html": "admin/map_manager.html"
     }
     file_to_serve = path_map.get(full_path, full_path)
     

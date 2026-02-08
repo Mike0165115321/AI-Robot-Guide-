@@ -124,6 +124,34 @@ async def get_analytics_dashboard(
         raise HTTPException(status_code=500, detail="Failed to fetch analytics data.")
 
 
+@router.get("/analytics/enhanced", tags=["Admin :: Analytics"])
+async def get_enhanced_analytics_dashboard(
+    days: int = Query(30, description="จำนวนวันย้อนหลังที่ต้องการดูข้อมูล"),
+    analytics: AnalyticsService = Depends(get_analytics_service)
+):
+    """
+    📊 Enhanced Analytics Dashboard
+    
+    รวมข้อมูลทั้งหมดในที่เดียว:
+    - Basic Summary (existing)
+    - Hourly Usage (Peak hours)
+    - Daily Usage (Trend)
+    - Top Queries
+    - Word Frequency (Word Cloud)
+    - Intent Distribution
+    - AI Performance
+    - Knowledge Health (Gap stats)
+    - Session Stats
+    """
+    try:
+        stats = await analytics.get_enhanced_dashboard(days)
+        return stats
+    except Exception as e:
+        logging.error(f"❌ เกิดข้อผิดพลาดในการดึงข้อมูล Enhanced Dashboard: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch enhanced analytics data.")
+
+
+
 @router.get("/schema/fields", tags=["Admin :: Schema"])
 async def get_available_fields(
     db: MongoDBManager = Depends(get_mongo_manager),

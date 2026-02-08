@@ -16,6 +16,7 @@ class ImportService:
     
     SUPPORTED_EXCEL_EXTENSIONS = ['.xlsx', '.xls']
     SUPPORTED_CSV_EXTENSIONS = ['.csv']
+    SUPPORTED_JSON_EXTENSIONS = ['.json']
     
     def parse_excel(self, file_content: bytes, sheet_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """
@@ -84,6 +85,37 @@ class ImportService:
             print(f"❌ [ImportService] เกิดข้อผิดพลาดในการอ่าน CSV: {e}")
             raise ValueError(f"ไม่สามารถอ่านไฟล์ CSV ได้: {str(e)}")
     
+    def parse_json(self, file_content: bytes, encoding: str = 'utf-8') -> List[Dict[str, Any]]:
+        """
+        อ่านไฟล์ JSON จาก Memory
+        """
+        import json
+        try:
+            # Decode bytes to string
+            text_content = file_content.decode(encoding)
+            data = json.loads(text_content)
+            
+            if isinstance(data, dict):
+                # กรณีเป็น Single Object ให้แปลงเป็น List 1 ตัว
+                records = [data]
+            elif isinstance(data, list):
+                records = data
+            else:
+                raise ValueError("Format JSON ไม่ถูกต้อง (ต้องเป็น Array of Objects หรือ Object เดียว)")
+                
+            # Clean data ensures keys are strings
+            cleaned_records = []
+            for r in records:
+                if isinstance(r, dict):
+                   cleaned_records.append({str(k): v for k, v in r.items()})
+            
+            print(f"✅ [ImportService] อ่าน JSON สำเร็จ: {len(cleaned_records)} แถว")
+            return cleaned_records
+            
+        except Exception as e:
+            print(f"❌ [ImportService] เกิดข้อผิดพลาดในการอ่าน JSON: {e}")
+            raise ValueError(f"ไม่สามารถอ่านไฟล์ JSON ได้: {str(e)}")
+    
     def parse_file(self, file_content: bytes, filename: str) -> List[Dict[str, Any]]:
         """
         Auto-detect file type และ parse ตาม extension
@@ -101,8 +133,10 @@ class ImportService:
             return self.parse_excel(file_content)
         elif any(filename_lower.endswith(ext) for ext in self.SUPPORTED_CSV_EXTENSIONS):
             return self.parse_csv(file_content)
+        elif any(filename_lower.endswith(ext) for ext in self.SUPPORTED_JSON_EXTENSIONS):
+            return self.parse_json(file_content)
         else:
-            raise ValueError(f"ไม่รองรับไฟล์ประเภทนี้: {filename}. รองรับเฉพาะ Excel (.xlsx, .xls) และ CSV (.csv)")
+            raise ValueError(f"ไม่รองรับไฟล์ประเภทนี้: {filename}. รองรับเฉพาะ Excel, CSV, JSON")
     
     def detect_columns(self, data: List[Dict[str, Any]]) -> List[str]:
         """

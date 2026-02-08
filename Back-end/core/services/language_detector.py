@@ -129,8 +129,34 @@ class LanguageDetector:
         ตรวจจับภาษาจาก text
         ถ้าเจอหลายภาษาผสม (mixed language) → fallback to English
         """
-        if not text or len(text.strip()) < 3:
+        if not text or len(text.strip()) < 2:
             return self.DEFAULT_LANG
+        
+        # 🔧 Regex Pre-Check for CJK languages (more accurate than langdetect)
+        # langdetect often misidentifies Chinese as Korean, but regex is reliable
+        # Count matches and select language with highest match count
+        import re
+        best_lang = None
+        best_match_count = 0
+        
+        for lang_code, config in self._active_languages.items():
+            if lang_code in ["en", "ms"]:  # Skip Latin alphabet languages
+                continue
+            regex_pattern = config.get("regex")
+            if regex_pattern:
+                try:
+                    matches = re.findall(regex_pattern, text)
+                    match_count = len(matches)
+                    if match_count > best_match_count:
+                        best_match_count = match_count
+                        best_lang = lang_code
+                except re.error:
+                    pass  # Invalid regex, skip
+        
+        # If we found a non-Latin language match, use it immediately
+        if best_lang and best_match_count > 0:
+            logging.debug(f"🌐 [Language] Regex pre-check: {best_lang} ({best_match_count} chars matched)")
+            return best_lang
         
         if not LANGDETECT_AVAILABLE:
             return self.DEFAULT_LANG

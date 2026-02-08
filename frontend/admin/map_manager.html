@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Map Manager - AI Guide น่าน</title>
+    <link rel="stylesheet" href="assets/styles/main.css">
+    <link rel="stylesheet" href="assets/styles/admin.css">
+    <link rel="stylesheet" href="assets/styles/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- ROS Web Tools -->
+    <script src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/easeljs@1/lib/easeljs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ros2d@0.9.0/build/ros2d.min.js"></script>
+    <style>
+        .map-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .map-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .map-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .map-preview {
+            width: 100%;
+            height: 200px;
+            background-color: #000;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .map-info {
+            padding: 15px;
+        }
+
+        .map-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+
+        .map-meta {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 15px;
+        }
+
+        .map-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.85rem;
+        }
+
+        /* Modal for Mapping */
+        .modal-fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #1a1a1a;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mapping-header {
+            padding: 15px 20px;
+            background: #2a2a2a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+
+        .mapping-content {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
+
+        .mapping-canvas-container {
+            flex: 1;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .mapping-controls {
+            width: 300px;
+            background: #222;
+            border-left: 1px solid #333;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        canvas {
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .joystick-area {
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            margin: 0 auto;
+            position: relative;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .joystick-handle {
+            width: 60px;
+            height: 60px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px var(--primary-color);
+            cursor: pointer;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+
+        .status-active {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .status-inactive {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-grid"></div>
+
+    <div class="container" style="max-width: 1200px;">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div>
+                <h1 class="text-gradient">🗺️ Map Manager</h1>
+                <p style="color: var(--text-muted);">จัดการแผนที่และจุดนำทาง (Navigation System)</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="openMappingWizard()" class="btn btn-submit"
+                    style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); border: none;">
+                    <i class="fa-solid fa-plus"></i> สร้างแผนที่ใหม่
+                </button>
+                <a href="index.html" class="btn btn-cta">
+                    <i class="fa-solid fa-house"></i> กลับหน้าหลัก
+                </a>
+            </div>
+        </header>
+
+        <!-- Status Bar -->
+        <div class="form-container"
+            style="margin-bottom: 2rem; padding: 15px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <strong>สถานะระบบ:</strong>
+                <span id="ros-status" class="status-badge status-inactive">Waiting for ROS...</span>
+            </div>
+            <div>
+                <strong>แผนที่ปัจจุบัน:</strong>
+                <span id="current-map-name" style="color: var(--accent-color);">None</span>
+            </div>
+        </div>
+
+        <!-- Map List -->
+        <div id="maps-container">
+            <h2 style="margin-bottom: 15px;"><i class="fa-solid fa-layer-group"></i> แผนที่ทั้งหมด</h2>
+            <div id="maps-grid" class="map-grid">
+                <!-- Javascript will populate this -->
+                <div class="map-card">
+                    <div class="map-preview">
+                        <i class="fa-solid fa-spinner fa-spin fa-2x" style="color:white;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mapping Wizard Modal (Full Screen) -->
+    <div id="mapping-wizard" class="modal-fullscreen" style="display: none;">
+        <div class="mapping-header">
+            <div>
+                <h2 style="margin:0; font-size: 1.2rem;">📡 Generating New Map: <span id="mapping-name-display"
+                        style="color: var(--primary-color);">Untitled</span></h2>
+            </div>
+            <div>
+                <button onclick="cancelMapping()" class="btn btn-cta"
+                    style="background:#ef4444; margin-right:10px;">ยกเลิก</button>
+                <button onclick="saveAndFinishMapping()" class="btn btn-submit" style="background:#22c55e;">💾
+                    บันทึกและเสร็จสิ้น</button>
+            </div>
+        </div>
+        <div class="mapping-content">
+            <div class="mapping-canvas-container" id="canvas-container">
+                <canvas id="mapping-canvas"></canvas>
+            </div>
+            <div class="mapping-controls">
+                <h3>🕹️ Controls</h3>
+                <p style="font-size:0.9rem; color:#888;">ใช้ Keyboard (ลูกศร) หรือ Joystick
+                    เพื่อบังคับหุ่นยนต์เดินให้ทั่วพื้นที่</p>
+
+                <div class="joystick-area" id="virtual-joystick">
+                    <div class="joystick-handle" id="joystick-handle"></div>
+                </div>
+
+                <!-- Speed Control -->
+                <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+                    <label
+                        style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #fff; font-size: 0.9rem;">
+                        <span>🚀 Speed Limit</span>
+                        <span id="speed-val-display" style="color: var(--primary-color);">0.3 m/s</span>
+                    </label>
+                    <input type="range" id="speed-slider" min="0.1" max="1.0" step="0.1" value="0.3"
+                        style="width: 100%; cursor: pointer;"
+                        oninput="document.getElementById('speed-val-display').innerText = this.value + ' m/s'">
+                </div>
+
+                <p style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: #888;">
+                    ⌨️ <b>WASD</b>: Move | <b>Q/E</b>: Rotate
+                </p>
+
+                <div style="margin-top:20px; padding:15px; background:rgba(255,255,255,0.05); border-radius:8px;">
+                    <h4>📋 Instructions</h4>
+                    <ul style="font-size:0.85rem; padding-left:20px; color:#aaa; line-height:1.6;">
+                        <li>เดินช้าๆ เพื่อให้ Lidar เก็บข้อมูลได้ครบ</li>
+                        <li>พยายามเดินวนกลับมาที่เดิม (Loop Closure) เพื่อแก้แผนที่เบี้ยว</li>
+                        <li>เมื่อพอใจแล้ว กดปุ่ม Save ด้านบน</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation & Waypoint Interface (Full Screen) -->
+    <div id="nav-interface" class="modal-fullscreen" style="display: none;">
+        <div class="mapping-header" style="background: #1e1b4b; border-bottom: 1px solid #312e81;">
+            <div>
+                <h2 style="margin:0; font-size: 1.2rem; color: #a5b4fc;">🚀 Navigation: <span id="nav-map-name"
+                        style="color: white; font-weight:bold;">-</span></h2>
+                <div id="autowalk-status-bar"
+                    style="display: none; margin-top: 5px; font-size: 0.85rem; color: #34d399;">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> Auto Walk กำลังทำงาน...
+                </div>
+            </div>
+            <div>
+                <!-- RViz Tools -->
+                <div class="nav-tools"
+                    style="display:inline-block; margin-right:15px; border-right: 1px solid rgba(255,255,255,0.2); padding-right: 15px;">
+                    <button id="btn-tool-estimate" onclick="setNavTool('estimate')" class="btn btn-sm"
+                        style="background:rgba(255,255,255,0.1); margin-right:5px; color:#ccc;"
+                        title="Manual Initial Pose"><i class="fa-solid fa-location-crosshairs"></i> Set Pose</button>
+
+                    <button id="btn-import-rviz" onclick="importRVizGoal()" class="btn btn-sm"
+                        style="background:rgba(255,166,0,0.2); margin-right:5px; color:orange; border:1px solid orange;"
+                        title="Import Last 2D Nav Goal from RViz"><i class="fa-solid fa-file-import"></i> Import
+                        RViz</button>
+                    <button id="btn-tool-waypoint" onclick="setNavTool('waypoint')" class="btn btn-sm"
+                        style="background:rgba(255,255,255,0.1); margin-right:5px; color:#ccc;"
+                        title="Click to Add Waypoint"><i class="fa-solid fa-map-pin"></i> Add Point</button>
+                    <button id="btn-tool-goal" onclick="setNavTool('goal')" class="btn btn-sm"
+                        style="background:rgba(255,255,255,0.1); margin-right:5px; color:#ccc;" title="2D Nav Goal"><i
+                            class="fa-solid fa-location-dot"></i> Go Here</button>
+                    <button id="btn-toggle-lidar" onclick="toggleLidar()" class="btn btn-sm"
+                        style="background:rgba(255,255,255,0.1); margin-right:5px; color:#ccc;"
+                        title="Show Laser Scan"><i class="fa-solid fa-eye"></i> Lidar</button>
+                </div>
+                <button onclick="openRViz()" class="btn btn-sm"
+                    style="margin-right:5px; background:rgba(79, 70, 229, 0.2); border: 1px solid #4f46e5; color: #a5b4fc;"><i
+                        class="fa-solid fa-display"></i>
+                    Launch RViz</button>
+                <button onclick="resetMapView()" class="btn btn-sm"
+                    style="margin-right:5px; background:rgba(255,255,255,0.1);"><i class="fa-solid fa-compress"></i>
+                    Reset View</button>
+                <button onclick="closeNavInterface()" class="btn btn-cta" style="margin-right:10px;"> ออก</button>
+            </div>
+        </div>
+        <div class="mapping-content">
+            <div class="mapping-canvas-container" id="nav-canvas-container">
+                <canvas id="nav-canvas"></canvas>
+            </div>
+            <div class="mapping-controls" style="width: 350px; background: #1e1b4b; border-left: 1px solid #312e81;">
+                <!-- Waypoint Section -->
+                <div style="margin-bottom: 20px;">
+                    <h3 style="color: #c7d2fe;">📍 Waypoints</h3>
+                    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                        <button onclick="saveRobotPose()" class="btn btn-submit"
+                            style="flex:1; font-size: 0.9rem; background: #4f46e5;">
+                            <i class="fa-solid fa-map-pin"></i> Save Robot Pose
+                        </button>
+                    </div>
+                    <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+                        <button id="btn-autowalk" onclick="startAutoWalk()" class="btn btn-submit"
+                            style="flex:1; font-size: 0.9rem; background: #22c55e;">
+                            <i class="fa-solid fa-person-walking"></i> Auto Walk
+                        </button>
+                        <button id="btn-stopwalk" onclick="stopAutoWalk()" class="btn btn-cta"
+                            style="flex:1; font-size: 0.9rem; background: #ef4444; display: none;">
+                            <i class="fa-solid fa-stop"></i> Stop Walk
+                        </button>
+                    </div>
+
+                    <div id="waypoint-list"
+                        style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px;">
+                        <!-- JS populated -->
+                        <div style="color: #6366f1; text-align: center;">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- Robot Control -->
+                <div style="padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <h3 style="color: #c7d2fe;">🎮 Manual Control</h3>
+                    <div class="joystick-area" id="nav-joystick" style="width: 150px; height: 150px;">
+                        <div class="joystick-handle" style="width: 40px; height: 40px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="assets/scripts/config.js"></script>
+    <script src="assets/scripts/auth.js"></script>
+    <script src="assets/scripts/utils.js"></script>
+    <script src="assets/scripts/map_manager.js?v=1.1"></script>
+</body>
+
+</html>

@@ -56,4 +56,10 @@ class SettingsPage {
 }
 
 // Start
-new SettingsPage();
+try {
+    new SettingsPage();
+} catch (e) {
+    console.error("SettingsPage Error:", e);
+}
+
+// Hardware logic moved to inline script in settings.html

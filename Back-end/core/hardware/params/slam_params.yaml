@@ -1,0 +1,54 @@
+slam_toolbox:
+  ros__parameters:
+
+    # Plugin params
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_region_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+
+    # ROS Parameters
+    odom_frame: odom
+    map_frame: map
+    base_frame: base_link
+    scan_topic: /scan
+    mode: mapping # mapping, localization
+
+    # Mapping / Odometry Tuning
+    # -------------------------
+    # Update map only if we moved enough (Reduces noise from small jitters)
+    minimum_travel_distance: 0.1 # 0.5 default
+    minimum_travel_heading: 0.1 # 0.5 default
+    
+    # Scan Matching (Critical for Odometry Correction)
+    use_scan_matching: true
+    use_scan_barycenter: true
+    minimum_time_interval: 0.1
+    
+    # Loop Closure (Fixing map drift)
+    do_loop_closing: true
+    loop_search_space_sm: 0.5
+    loop_search_space_dimension: 8.0
+    loop_search_maximum_distance: 5.0
+    loop_match_minimum_chain_size: 3         
+    loop_match_maximum_variance_coarse: 3.0  
+    loop_match_minimum_response_coarse: 0.35 
+    loop_match_minimum_response_fine: 0.45
+
+    # Correlation Parameters
+    correlation_search_space_dimension: 0.5
+    correlation_search_space_resolution: 0.01
+    correlation_search_space_sm: 0.15
+
+    # Loop Closure Constraint
+    angle_variance_penalty: 1.0
+    response_penalty: 0.5
+    link_match_minimum_response_fine: 0.1
+    link_scan_maximum_distance: 1.5
+    loop_search_maximum_distance: 3.0
+    do_loop_closing: true
+
+    # Map Storage
+    stack_size_to_use: 40000000 # program needs a larger stack size to serialize large maps

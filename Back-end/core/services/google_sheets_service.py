@@ -1,6 +1,6 @@
 """
 Google Sheets Sync Service
-รองรับการ sync ข้อมูลจาก Google Sheets เข้าสู่ MongoDB
+รองรับการ sync ข้อมูลจาก Google Sheets เข้าสู่ MongoDB และ Qdrant (Vector DB)
 รองรับ 3 โหมด: Public CSV, Service Account, OAuth2
 """
 
@@ -11,6 +11,7 @@ import json
 import logging
 import requests
 import threading
+import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from pathlib import Path
@@ -50,18 +51,19 @@ class GoogleSheetsService:
     - oauth2: ใช้ User OAuth2 token
     """
     
-    def __init__(self, mongo_manager=None):
+    def __init__(self, mongo_manager=None, qdrant_manager=None):
         self.client: Optional[gspread.Client] = None
         self.spreadsheet: Optional[Spreadsheet] = None
         self.worksheet: Optional[Worksheet] = None
         self.mongo = mongo_manager
+        self.qdrant = qdrant_manager  # 🆕 Inject Qdrant Manager
         self.sheet_id: Optional[str] = None
         self.sheet_title: Optional[str] = None  # For public mode where we can't get title
         self.last_sync: Optional[str] = None
         self.connection_mode: Optional[str] = None  # "public", "service_account", "oauth2"
         
         # [PRODUCTION] Sync lock to prevent concurrent syncs
-        self._sync_lock = threading.Lock()
+        self._sync_lock = asyncio.Lock() # 🔄 Changed to Async Lock for async usage
         self._is_syncing = False
         
         # Required columns mapping (Sheet column → DB field)
@@ -153,9 +155,17 @@ class GoogleSheetsService:
         
         try:
             gid = getattr(self, '_public_gid', '0')
-            csv_url = f"https://docs.google.com/spreadsheets/d/{self.sheet_id}/export?format=csv&gid={gid}"
+            import time
+            csv_url = f"https://docs.google.com/spreadsheets/d/{self.sheet_id}/export?format=csv&gid={gid}&_t={int(time.time())}"
             
-            response = requests.get(csv_url, timeout=30.0, allow_redirects=True)
+            # Add cache-control headers to request
+            headers = {
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+            
+            response = requests.get(csv_url, headers=headers, timeout=30.0, allow_redirects=True)
             
             if response.status_code != 200:
                 error_msg = f"❌ ดึง CSV ล้มเหลว: HTTP {response.status_code}"
@@ -340,9 +350,9 @@ class GoogleSheetsService:
                 return True
         return False
     
-    def sync_to_mongodb(self, changes: Dict[str, List]) -> SyncResult:
+    async def sync_to_mongodb(self, changes: Dict[str, List]) -> SyncResult:
         """
-        Apply changes ลง MongoDB
+        Apply changes ลง MongoDB และ Qdrant Vector DB (Async)
         
         Args:
             changes: Dict from detect_changes()
@@ -359,8 +369,33 @@ class GoogleSheetsService:
         # Create new locations
         for row in changes.get("to_create", []):
             try:
-                self.mongo.add_location(row)
-                result.created += 1
+                # 1. Add to MongoDB
+                mongo_id = self.mongo.add_location(row)
+                if mongo_id:
+                    result.created += 1
+                    
+                    # 2. Add to Qdrant (Vector DB) 🚀
+                    if self.qdrant:
+                        try:
+                            # Construct rich description for embedding
+                            description = f"{row.get('topic', '')}: {row.get('summary', '')}"
+                            if not description.strip():
+                                description = row.get('title', '')
+                                
+                            await self.qdrant.upsert_location(
+                                mongo_id=str(mongo_id),
+                                description=description,
+                                metadata={
+                                    "title": row.get('title'),
+                                    "category": row.get('category'),
+                                    "slug": row.get('slug')
+                                }
+                            )
+                            logging.info(f"🧠 [Qdrant] Synced new item: {row.get('title')}")
+                        except Exception as q_err:
+                            logging.error(f"❌ [Qdrant] Failed to upsert new item: {q_err}")
+                            # Don't fail the whole sync, just log error
+                            result.errors.append(f"Qdrant sync failed for {row.get('slug')}")
             except Exception as e:
                 result.errors.append(f"Create failed for {row.get('slug')}: {e}")
         
@@ -369,21 +404,48 @@ class GoogleSheetsService:
             try:
                 slug = row.get("slug")
                 if slug:
-                    # [FIX] Use update_location_by_slug instead of update_location
-                    # update_location expects ObjectId, but we have slug from the sheet
+                    # 1. Update MongoDB (Using slug)
+                    # Note: We need the ObjectId for Qdrant, so let's fetch it if missing
+                    # (Usually present if came from detect_changes)
+                    mongo_id = row.get("_id")
+                    if not mongo_id:
+                         # Fallback fetch
+                         existing = self.mongo.get_location_by_slug(slug)
+                         if existing: mongo_id = existing.get("_id")
+                    
                     self.mongo.update_location_by_slug(slug, row)
                     result.updated += 1
+                    
+                    # 2. Update Qdrant (Vector DB) 🚀
+                    if self.qdrant and mongo_id:
+                        try:
+                            # Construct rich description for embedding
+                            description = f"{row.get('topic', '')}: {row.get('summary', '')}"
+                            if not description.strip():
+                                description = row.get('title', '')
+                                
+                            await self.qdrant.upsert_location(
+                                mongo_id=str(mongo_id),
+                                description=description,
+                                metadata={
+                                    "title": row.get('title'),
+                                    "category": row.get('category'),
+                                    "slug": row.get('slug')
+                                }
+                            )
+                            logging.info(f"🧠 [Qdrant] Updated item: {row.get('title')}")
+                        except Exception as q_err:
+                            logging.error(f"❌ [Qdrant] Failed to update item: {q_err}")
+                            result.errors.append(f"Qdrant update failed for {slug}")
+
             except Exception as e:
                 result.errors.append(f"Update failed for {row.get('slug')}: {e}")
         
-        # [PRODUCTION] Delete logic REMOVED
-        # Sync will never delete data - users must delete manually from Admin Panel
-        
         self.last_sync = result.timestamp
-        logging.info(f"✅ การซิงค์เสร็จสมบูรณ์: สร้าง {result.created}, อัปเดต {result.updated} (ไม่มีการลบ)")
+        logging.info(f"✅ การซิงค์เสร็จสมบูรณ์: สร้าง {result.created}, อัปเดต {result.updated} (ไม่มีการลบ) + Qdrant Updated")
         return result
     
-    def full_sync(self) -> SyncResult:
+    async def full_sync(self) -> SyncResult:
         """
         ทำ full sync (fetch → detect → apply)
         รองรับทั้ง public และ service_account mode
@@ -396,8 +458,8 @@ class GoogleSheetsService:
             result.errors.append("กำลังซิงค์อยู่แล้ว กรุณารอสักครู่")
             return result
         
-        # Acquire lock
-        with self._sync_lock:
+        # Acquire asyncio lock
+        async with self._sync_lock:
             self._is_syncing = True
             try:
                 # Check if connected (either mode)
@@ -406,7 +468,7 @@ class GoogleSheetsService:
                     result.errors.append("ยังไม่ได้เชื่อมต่อ Sheet")
                     return result
                 
-                # For service_account mode, also check worksheet
+                # For service_account mode, also check worksheet (sync)
                 if self.connection_mode == "service_account" and not self.worksheet:
                     result = SyncResult()
                     result.errors.append("ยังไม่ได้เชื่อมต่อ Sheet")
@@ -414,22 +476,23 @@ class GoogleSheetsService:
                 
                 logging.info("🔄 เริ่มการซิงค์ข้อมูล...")
                 
-                # Fetch from sheet
+                # Fetch from sheet (Synchronous Blocking IO - should be fast enough for now)
+                # Ideally run in executor, but let's keep it simple as it was working
                 try:
-                    sheet_data = self.fetch_all_rows()
+                    sheet_data = await asyncio.to_thread(self.fetch_all_rows)
                 except Exception as e:
                     result = SyncResult()
                     result.errors.append(str(e))
                     return result
                 
                 # Fetch from DB
-                db_data = self.mongo.get_all_locations() if self.mongo else []
+                db_data = await asyncio.to_thread(lambda: self.mongo.get_all_locations() if self.mongo else [])
                 
                 # Detect changes
                 changes = self.detect_changes(sheet_data, db_data)
                 
-                # Apply changes
-                return self.sync_to_mongodb(changes)
+                # Apply changes (Async with Qdrant)
+                return await self.sync_to_mongodb(changes)
             finally:
                 self._is_syncing = False
     
@@ -448,11 +511,17 @@ class GoogleSheetsService:
 # Singleton instance
 _sheets_service: Optional[GoogleSheetsService] = None
 
-def get_sheets_service(mongo_manager=None) -> GoogleSheetsService:
+def get_sheets_service(mongo_manager=None, qdrant_manager=None) -> GoogleSheetsService:
     """Get or create singleton instance"""
     global _sheets_service
     if _sheets_service is None:
-        _sheets_service = GoogleSheetsService(mongo_manager)
-    elif mongo_manager and not _sheets_service.mongo:
-        _sheets_service.mongo = mongo_manager
+        _sheets_service = GoogleSheetsService(mongo_manager, qdrant_manager)
+    else:
+        # 🔧 FIX: Use separate if statements instead of elif
+        # This allows both mongo and qdrant to be injected in the same call
+        if mongo_manager and not _sheets_service.mongo:
+            _sheets_service.mongo = mongo_manager
+        if qdrant_manager and not _sheets_service.qdrant:
+            _sheets_service.qdrant = qdrant_manager
+        
     return _sheets_service

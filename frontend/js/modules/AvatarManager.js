@@ -2,10 +2,16 @@
  * # AvatarManager.js
  * Manages the Avatar's visual state, animation, and speech synchronization.
  * Separated from app.js for clarity and robustness.
+ * 
+ * [Optimization Log]
+ * - Switched from Real-time AudioContext Analysis to Simulated Lip Sync
+ * - Reason: Performance & Complexity reduction as per user request.
+ * - Result: Smooth mouth animation with Zero overhead.
  */
 import avatarService from '../services/avatarService.js';
 import stateManager from './StateManager.js';
 import uiManager from './UIManager.js';
+import { voiceModeManager } from '../components/VoiceModeManager.js';
 
 class AvatarManager {
     constructor() {
@@ -14,30 +20,39 @@ class AvatarManager {
 
         // Internal Audio State
         this.audioPlayer = new Audio();
+        // Append to DOM to ensure browser prioritizes it
+        document.body.appendChild(this.audioPlayer);
+        this.audioPlayer.style.display = 'none';
+
         this.audioQueue = [];
         this.isPlaying = false;
+
+        // Simulation State
+        this.animationFrameId = null;
 
         // Bind audio events
         this.audioPlayer.addEventListener('ended', () => this.onAudioEnded());
         this.audioPlayer.addEventListener('error', (e) => console.error("Audio Playback Error", e));
 
+        // 🆕 Start Simulation on Play
+        this.audioPlayer.addEventListener('play', () => {
+            console.log("🎧 Audio Played: Starting Lip Sync Simulation");
+            this.startSimulationLoop();
+        });
+
+        this.audioPlayer.addEventListener('pause', () => this.stopSimulationLoop());
+
         // Global State Callback
         this.onAudioStateChange = null;
 
-
-        // 🔓 Autoplay Unlocker
-        // Chrome/Edge blocks auth-play unless user interacts once.
+        // 🔓 Simple Autoplay Unlocker
         this.hasUnlocked = false;
         const unlocker = () => {
             if (this.hasUnlocked) return;
             this.hasUnlocked = true;
-            // Play silent sound to unlock audio engine
-            const silentCtx = new (window.AudioContext || window.webkitAudioContext)();
-            silentCtx.resume().then(() => {
-                console.log("🔓 Audio Engine Unlocked!");
-                // Also try playing empty audio on the player
-                this.audioPlayer.play().catch(() => { });
-            });
+            // Play empty
+            this.audioPlayer.play().catch(() => { });
+            console.log("🔓 Audio Unlocked");
             document.removeEventListener('click', unlocker);
             document.removeEventListener('touchstart', unlocker);
             document.removeEventListener('keydown', unlocker);
@@ -47,141 +62,141 @@ class AvatarManager {
         document.addEventListener('keydown', unlocker);
     }
 
+    // 🆕 Simulation Loop REMOVED (Avatar has built-in mouth animation)
+    // The voiceData system was causing unnecessary processing overhead.
+    startSimulationLoop() {
+        // DISABLED - Avatar handles mouth animation internally
+    }
+
+    stopSimulationLoop() {
+        // DISABLED - No-op
+    }
+
+    // 🆕 Local Visuals Only (High Frequency) - No Backend Spam
+    sendLocalVisual(cmd) {
+        const wrapper = document.querySelector('#avatar-wrapper iframe');
+        if (wrapper && wrapper.contentWindow) {
+            wrapper.contentWindow.postMessage(cmd, '*');
+        }
+    }
+
     // ==========================================
     // CORE COMMANDS
     // ==========================================
 
-    /**
-     * Send command to avatar iframe AND backend via service
-     */
     sendCommand(cmd) {
-        // 1. Send to Backend (for sync/logs)
+        // 1. Send to Backend (only infrequent commands)
         avatarService.send(cmd);
 
-        // 2. Send to Iframe (Local Visuals)
-        const wrapper = document.querySelector('#avatar-wrapper iframe');
-        if (wrapper && wrapper.contentWindow) {
-            // Map 'setMood' to 'changeMood' as used in avatar_enhanced.js
-            let msg = { ...cmd };
-            if (msg.type === 'setMood') msg.type = 'changeMood';
-
-            wrapper.contentWindow.postMessage(msg, '*');
-        }
+        // 2. Send to Iframe
+        this.sendLocalVisual(cmd);
     }
 
-    /**
-     * Set the avatar's mood/animation state
-     * @param {string} mood - 'normal', 'happy', 'thinking', 'waving', 'speaking', 'worried'
-     */
     setMood(mood) {
         console.log(`🎭 Avatar Mood: ${mood}`);
         stateManager.set('avatarMood', mood);
-        this.sendCommand({ type: 'setMood', mood: mood });
+        // Special case: map setMood to changeMood for iframe
+        let msg = { type: 'changeMood', mood: mood };
+        avatarService.send({ type: 'setMood', mood: mood }); // Send original type to backend
+        this.sendLocalVisual(msg);
     }
 
-    /**
-     * Change avatar skin
-     * @param {string} skinName 
-     */
     changeSkin(skinName) {
         if (!skinName) return;
         console.log(`👕 Changing Skin: ${skinName}`);
-
-        const wrapper = document.querySelector('#avatar-wrapper iframe');
-        if (wrapper && wrapper.contentWindow) {
-            wrapper.contentWindow.postMessage({ type: 'changeSkin', skin: skinName }, '*');
-        }
+        this.sendLocalVisual({ type: 'changeSkin', skin: skinName });
     }
 
     // ==========================================
-    // SPEECH & LIP SYNC
+    // SPEECH
     // ==========================================
 
-    /**
-     * Speak text with lip sync
-     * @param {string} text - Text to speak
-     * @param {string} mood - Mood during speech (default: 'speaking'/'normal')
-     * @param {string} lang - Language code
-     * @param {Function} onComplete - Callback when this specific text finishes
-     * @param {boolean} interrupt - Whether to stop current speech immediately (default: true)
-     */
-    speak(text, mood = 'normal', lang = 'th', onComplete = null, interrupt = true) {
+    speak(text, mood = 'normal', lang = null, onComplete = null, interrupt = true) {
         if (!text) return;
-        console.log(`🗣️ Speak Request: "${text.substring(0, 20)}..." (Interrupt: ${interrupt})`);
 
-        // Visual Feedback (Bubble)
         if (text.length < 100) uiManager.updateSpeech(text);
 
-        // Reset queue if urgent (interrupt)
         if (interrupt) {
             this.stop();
         }
 
-        // Optimizing Speech: Chunking logic as per User Requirement
-        // 1. Accumulate words (delimiters) until ~200 chars
-        // 2. If limit hit, cut at the LAST delimiter (Space/Punctuation)
-        // 3. Handle large text blocks carefully
+        // ✅ Word Boundary Chunking - ตัดที่ ~200 ตัวอักษรแต่ไม่ตัดกลางคำ
+        const chunks = this._splitTextIntoChunks(text, 200);
+        console.log(`📦 [TTS] แบ่งข้อความเป็น ${chunks.length} ก้อน`);
 
-        const cleanText = text;
-        // Split by delimiters but keep them. 
-        // regex: split by space, newline, or punctuation
-        const rawEvents = cleanText.split(/([ \n.!?]+)/).filter(s => s.length > 0);
-
-        const TARGET_CHUNK_LENGTH = 200;
-        let chunks = [];
-        let currentBuffer = '';
-
-        for (const event of rawEvents) {
-            // Case 1: Adding this word fits in the buffer
-            if ((currentBuffer + event).length <= TARGET_CHUNK_LENGTH) {
-                currentBuffer += event;
-            }
-            // Case 2: Buffer overflow
-            else {
-                // Flush the current buffer (it represents the "last logical stop" before overflow)
-                if (currentBuffer.trim().length > 0) {
-                    chunks.push(currentBuffer);
-                    currentBuffer = '';
-                }
-
-                // Setup for next
-                // Check if the NEW event is ITSELF larger than target (Giant text with no spaces)
-                if (event.length > TARGET_CHUNK_LENGTH) {
-                    // Force split the giant event
-                    let temp = event;
-                    while (temp.length > TARGET_CHUNK_LENGTH) {
-                        chunks.push(temp.slice(0, TARGET_CHUNK_LENGTH));
-                        temp = temp.slice(TARGET_CHUNK_LENGTH);
-                    }
-                    currentBuffer = temp; // Keep remainder
-                } else {
-                    currentBuffer = event;
-                }
-            }
-        }
-
-        // Push remaining buffer
-        if (currentBuffer.trim().length > 0) {
-            chunks.push(currentBuffer);
-        }
-
-        console.log(`📦 TTS Chunks (${chunks.length}):`, chunks);
-
-        // 3. Queue chunks for playback
+        // 🚀 PARALLEL PREFETCH - ส่ง fetch ทุก chunk พร้อมกันทันที!
         chunks.forEach((chunk, index) => {
-            this.audioQueue.push({
+            const isLast = (index === chunks.length - 1);
+
+            // Create queue item with pending promise
+            const queueItem = {
                 text: chunk,
                 lang: lang,
                 mood: mood,
-                isLast: index === chunks.length - 1,
-                onComplete: index === chunks.length - 1 ? onComplete : null
+                onComplete: isLast ? onComplete : null,
+                blobPromise: this.fetchTTS(chunk, lang), // 🚀 Start fetch immediately!
+                blob: null
+            };
+
+            this.audioQueue.push(queueItem);
+
+            // Resolve blob when ready (non-blocking)
+            queueItem.blobPromise.then(blob => {
+                queueItem.blob = blob;
+                console.log(`✅ [TTS] Prefetch chunk ${index + 1}/${chunks.length} ready`);
+            }).catch(err => {
+                console.error(`❌ [TTS] Prefetch chunk ${index + 1} failed:`, err);
+                queueItem.blob = null;
             });
         });
 
-        // If not playing, start. If playing and NOT interrupt, it will pick up next from queue.
         if (!this.isPlaying) {
             this.processQueue();
         }
+    }
+
+    /**
+     * 📦 Word Boundary Chunking
+     * แบ่งข้อความเป็นก้อนๆ โดยไม่ตัดกลางคำ
+     * - ตัดเมื่อความยาวเกิน threshold
+     * - แต่จะเดินหน้าต่อจนเจอ space/เว้นวรรค
+     * 
+     * @param {string} text - ข้อความที่จะแบ่ง
+     * @param {number} threshold - ขนาดขั้นต่ำต่อ chunk (~200)
+     * @returns {string[]} - Array ของ chunks
+     */
+    _splitTextIntoChunks(text, threshold = 200) {
+        if (!text || text.length <= threshold) {
+            return [text];
+        }
+
+        const chunks = [];
+        let currentChunk = '';
+
+        // Split by spaces (works for both Thai and English)
+        const words = text.split(/(\s+)/); // Keep whitespace in result
+
+        for (const word of words) {
+            currentChunk += word;
+
+            // Check if we've passed the threshold
+            if (currentChunk.length >= threshold) {
+                // Push current chunk and reset
+                const trimmed = currentChunk.trim();
+                if (trimmed) {
+                    chunks.push(trimmed);
+                }
+                currentChunk = '';
+            }
+        }
+
+        // Push remaining text
+        const remaining = currentChunk.trim();
+        if (remaining) {
+            chunks.push(remaining);
+        }
+
+        return chunks.length > 0 ? chunks : [text];
     }
 
     stop() {
@@ -191,6 +206,7 @@ class AvatarManager {
         this.isPlaying = false;
         this.setMood('normal');
         stateManager.set('isSpeaking', false);
+        this.stopSimulationLoop();
         if (this.onAudioStateChange) this.onAudioStateChange(false);
     }
 
@@ -201,97 +217,46 @@ class AvatarManager {
         const item = this.audioQueue.shift();
 
         try {
-            // 1. Get Blob (Check Prefetch first)
+            // 🚀 Use prefetched blob or wait for it
             let blob = item.blob;
-
-            if (!blob) {
-                if (item.fetchPromise) {
-                    console.log(`⏳ Waiting for prefetched audio...`);
-                    blob = await item.fetchPromise;
-                } else {
-                    console.log(`📥 Fetching TTS (Just-in-Time)...`);
-                    blob = await this.fetchTTS(item.text, item.lang);
-                }
+            if (!blob && item.blobPromise) {
+                console.log(`⏳ [TTS] Waiting for prefetch...`);
+                blob = await item.blobPromise;
             }
 
-            // 🛡️ Validate Blob
             if (!blob || blob.size < 100) {
-                console.warn("⚠️ TTS Blob too small or empty. Skipping.");
+                console.warn(`⚠️ [TTS] Empty blob, skipping chunk`);
                 this.isPlaying = false;
                 this.processQueue();
                 return;
             }
 
-            // 2. Prepare Player
             const url = URL.createObjectURL(blob);
             this.audioPlayer.src = url;
 
-            // 🚀 3. PREFETCH NEXT ITEM(S)
-            // Trigger this BEFORE awaiting play start to maximize concurrency
-            this.prefetchNextItems();
-
             try {
                 await this.audioPlayer.play();
-                // Set mood to speaking (lip sync)
                 this.setMood('speaking');
                 stateManager.set('isSpeaking', true);
                 if (this.onAudioStateChange) this.onAudioStateChange(true);
-
-                // Store current item to handle 'onComplete' in 'onAudioEnded'
                 this.currentItem = item;
             } catch (playError) {
-                console.warn("⚠️ Audio Autoplay Blocked or Failed:", playError);
-
-                if (playError.name === 'NotAllowedError') {
-                    uiManager.showToastAlert({
-                        type: 'warning',
-                        title: 'คลิกเพื่อเปิดเสียง',
-                        summary: 'Browser บล็อกเสียงอัตโนมัติ กรุณาคลิกที่หน้าจอ 1 ครั้งครับ'
-                    });
-                }
-
+                console.warn("⚠️ Audio Autoplay Blocked", playError);
                 this.isPlaying = false;
                 this.processQueue();
             }
 
         } catch (e) {
-            console.error("TTS Fetch/Play Error:", e);
+            console.error("TTS Error:", e);
             this.isPlaying = false;
-            this.processQueue(); // Try next
+            this.processQueue();
         }
     }
-
-    /**
-     * 🚀 Prefetch the next few items in the queue
-     */
-    prefetchNextItems(count = 2) {
-        // Look ahead in the queue
-        for (let i = 0; i < Math.min(count, this.audioQueue.length); i++) {
-            const nextItem = this.audioQueue[i];
-
-            // Only fetch if not already fetched or fetching
-            if (!nextItem.blob && !nextItem.fetchPromise) {
-                console.log(`🚀 Prefetching Chunk +${i + 1}: "${nextItem.text.substring(0, 15)}..."`);
-
-                // Save Promise immediately to prevent duplicate fetches
-                nextItem.fetchPromise = this.fetchTTS(nextItem.text, nextItem.lang)
-                    .then(blob => {
-                        nextItem.blob = blob; // Store result
-                        return blob;
-                    })
-                    .catch(err => {
-                        console.error("Prefetch Failed:", err);
-                        nextItem.fetchPromise = null; // Reset on error so processQueue might retry
-                    });
-            }
-        }
-    }
-
 
     onAudioEnded() {
         this.isPlaying = false;
+        this.stopSimulationLoop();
 
-        // Handle Item Completion
         if (this.currentItem && this.currentItem.onComplete) {
             this.currentItem.onComplete();
         }
@@ -299,11 +264,7 @@ class AvatarManager {
         if (this.audioQueue.length > 0) {
             this.processQueue();
         } else {
-            // Queue Finished
             stateManager.set('isSpeaking', false);
-
-            // IMPORTANT: Return to appropriate state
-            // If we are processing a request, go to 'thinking'
             if (stateManager.get('isProcessing')) {
                 this.setMood('thinking');
             } else {
@@ -311,6 +272,12 @@ class AvatarManager {
                 this.sendCommand({ type: 'resumeIdle' });
             }
             if (this.onAudioStateChange) this.onAudioStateChange(false);
+
+            // 🎤 Resume STT หลัง TTS จบ (ถ้าอยู่ใน Voice Mode)
+            if (stateManager.get('isVoiceMode')) {
+                console.log('🎤 TTS finished, resuming STT...');
+                setTimeout(() => voiceModeManager.resumeRecording(), 300);
+            }
         }
     }
 

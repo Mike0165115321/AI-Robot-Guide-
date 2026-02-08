@@ -36,22 +36,25 @@
     transform: translateY(-50%) translateX(40px);
 }
 
-/* Individual Large Card */
+/* Individual Large Card - More Prominent */
 .quick-chip {
     display: flex;
     align-items: center;
     gap: 15px;
     padding: 18px 25px;
-    background: rgba(15, 23, 42, 0.6);
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.9));
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(45, 212, 191, 0.4);
     border-radius: 20px;
     color: var(--color-text);
     text-decoration: none;
     cursor: pointer;
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.4),
+        0 0 20px rgba(45, 212, 191, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
     min-width: 240px;
     animation: slideInLeft 0.6s ease-out forwards;
     opacity: 0;
@@ -111,6 +114,8 @@
 
 .right-actions-sidebar .quick-chip {
     animation: slideInRight 0.6s ease-out forwards;
+    min-width: 240px !important;
+    /* ให้ขนาดเท่ากับปุ่มซ้าย */
 }
 
 /* Stagger animations for chips (Unified) */
@@ -167,3 +172,5 @@
         min-width: auto;
     }
 }
+
+/* IdlePrompter styles moved to: /css/idle-prompter.css */

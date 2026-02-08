@@ -20,6 +20,7 @@ RE_MD_BOLD = re.compile(r'\*\*(.*?)\*\*')
 RE_MD_ITALIC = re.compile(r'\*(.*?)\*')
 RE_MD_UNDERLINE = re.compile(r'__(.*?)__')
 RE_MD_ITALIC_UND = re.compile(r'_(.*?)_')
+RE_MD_IMAGE = re.compile(r'!\[([^\]]*)\]\([^)]+\)')
 RE_MD_LINK = re.compile(r'\[([^\]]+)\]\([^)]+\)')
 RE_CODE_BLOCK = re.compile(r'```[\s\S]*?```')
 RE_INLINE_CODE = re.compile(r'`([^`]+)`')
@@ -43,49 +44,53 @@ RE_EMPTY_LINES = re.compile(r'\n\s*\n')
 RE_DASH_BETWEEN_WORDS = re.compile(r'(?<=[a-zA-Zก-ฮ])-(?=[a-zA-Zก-ฮ])')
 
 def sanitize_text_for_speech(text: str) -> str:
-    # 1. ลบ URL / Links
+    # 1. ลบ Markdown Images ![alt](url) -> ลบทิ้งเลย (ต้องทำก่อน URL เพราะ URL ในวงเล็บอาจจะโดนลบไปก่อน)
+    text = RE_MD_IMAGE.sub('', text)
+
+    # 2. ลบ URL / Links
     text = RE_URL.sub('', text)
     
-    # 2. ลบ markdown headers (#)
+    # 3. ลบ markdown headers (#)
     text = RE_MD_HEADER.sub('', text)
     
-    # 3. ลบ bold/italic markdown
+    # 4. ลบ bold/italic markdown
     text = RE_MD_BOLD.sub(r'\1', text)
     text = RE_MD_ITALIC.sub(r'\1', text)
     text = RE_MD_UNDERLINE.sub(r'\1', text)
     text = RE_MD_ITALIC_UND.sub(r'\1', text)
     
-    # 4. ลบ markdown links [text](url)
+    # 5. ลบ markdown links [text](url) -> เอา text ไว้
     text = RE_MD_LINK.sub(r'\1', text)
     
-    # 5. ลบ code blocks และ inline code
+    # 6. ลบ code blocks และ inline code
     text = RE_CODE_BLOCK.sub('', text)
     text = RE_INLINE_CODE.sub(r'\1', text)
     
-    # 6. ลบ {{IMAGE: xxx}} tags
+    # 7. ลบ {{IMAGE: xxx}} tags
     text = RE_IMAGE_TAG.sub('', text)
     
-    # 7. ลบ emoji
+    # 8. ลบ emoji
     text = RE_EMOJI.sub('', text)
     
-    # 8. ลบ bullets และสัญลักษณ์พิเศษ (String replace เร็วกว่า Regex สำหรับคำง่ายๆ)
+    # 9. ลบ bullets และสัญลักษณ์พิเศษ (String replace เร็วกว่า Regex สำหรับคำง่ายๆ)
     replacements = {
-        '▹': '', '•': '', '→': '', '←': '', '↓': '', '↑': '',
-        '...': '. ', '…': '. ', '_': ' '
+        '▹': ' ', '•': ' ', '→': ' ', '←': ' ', '↓': ' ', '↑': ' ',
+        '...': '. ', '…': '. ', '_': ' ',
+        '* ': ' ', '- ': ' ' # Bullet points markdown
     }
     for old, new in replacements.items():
         text = text.replace(old, new)
 
-    # 9. แปลง - ระหว่างคำ
+    # 10. แปลง - ระหว่างคำ
     text = RE_DASH_BETWEEN_WORDS.sub(' ', text)
     
-    # 10. ลบอักขระพิเศษ
+    # 11. ลบอักขระพิเศษ
     text = RE_SPECIAL_CHARS.sub('', text)
     
-    # 11. ลบ whitespace ซ้ำและ trim
+    # 12. ลบ whitespace ซ้ำและ trim
     text = RE_WHITESPACE.sub(' ', text).strip()
     
-    # 12. ลบบรรทัดว่าง
+    # 13. ลบบรรทัดว่าง
     text = RE_EMPTY_LINES.sub('\n', text)
     
     return text

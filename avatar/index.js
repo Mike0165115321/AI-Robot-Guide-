@@ -15,6 +15,8 @@ import { AvatarController } from './core/AvatarController.js';
 // สร้าง instance เดียว (Singleton)
 const NanAvatar = new AvatarController();
 
+// 🆕 voiceData listener REMOVED (Avatar has built-in mouth animation)
+
 // Export ทั้ง default และ named exports
 export default NanAvatar;
 export { AvatarController };
