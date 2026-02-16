@@ -134,6 +134,10 @@ cd "AI Robot Guide จังหวัดน่าน"
 *   **[🎭 Frontend Modular System](docs/01_สถาปัตยกรรมระบบ/03_เจาะลึกระบบหน้าบ้านและอวตาร.md)**: การทำงานของ Avatar Engine
 *   **[🐳 Deployment Guide](docs/05_คู่มือการใช้งาน/คู่มือการติดตั้ง_Docker.md)**: คู่มือการติดตั้ง Production
 
+### 🏅 Hall of Fame (หอเกียรติยศ)
+*   **[🏆 ผลงานและความสำเร็จ](docs/07_รางวัลและผลงาน/PROJECT_SHOWCASE.md)**: รางวัลและเกียรติบัตรจากการแข่งขัน
+*   **[📝 บทเรียนที่ได้รับ](docs/07_รางวัลและผลงาน/POST_MORTEM.md)**: Post-Mortem Analysis
+
 ---
 
 ## 🚀 Roadmap to Production Scale (Q1 2026)
