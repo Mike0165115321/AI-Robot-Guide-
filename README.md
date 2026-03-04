@@ -1,169 +1,431 @@
-# 🤖 AI Robot Guide: จังหวัดน่าน (The Nan AI Avatar)
-
 <div align="center">
 
-![Project Banner](https://mermaid.ink/img/Z3JhcGggVEQKICAgIFVzZXIoKCJVc2VyIikpCiAgICAKICAgIHN1YmdyYXBoIEZyb250ZW5kIFsiRnJvbnRlbmQgTGF5ZXIgKFdlYiBDbG91ZCAvIEVkZ2UpIl0KICAgICAgICBVSVsiV2ViIFVJIChDaGF0L0F2YXRhcikiXQogICAgICAgIERpcmVjdG9yWyJGcm9udGVuZCBEaXJlY3RvciAoTG9jYWwgQnJhaW4pIl0KICAgICAgICBXU19DbGllbnRbIldlYlNvY2tldCBDbGllbnQiXQogICAgICAgIEdTQVBbIkdTQVAgQW5pbWF0aW9uIEVuZ2luZSAoQXZhdGFyKSJdCiAgICAgICAgCiAgICAgICAgVXNlciA8LS0-IHxJbnRlcmFjdHwgVUkKICAgICAgICBVSSA8LS0-IHxEZWNpZGV8IERpcmVjdG9yCiAgICAgICAgRGlyZWN0b3IgLS0-IHxMb2NhbCBBY3Rpb258IFVJCiAgICAgICAgRGlyZWN0b3IgLS0-IHxDb21wbGV4IFF1ZXJ5fCBXU19DbGllbnQKICAgICAgICBVSSA8LS0-IHxBbmltYXRlc3wgR1NBUAogICAgICAgIFVJIDwtLT4gfFN0cmVhbSBBdWRpb3wgV1NfQ2xpZW50CiAgICBlbmQKICAgIAogICAgc3ViZ3JhcGggQmFja2VuZCBbIkJhY2tlbmQgTGF5ZXIgKFB5dGhvbiAzLjEyIC8gRmFzdEFQSSkiXQogICAgICAgIFdTX1NlcnZlclsiV2ViU29ja2V0IEVuZHBvaW50ICgvd3MpIl0KICAgICAgICBSb3V0ZXJ7IkludGVudCBSb3V0ZXIifQogICAgICAgIAogICAgICAgIHN1YmdyYXBoIFNlcnZpY2VzIFsiQ29yZSBTZXJ2aWNlcyJdCiAgICAgICAgICAgIFNwZWVjaFsiU3BlZWNoIEhhbmRsZXIgKFdoaXNwZXIvVFRTKSJdCiAgICAgICAgICAgIFJBR1siUkFHIE9yY2hlc3RyYXRvciAoQnJhaW4pIl0KICAgICAgICAgICAgTmF2WyJOYXZpZ2F0aW9uIFNlcnZpY2UiXQogICAgICAgICAgICBJTUdbIkltYWdlIFNlcnZpY2UiXQogICAgICAgICAgICBRdWV1ZVsiUmVkaXMgUXVldWUgUHJvZHVjZXIiXQogICAgICAgIGVuZAogICAgICAgIAogICAgICAgIHN1YmdyYXBoIEFJX0JyYWluIFsiQUkgTW9kZWxzIl0KICAgICAgICAgICAgTExKWyJMbGFtYS0zLjMgKEdyb3EpIl0KICAgICAgICAgICAgR0VNWyJHZW1pbmkgMi41IChHb29nbGUpIl0KICAgICAgICAgICAgVkRCX01vZGVsWyJFbWJlZGRpbmcgTW9kZWwgKEU1LUxhcmdlKSJdCiAgICAgICAgICAgIFJlcmFua1siQ3Jvc3MtRW5jb2RlciBSZXJhbmtlciJdCiAgICAgICAgZW5kCiAgICAgICAgCiAgICAgICAgV1NfQ2xpZW50IDwtLT4gfEpTT04vQmluYXJ5fCBXU19TZXJ2ZXIKICAgICAgICBXU19TZXJ2ZXIgLS0-IFNwZWVjaAogICAgICAgIFNwZWVjaCAtLT4gfFRleHQgUXVlcnl8IFJBRwogICAgICAgIFJBRyAtLT4gUm91dGVyCiAgICAgICAgCiAgICAgICAgUm91dGVyIC0tPiB8U2ltcGxlfCBMTEoKICAgICAgICBSb3V0ZXIgLS0-IHxDb21wbGV4fCBHRU0KICAgICAgICBSb3V0ZXIgLS0-IHxSZXRyaWV2YWx8IFZEQl9Nb2RlbAogICAgICAgIAogICAgICAgIFZEQl9Nb2RlbCAtLT4gUkFHCiAgICAgICAgUkFHIC0tPiBSZXJhbmsKICAgICAgICBSQUcgLS0-IHxBY3Rpb24vUmVzdWx0fCBXU19TZXJ2ZXIKICAgIGVuZAogICAgCiAgICBzdWJncmFwaCBEYXRhIFsiRGF0YSAmIEluZnJhc3RydWN0dXJlIl0KICAgICAgICBNb25nb1soIk1vbmdvREIgKERhdGEvTG9ncykiKV0KICAgICAgICBRZHJhbnRbKCJRZHJhbnQgKFZlY3RvcnMpIildCiAgICAgICAgUmVkaXNbKCJSZWRpcyAoTWVzc2FnZSBRdWV1ZSkiKV0KICAgICAgICBTaGVldHNbIkdvb2dsZSBTaGVldHMgKEFkbWluIFN5bmMpIl0KICAgICAgICAKICAgICAgICBSQUcgLS0-IE1vbmdvCiAgICAgICAgVkRCX01vZGVsIDwtLT4gUWRyYW50CiAgICAgICAgU2VydmljZXMgLS0-IFJlZGlzCiAgICBlbmQK)
-*(Functional System Architecture)*
+# 🤖 AI Robot Guide — จังหวัดน่าน
 
-[![Python](https://img.shields.io/badge/Backend-Python_3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Qdrant](https://img.shields.io/badge/Vector_DB-Qdrant-D22D4E?style=for-the-badge&logo=qdrant&logoColor=white)](https://qdrant.tech)
+### Advanced Hybrid Intelligence Platform for Nan Province Tourism
+
+**ระบบ AI นำเที่ยวอัจฉริยะที่มี "สมองคู่ขนาน" — ไม่ใช่แค่ Chatbot ธรรมดา**
+**แต่เป็น Cognitive Architecture ที่คิด ฟัง พูด และนำทางได้จริง**
+
+<br/>
+
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Async-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Gemini](https://img.shields.io/badge/Deep_Brain-Gemini_2.5-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://deepmind.google/technologies/gemini/)
-[![Llama 3](https://img.shields.io/badge/Fast_Brain-Llama_3-0467DF?style=for-the-badge&logo=meta&logoColor=white)](https://llama.meta.com/)
-
-**"ไม่ใช่แค่หุ่นยนต์นำเที่ยว... แต่นี่คือ **Advanced Hybrid Intelligence Platform** ที่มีความคิดเป็นของตัวเอง"**
+[![Llama](https://img.shields.io/badge/Fast_Brain-Llama_3.3-0467DF?style=for-the-badge&logo=meta&logoColor=white)](https://llama.meta.com/)
+[![Qdrant](https://img.shields.io/badge/Vector_DB-Qdrant-DC382D?style=for-the-badge&logo=qdrant&logoColor=white)](https://qdrant.tech)
+[![MongoDB](https://img.shields.io/badge/Database-MongoDB_7-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://mongodb.com)
+[![Redis](https://img.shields.io/badge/Queue-Redis-FF4438?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io)
+[![LINE](https://img.shields.io/badge/LINE-OA_Integration-00C300?style=for-the-badge&logo=line&logoColor=white)](https://developers.line.biz/)
 
 </div>
 
 ---
 
-## ⚡ ทำไมโปรเจกต์นี้ถึง "ล้ำ" กว่าใคร? (Core Innovations)
+## 📋 Table of Contents
 
-โปรเจกต์นี้ไม่ได้ใช้แค่ "AI ต่อ API" ธรรมดา แต่เราใช้สถาปัตยกรรม **Cognitive Architecture** ที่เลียนแบบกระบวนการคิดของมนุษย์จริงๆ:
-
-### 🧠 1. Dual-Brain System (ระบบสมองคู่ขนาน)
-เราแก้ปัญหา "ฉลาดแต่ช้า" หรือ "เร็วแต่โง่" ด้วยการใช้ AI สองตัวทำงานร่วมกัน:
-*   **🚀 Fast Brain (Llama 3 @ Groq):** ตอบโต้บทสนทนาทั่วไป (Small Talk) ได้ใน **< 0.5 วินาที** (เร็วกว่าตามนุษย์กระพริบ)
-*   **💡 Deep Brain (Gemini 2.5 Flash):** วิเคราะห์ข้อมูลซับซ้อน วางแผนเที่ยว และอ่านรีวิวสถานที่จริง
-
-### 🛡️ 2. 3-Layer Intent Filter (ระบบกรองความคิด 3 ชั้น)
-ก่อนที่ AI จะตอบ ระบบจะผ่านการคิด 3 ตลบเพื่อให้แม่นยำที่สุด:
-1.  **Reflex Layer (สัญชาตญาณ):** แก้คำผิดและตอบสนองคำสั่งด่วน (เช่น "หยุดพูด") ทันทีที่ฝั่ง Frontend (0ms Latency)
-2.  **Vector Memory (ความทรงจำ):** ค้นหาข้อมูลในอดีตจาก Qdrant
-3.  **Logical Layer (ตรรกะ):** ใช้ LLM ตัดสินใจเจตนาที่แท้จริง
-
-<div align="center">
-  <img src="https://mermaid.ink/img/Zmxvd2NoYXJ0IFRECiAgICBTdGFydFtVc2VyIElucHV0OiAn4Lir4Lin4Lix4LiU4LiU4Li14LiE4Lix4LiaJ10gLS0-IExheWVyMXtMYXllciAxOiBSZWdleCAmIFByZS1jb3JyZWN0aW9ufQogICAgTGF5ZXIxIC0tIE1hdGNoIC0tPiBDb3JyZWN0W-C5geC4geC5ieC4hOC4s-C4nOC4tOC4lDogJ-C4quC4p-C4seC4quC4lOC4tSddCiAgICBMYXllcjEgLS0gTm8gTWF0Y2ggLS0-IExheWVyMgogICAgCiAgICBDb3JyZWN0IC0tPiBMYXllcjJ7TGF5ZXIgMjogQ2FubmVkIFJlc3BvbnNlc30KICAgIExheWVyMiAtLSBNYXRjaCBGb3VuZCAtLT4gSW1tZWRpYXRlW-C4leC4reC4muC4l-C4seC4meC4l-C4tTogSGVsbG8hXQogICAgTGF5ZXIyIC0tIE5vIE1hdGNoIC0tPiBMYXllcjMKICAgIAogICAgTGF5ZXIzW0xheWVyIDM6IExMTSBJbnRlbnQgQ2xhc3NpZmllcl0gLS0-IExMTV9BbmFseXNpcwogICAgTExNX0FuYWx5c2lzIC0tPiBJbnRlbnR74LmE4LiU4LmJ4LmA4LiI4LiV4LiZ4Liy4Lit4Liw4LmE4LijP30KICAgIAogICAgSW50ZW50IC0tIFNNQUxMX1RBTEsgLS0-IEZhc3RCcmFpbltMbGFtYS0zXQogICAgSW50ZW50IC0tIElORk9STUFUSU9OQUwgLS0-IERlZXBCcmFpbltHZW1pbmldCiAgICBJbnRlbnQgLS0gUExBWV9NVVNJQyAtLT4gWW91dHViZVtZb3VUdWJlIFNlcnZpY2VdCg==" alt="AI Logic Flow" width="60%">
-  <p><i>แผนภาพกระบวนการตัดสินใจ (The Thinking Process)</i></p>
-</div>
-
-### 🌐 3. Hybrid Intelligence & RAG
-ระบบ **Retrieval Augmented Generation (RAG)** ของเราไม่ได้หาแค่ Keyword แต่ใช้ 3 เทคนิคผสมกัน:
-*   ✅ **Semantic Search:** หาจาก "ความหมาย" (เช่น ถามว่า "ที่เที่ยวเงียบๆ" จะเจอ "วัดป่า..." แม้ไม่มีคำว่าเงียบ)
-*   ✅ **Graph Relation:** (Future) เชื่อมโยงความสัมพันธ์ของสถานที่
-*   ✅ **Real-time Trending:** ดึงข้อมูลยอดฮิต ณ เวลานั้นมาแนะนำได้ทันที
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [System Architecture](#-system-architecture)
+- [Project Structure](#-project-structure)
+- [Quick Start](#-quick-start)
+- [Tech Stack](#-tech-stack)
+- [Documentation Hub](#-documentation-hub)
+- [Awards & Achievements](#-awards--achievements)
+- [Roadmap](#-roadmap)
+- [Credits](#-credits)
 
 ---
 
-## 🏗️ สถาปัตยกรรมระบบ (System Architecture)
+## 🌏 Overview
 
-เราใช้สถาปัตยกรรมแบบ **Monolithic Modular** บน Docker Container เต็มรูปแบบ รองรับการ Scale ได้ทันที
+**AI Robot Guide จังหวัดน่าน** คือแพลตฟอร์ม AI อัจฉริยะสำหรับการท่องเที่ยวจังหวัดน่าน ที่ทำงานทั้งบน **Web**, **LINE OA**, และ **หุ่นยนต์จริง** — ออกแบบมาเพื่อแก้ปัญหาจริงที่นักท่องเที่ยวพบ
 
-*   **Frontend:** HTML5 + GSAP Animation (Custom 3D Engine โดยไม่กิน Spec)
-*   **Backend:** FastAPI Asynchronous 100% รองรับ 10,000+ Requests/sec
-*   **Message Queue:** ใช้ **Redis** ในการจัดการงานหนัก (Heavy Tasks) เช่นการสรุปข่าวรายวัน
+> **Problem:** นักท่องเที่ยวหาข้อมูลเชิงลึกเกี่ยวกับจังหวัดน่านได้ยาก โดยเฉพาะข้อมูลที่ต้องการความเข้าใจบริบท
+>
+> **Solution:** AI ที่มี "สมองคู่ขนาน" — ตอบเร็วด้วย Llama 3.3 (< 0.5 วินาที) และวิเคราะห์ลึกด้วย Gemini 2.5 — รองรับ 7 ภาษา พร้อม Avatar แสดงอารมณ์ตามบทสนทนา
 
-<div align="center">
-  <img src="https://mermaid.ink/img/c2VxdWVuY2VEaWFncmFtCiAgICBwYXJ0aWNpcGFudCBXZWJob29rIGFzICJBUEkgR2F0ZXdheSAoUHJvZHVjZXIpIgogICAgcGFydGljaXBhbnQgUmVkaXMgYXMgIlJlZGlzIExpc3QgKFF1ZXVlKSIKICAgIHBhcnRpY2lwYW50IFdvcmtlciBhcyAiQmFja2dyb3VuZCBXb3JrZXIgKENvbnN1bWVyKSIKICAgIAogICAgV2ViaG9vay0-PlJlZGlzOiAxLiBMUFVTSCAo4Lid4Liy4LiB4LiH4Liy4LiZ4LmE4Lin4LmJ4LiB4LmI4Lit4LiZKQogICAgV2ViaG9vay0tPj5Vc2VyOiAyLiDguJXguK3guJrguIHguKXguLHguJrguJfguLHguJnguJfguLUgKOC5hOC4oeC5iOC4o-C4reC5gOC4quC4o-C5h-C4iCkKICAgIAogICAgbG9vcCBCYWNrZ3JvdW5kCiAgICAgICAgV29ya2VyLT4-UmVkaXM6IDMuIEJSUE9QICjguKPguK3guKPguLHguJrguIfguLLguJkpCiAgICAgICAgUmVkaXMtLT4-V29ya2VyOiA0LiDguYTguJTguYnguKPguLHguJrguIfguLLguJkgKEpTT04pCiAgICAgICAgV29ya2VyLT4-V29ya2VyOiA1LiDguJvguKPguLDguKHguKfguKXguJzguKXguKvguJnguLHguIHguYYKICAgIGVuZAo=" alt="Redis Queue Architecture" width="70%">
-</div>
+### ⚡ Engineering Highlights
 
----
-
-# 🏆 Project Highlights & Engineering Impact
-
-> *Production-grade solution developed for Nan Province tourism, transitioning from a conceptual prototype to a robust, scalable system.*
-
-| **Key Metric** | **Performance** | **Context** |
-| :--- | :--- | :--- |
-| **Commit Activity** | **122+ Commits** | Continuous integration & iterative refinement |
-| **Throughput** | **10k req/sec** | Async Architecture (FastAPI + AsyncIO) |
-| **Latency** | **< 0.5s** | Optimized RAG pipeline & Edge-TTS streaming |
-| **Availability** | **99.9%** | Resilient fallback mechanisms (OpenAI → Groq → Local) |
-
-### 🌏 Real-World Use Case: Nan Province AI Guide
-Unlike typical "To-Do List" or "Calculators" toy projects, this is a **Context-Aware Intelligent System** designed to solve real tourism pain points:
-*   **Problem:** Tourists struggle to find deep, localized information about Nan province in English/Thai.
-*   **Solution:** A **Dual-Brain AI** (Llama-3 + Gemini) that acts as a local expert, offering not just facts but "in-context" advice (e.g., *“It’s raining now, maybe visit the indoor Nan National Museum instead of the temple?”*).
-
-### 🧠 Technical Mastery & Lessons Learned
-*   **Hybrid Intelligence Orchestration:** Learned to balance cost vs. intelligence by routing simple queries to Llama-3 (Groq) and complex reasoning to Gemini-2.5, reducing API costs by 60%.
-*   **Advanced RAG Implementation:** Built a dynamic vector search system using **Qdrant** with a 3-layer intent filter to prevent hallucinations.
-*   **Real-time Interaction:** Mastered `WebSocket` communication for full-duplex audio streaming, creating a natural "Walkie-Talkie" experience.
-*   **System Resilience:** Engineered "Graceful Degradation" patterns—if the primary cloud TTS fails, it seamlessly switches to local edge-TTS or Google gTTS without user interruption.
-*   **Global Accessibility (i18n):** Implemented a robust **Multi-language Support System** (7 languages) for UI widgets, with **Smart TTS** that auto-detects and switches accents based on the spoken language (e.g., Fluent English vs. Native Thai).
+| Metric | Value | Detail |
+|:---|:---|:---|
+| **Throughput** | 10,000+ req/sec | Async Architecture (FastAPI + AsyncIO) |
+| **AI Latency** | < 0.5s | Optimized RAG pipeline + streaming TTS |
+| **RAG Accuracy** | Cross-Encoder Reranking | E5-Large + BGE Reranker 3 ชั้น |
+| **Languages** | 7 Languages | TH, EN, JA, ZH, RU, HI, MS |
+| **Availability** | Graceful Degradation | Fallback: Cloud TTS → Edge-TTS → gTTS |
 
 ---
 
-# 📺 Demo Video
-*(Click below to see the Dual-Brain AI in action)*
+## ✨ Key Features
 
-[![Watch the Demo](https://img.youtube.com/vi/YOUR_VIDEO_ID_HERE/maxresdefault.jpg)](https://youtu.be/YOUR_VIDEO_ID_HERE)
+### 🧠 Dual-Brain System — ระบบสมองคู่ขนาน
 
-> **Scenario:** User asks *"แนะนำวัดในน่านหน่อย แต่อย่าเอาวัดภูมินทร์นะ"* (Recommend temples in Nan, but not Wat Phumin).
-> **Observe:** The AI filters out the negative constraint (Logic Brain) and retrieves alternative hidden gems (RAG), verifying the response in <0.5s.
+ไม่ใช้ AI ตัวเดียวทำทุกอย่าง — เราแบ่งงานให้ AI สองตัวทำงานร่วมกัน:
+
+| Brain | Model | Role | Speed |
+|:---|:---|:---|:---|
+| 🚀 **Fast Brain** | Llama 3.3 70B (Groq) | Small Talk, คำทักทาย, บทสนทนาทั่วไป | < 0.5s |
+| 💡 **Deep Brain** | Gemini 2.5 Flash | วิเคราะห์ข้อมูลซับซ้อน, วางแผนเที่ยว, อ่านรีวิว | 1-3s |
+
+ระบบ **Intent Router** จะวิเคราะห์เจตนาผู้ใช้แล้วส่งไปยัง Brain ที่เหมาะสม — ลด API cost 60% โดยไม่เสียคุณภาพ
+
+### 🛡️ 3-Layer Intent Filter — ระบบกรองความคิด 3 ชั้น
+
+ก่อนที่ AI จะตอบ ระบบกรอง 3 ตลบเพื่อให้แม่นยำที่สุด:
+
+1. **Reflex Layer** — Regex + Pre-correction: แก้คำผิดและตอบสนองคำสั่งด่วนทันที (0ms)
+2. **Memory Layer** — Vector Search: ค้นหาข้อมูลจาก Qdrant ด้วย Semantic Search
+3. **Logic Layer** — LLM Classification: ใช้ AI ตัดสินใจเจตนาที่แท้จริง
+
+### 🔍 Advanced RAG Pipeline
+
+ระบบ **Retrieval Augmented Generation** ที่ไม่ได้หาแค่ Keyword:
+
+- ✅ **Semantic Search** — ค้นหาจาก "ความหมาย" (ถาม "ที่เงียบๆ" ได้ "วัดป่า" แม้ไม่มีคำว่าเงียบ)
+- ✅ **Cross-Encoder Reranking** — จัดอันดับผลลัพธ์ด้วย BGE Reranker
+- ✅ **Broad Query Detection** — แยกแยะคำถามกว้าง vs เจาะจงอัตโนมัติ
+- ✅ **Knowledge Gap Detection** — ตรวจจับคำถามที่ระบบยังตอบไม่ได้ + แจ้ง Admin
+
+### 🎭 Avatar V2 System — น้องน่าน
+
+ระบบ Avatar แบบ Modular ที่สร้างจาก GSAP Animation Engine:
+
+- 🎤 **Real-time Lip Sync** — ขยับปากตามเสียงพูด
+- 😊 **Mood System** — แสดงอารมณ์ตามบทสนทนา (Happy, Thinking, Excited, Sad)
+- 🎨 **Skin System** — เปลี่ยนธีมได้ (Default, NeonPunk, Winter, Thai Traditional ฯลฯ)
+- 🖱️ **Interactive Behaviors** — ตอบสนองการคลิก, hover, idle animation
+
+### 🌐 Multi-Language Support (i18n)
+
+รองรับ **7 ภาษา** ทั้ง UI และ AI Response:
+
+| 🇹🇭 Thai | 🇬🇧 English | 🇯🇵 Japanese | 🇨🇳 Chinese | 🇷🇺 Russian | 🇮🇳 Hindi | 🇲🇾 Malay |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+
+**Smart TTS** สลับสำเนียงอัตโนมัติตามภาษาที่ AI ตอบ — ถ้า AI ตอบเป็นภาษาอังกฤษจะใช้เสียง English, ไทยจะใช้เสียงไทย
+
+### 📱 Multi-Platform
+
+| Platform | Feature |
+|:---|:---|
+| 🌐 **Web UI** | Full-featured chat, avatar, navigation, places gallery |
+| 📱 **LINE OA** | สนทนาผ่าน LINE พร้อม Rich Card responses |
+| 🤖 **Robot** | ROS 2 + Arduino — เคลื่อนที่, LiDAR, Wake Word |
+
+### 🛠️ Admin Dashboard
+
+ระบบจัดการหลังบ้านครบวงจร:
+
+- 📊 **Dashboard** — สถิติการใช้งาน, response time, confidence scores
+- 📥 **Smart Import** — นำเข้าข้อมูลจาก Excel, JSON, PDF, Google Sheets
+- 🧠 **Knowledge Gaps** — Self-Correcting RAG: ดูคำถามที่ AI ตอบไม่ได้
+- 🗺️ **Map Manager** — จัดการ waypoints สำหรับนำทาง
+- ⚙️ **Settings** — ตั้งค่าระบบ, credentials
+- 🔧 **Hardware Test** — ทดสอบการเชื่อมต่อ ROS 2 + Arduino
 
 ---
 
-## 🚀 เริ่มต้นใช้งานใน 3 นาที (Quick Start)
+## 🏗️ System Architecture
 
-### สิ่งที่ต้องมี
-*   Docker & Docker Compose
-*   Python 3.12+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         USER INTERFACE                              │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────────────┐  │
+│  │  Web UI  │  │ LINE OA  │  │  Robot   │  │   Admin Dashboard  │  │
+│  │ (Avatar) │  │(Webhook) │  │(ROS 2)   │  │ (Import/Analytics) │  │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────────┬───────────┘  │
+│       │              │             │                  │              │
+│       ▼              ▼             ▼                  ▼              │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │              Frontend Director (Local Brain)                 │   │
+│  │     Reflex Layer → Canned Responses → WebSocket Relay       │   │
+│  └──────────────────────────┬───────────────────────────────────┘   │
+└─────────────────────────────┼───────────────────────────────────────┘
+                              │ WebSocket (JSON/Binary)
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    BACKEND (FastAPI + Python 3.12)                   │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                    API Gateway (14 Routers)                  │   │
+│  │  chat | admin | import | sheets | analytics | line | alert  │   │
+│  │  auth | assistant | knowledge | hardware | navigation       │   │
+│  └──────────────────────────┬──────────────────────────────────┘   │
+│                              │                                      │
+│  ┌──────────────────────────▼──────────────────────────────────┐   │
+│  │                   RAG Orchestrator (Brain)                   │   │
+│  │                                                              │   │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────────────┐    │   │
+│  │  │ Fast Brain │  │ Deep Brain │  │ Query Interpreter  │    │   │
+│  │  │ Llama 3.3  │  │ Gemini 2.5 │  │ (Intent Routing)   │    │   │
+│  │  └────────────┘  └────────────┘  └────────────────────┘    │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  ┌─── Core Services ──────────────────────────────────────────┐   │
+│  │ Speech (Whisper/TTS) │ Navigation │ Weather │ Air Quality  │   │
+│  │ Image Service │ Analytics │ News Monitor │ Alert Manager   │   │
+│  │ Google Sheets Sync │ YouTube │ Geocoding │ Language Detect │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  ┌─── Background Workers ────────────────────────────────────┐    │
+│  │ LINE Worker (Redis Consumer) │ News Scheduler (APScheduler)│    │
+│  └────────────────────────────────────────────────────────────┘    │
+└──────────────────┬────────────────┬───────────────┬─────────────────┘
+                   │                │               │
+                   ▼                ▼               ▼
+            ┌────────────┐  ┌────────────┐  ┌────────────┐
+            │  MongoDB 7 │  │   Qdrant   │  │   Redis    │
+            │  Documents │  │  Vectors   │  │   Queue    │
+            │  Logs/Data │  │  Semantic   │  │  Pub/Sub   │
+            └────────────┘  └────────────┘  └────────────┘
+```
 
-### 1. ติดตั้ง
+### Architecture Highlights
+
+- **Monolithic Modular** — Single deployment แต่แยก module ชัดเจนตาม SoC
+- **100% Async** — FastAPI + AsyncIO ทั้งระบบ
+- **3 Databases** — แต่ละ DB ทำหน้าที่เฉพาะทาง (Document Store / Vector Search / Message Queue)
+- **Graceful Degradation** — ถ้า Cloud TTS ล่ม → สลับ Edge-TTS → gTTS อัตโนมัติ
+- **Key Rotation** — สลับ API Keys อัตโนมัติเมื่อถูก Rate Limit
+
+---
+
+## 📁 Project Structure
+
+```
+AI Robot Guide จังหวัดน่าน/
+│
+├── Back-end/                    # 🐍 Python Backend (FastAPI)
+│   ├── api/                     #   ├── API Layer
+│   │   ├── main.py              #   │   ├── Application entry point & lifespan
+│   │   ├── routers/             #   │   └── 14 API routers (chat, admin, import, LINE...)
+│   │   └── schemas.py           #   │
+│   ├── core/                    #   ├── Business Logic Layer
+│   │   ├── ai_models/           #   │   ├── RAG Orchestrator, LLM Handlers, Speech
+│   │   ├── services/            #   │   ├── 23 Services (navigation, weather, analytics...)
+│   │   ├── database/            #   │   ├── MongoDB, Qdrant, Redis managers
+│   │   ├── hardware/            #   │   └── ROS 2 Bridge, Kinematics, Odometry
+│   │   └── config.py            #   │
+│   ├── prompts/                 #   ├── AI Prompts (7 languages: th/en/ja/zh/ru/hi/ms)
+│   ├── workers/                 #   ├── Background Workers (LINE consumer)
+│   ├── scripts/                 #   └── Utility scripts (build_vectors, clear_database...)
+│   └── .env.example             #
+│
+├── frontend/                    # 🌐 Web Frontend
+│   ├── index.html               #   ├── Main page
+│   ├── css/                     #   ├── Modular CSS (tokens → base → utilities)
+│   ├── js/                      #   ├── JavaScript
+│   │   ├── app.js               #   │   ├── Main application
+│   │   ├── services/            #   │   ├── Services (chat, speech, websocket, avatar...)
+│   │   ├── modules/             #   │   ├── Modules (AvatarManager, UIManager, StateManager)
+│   │   ├── components/          #   │   ├── Components (Navbar, Toast, FAB, ResponseRenderer)
+│   │   └── translations/        #   │   └── i18n (8 language files)
+│   └── admin/                   #   └── Admin Panel (dashboard, import, knowledge-gaps...)
+│
+├── avatar/                      # 🎭 Avatar V2 Engine
+│   ├── core/                    #   ├── AvatarController, AnimationEngine, EventBus
+│   ├── moods/                   #   ├── Mood plugins (Happy, Sad, Thinking, Excited...)
+│   ├── skins/                   #   └── Theme plugins (Default, NeonPunk, Winter...)
+│   └── behaviors/               #
+│
+├── hardware/                    # 🔧 Hardware Integration
+│   └── arduino/                 #   └── Arduino base control (ESP32)
+│
+├── docs/                        # 📚 Documentation
+│   ├── SETUP_QUICKSTART.md      #   ├── ⚡ Quick Start (3 minutes)
+│   ├── SETUP_FULL_INSTALLATION.md #  ├── 📖 Full Installation Guide
+│   ├── SETUP_API_KEYS.md        #   ├── 🔑 API Keys Configuration
+│   ├── 01_สถาปัตยกรรมระบบ/       #   ├── 🏛️ Architecture Deep-dive
+│   ├── 05_คู่มือการใช้งาน/        #   ├── 📘 User Guides
+│   └── 07_รางวัลและผลงาน/        #   └── 🏆 Awards & Certificates
+│
+├── docker-compose.yml           # 🐳 Infrastructure (MongoDB + Qdrant + Redis)
+├── start_web.sh                 # 🌐 Web Development mode
+├── start_all.sh                 # 🚀 Full Production mode (Web + LINE + ngrok)
+├── start_line.sh                # 📱 LINE Integration mode
+└── requirements.txt             # 📦 Python dependencies
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Python 3.12+** / **Docker + Compose V2** / **Git**
+
+### Get Running in 3 Minutes
+
 ```bash
+# 1. Clone
 git clone https://github.com/Mike0165115321/AI-Robot-Guide-.git
 cd "AI Robot Guide จังหวัดน่าน"
-./start_all.sh
-```
-*(สคริปต์นี้จะจัดการ Environment, Docker, และ Dependency ทุกอย่างให้เอง)*
 
-### 🎮 โหมดการรัน (Operation Modes)
-เรามี 3 สคริปต์ให้เลือกตามความต้องการใช้งาน:
+# 2. Start databases
+docker compose up -d
+
+# 3. Setup Python
+python3 -m venv .venv-robot && source .venv-robot/bin/activate
+pip install -r Back-end/requirements.txt
+
+# 4. Configure API Keys
+cp Back-end/.env.example Back-end/.env
+# Edit Back-end/.env → add GEMINI_API_KEYS and GROQ_API_KEYS
+
+# 5. Build Vector DB (first run only, ~5-30 min)
+python3 Back-end/scripts/build_vectors.py
+
+# 6. Launch! 🚀
+./start_web.sh
+```
+
+**เปิดเบราว์เซอร์:** http://localhost:8014
+
+### 📖 ดูขั้นตอนละเอียดเพิ่มเติม
+
+| Guide | For |
+|:---|:---|
+| **[⚡ Quick Start](docs/SETUP_QUICKSTART.md)** | นักพัฒนาที่มี Docker + Python พร้อมแล้ว |
+| **[📖 Full Installation](docs/SETUP_FULL_INSTALLATION.md)** | ผู้เริ่มต้น — ติดตั้งทุกอย่างตั้งแต่ศูนย์ |
+| **[🔑 API Keys Guide](docs/SETUP_API_KEYS.md)** | วิธีขอ API Keys ทุกตัว (Gemini, Groq, YouTube, LINE...) |
+| **[🐳 Docker Guide](docs/05_คู่มือการใช้งาน/คู่มือการติดตั้ง_Docker.md)** | การติดตั้ง Docker โดยละเอียด |
+
+### Operation Modes
 
 | Script | Mode | Description | Port |
-| :--- | :--- | :--- | :--- |
-| **`./start_all.sh`** | **🚀 Production** | **(แนะนำ)** เปิดครบทุกอย่าง: Web UI + LINE Worker + ngrok สำหรับเชื่อมต่อ LINE OA | `8014` |
-| **`./start_line.sh`** | **📱 LINE Only** | เน้นทดสอบระบบ LINE และการเชื่อมต่อ Webhook (เปิด ngrok ให้) | `8014` |
-| **`./start_web.sh`** | **🌐 Web Dev** | เปิดแค่ Web Frontend + Backend (ไม่เปิด ngrok/LINE) เหมาะสำหรับแก้งานหน้าเว็บ | `8014` |
+|:---|:---|:---|:---|
+| `./start_web.sh` | 🌐 **Web Dev** | Frontend + Backend (เหมาะสำหรับพัฒนา) | `8014` |
+| `./start_all.sh` | 🚀 **Production** | ครบทุกอย่าง: Web + LINE Worker + ngrok | `8014` |
+| `./start_line.sh` | 📱 **LINE Only** | ทดสอบ LINE OA + Webhook | `8014` |
 
-### 2. เข้าใช้งาน
-*   **Frontend:** `http://localhost:8014`
-*   **Admin Panel:** `http://localhost:8014/admin.html`
-*   **Swagger API:** `http://localhost:8014/docs`
+### Access Points
 
----
-
-## 📚 Document Hub (แหล่งความรู้)
-
-สำหรับนักพัฒนาที่ต้องการเจาะลึก Source Code:
-
-*   **[🏗️ Architecture Bible](docs/01_สถาปัตยกรรมระบบ/01_สถาปัตยกรรมและโครงสร้างระบบ_ฉบับสมบูรณ์.md)**: คัมภีร์โครงสร้างระบบฉบับสมบูรณ์
-*   **[🧠 AI Cognitive Process](docs/01_สถาปัตยกรรมระบบ/02_เจาะลึกกระบวนการคิดของAI.md)**: เจาะลึก Algorithm การคิดของ AI
-*   **[⚙️ Backend Services](docs/01_สถาปัตยกรรมระบบ/02_เจาะลึกบริการหลังบ้าน.md)**: ระบบ News Scheduler และ Alert Systems
-*   **[🎭 Frontend Modular System](docs/01_สถาปัตยกรรมระบบ/03_เจาะลึกระบบหน้าบ้านและอวตาร.md)**: การทำงานของ Avatar Engine
-*   **[🐳 Deployment Guide](docs/05_คู่มือการใช้งาน/คู่มือการติดตั้ง_Docker.md)**: คู่มือการติดตั้ง Production
-
-### 🏅 Hall of Fame (หอเกียรติยศ)
-*   **[🏆 ผลงานและความสำเร็จ](docs/07_รางวัลและผลงาน/PROJECT_SHOWCASE.md)**: รางวัลและเกียรติบัตรจากการแข่งขัน
-*   **[📝 บทเรียนที่ได้รับ](docs/07_รางวัลและผลงาน/POST_MORTEM.md)**: Post-Mortem Analysis
+| Service | URL |
+|:---|:---|
+| 🌐 Frontend | http://localhost:8014 |
+| 📊 Admin Panel | http://localhost:8014/admin |
+| 📖 Swagger API | http://localhost:8014/docs |
+| ❤️ Health Check | http://localhost:8014/health |
 
 ---
 
-## 🚀 Roadmap to Production Scale (Q1 2026)
+## 🔧 Tech Stack
 
-To elevate this project from a specialized implementation to a **Department-Scale Solution**, the following roadmap handles the transition to "Senior-Grade" infrastructure:
+### AI & Machine Learning
 
-| Phase | Objective | Technology / Strategy |
-| :--- | :--- | :--- |
-| **1. Deployment** | **Container Orchestration** | Migrate from Docker Compose to **Kubernetes (K8s)** on AWS EKS or Google GKE for auto-scaling. |
-| **2. Observability** | **Deep Monitoring** | Integrate **Prometheus & Grafana** to track API latency, error rates, and token usage in real-time. |
-| **3. Quality** | **Rigorous Testing** | Implement CI/CD pipeline with **Pytest** (Targeting >80% coverage) and Cypress for E2E frontend testing. |
-| **4. Scale** | **High Concurrency** | Optimize for **1,000+ concurrent users** using Nginx Load Balancing and Redis Cluster for session state. |
+| Component | Technology | Purpose |
+|:---|:---|:---|
+| **Deep Brain** | Google Gemini 2.5 Flash | Complex reasoning, trip planning, data analysis |
+| **Fast Brain** | Meta Llama 3.3 70B (via Groq) | Small talk, greetings, quick responses |
+| **Small Talk** | Llama 3.1 8B Instant (via Groq) | Ultra-fast casual conversation |
+| **Embedding** | `intfloat/multilingual-e5-large` | Multilingual semantic vector encoding |
+| **Reranker** | `BAAI/bge-reranker-base` | Cross-encoder relevance reranking |
+| **STT** | Whisper Large V3 (Groq Cloud) | Speech-to-Text with local fallback |
+| **TTS** | Edge-TTS + gTTS | Text-to-Speech with multi-voice support |
+
+### Backend
+
+| Component | Technology | Purpose |
+|:---|:---|:---|
+| **Framework** | FastAPI (Python 3.12) | Async API gateway, WebSocket server |
+| **Document DB** | MongoDB 7 | Location data, logs, analytics, user sessions |
+| **Vector DB** | Qdrant | Semantic search, vector embeddings storage |
+| **Message Queue** | Redis | Async task queue (LINE worker, news scheduler) |
+| **Task Scheduler** | APScheduler | Periodic news monitoring & alerts |
+
+### Frontend
+
+| Component | Technology | Purpose |
+|:---|:---|:---|
+| **UI** | HTML5 + Vanilla JS | Lightweight, no framework overhead |
+| **Animation** | GSAP | Avatar animation engine, micro-interactions |
+| **Communication** | WebSocket | Full-duplex real-time streaming |
+| **i18n** | Custom translation system | 7-language UI support |
+| **Styling** | Modular CSS (tokens/base/utilities) | Design system architecture |
+
+### Infrastructure & Integration
+
+| Component | Technology | Purpose |
+|:---|:---|:---|
+| **Containerization** | Docker Compose | MongoDB, Qdrant, Redis orchestration |
+| **LINE OA** | LINE Messaging API | Chat via LINE + Rich Card responses |
+| **Robot** | ROS 2 + Arduino (ESP32) | Physical robot control, LiDAR navigation |
+| **Tunnel** | ngrok | LINE webhook public URL |
+| **Data Import** | Google Sheets API | Admin data sync from spreadsheets |
 
 ---
 
-## 👨‍💻 Tech Stack
+## 📚 Documentation Hub
 
-| Component | Technology | Role |
-| :--- | :--- | :--- |
-| **LLM Core** | `Google Gemini 2.5` | The Deep Brain (Complex Reasoning) |
-| **LLM Edge** | `Meta Llama 3 (via Groq)` | The Fast Brain (Chat/Small Talk) |
-| **Backend** | `FastAPI (Python)` | High-Performance API Gateway |
-| **Vector DB** | `Qdrant` | Long-term Semantic Memory |
-| **Primary DB** | `MongoDB` | Document Storage (Logs/Users) |
-| **Queue** | `Redis` | Async Task Management |
-| **Voice** | `Edge-TTS` + `Whisper` + `gTTS` | Real-time Speech Pipeline with Google Backup |
+### 🏁 Getting Started
+
+| Document | Description |
+|:---|:---|
+| [⚡ Quick Start](docs/SETUP_QUICKSTART.md) | เริ่มต้นใช้งานใน 3 นาที |
+| [📖 Full Installation](docs/SETUP_FULL_INSTALLATION.md) | ติดตั้งแบบละเอียดสำหรับผู้เริ่มต้น |
+| [🔑 API Keys Guide](docs/SETUP_API_KEYS.md) | วิธีขอและตั้งค่า API Keys ทุกตัว |
+| [🐳 Docker Guide](docs/05_คู่มือการใช้งาน/คู่มือการติดตั้ง_Docker.md) | คู่มือ Docker โดยละเอียด |
+| [📘 User Guide](docs/05_คู่มือการใช้งาน/คู่มือผู้ใช้.md) | คู่มือการใช้งานสำหรับผู้ใช้ทั่วไป |
+
+### 🏛️ Architecture Deep-dive
+
+| Document | Description |
+|:---|:---|
+| [🏗️ Architecture Bible](docs/01_สถาปัตยกรรมระบบ/01_สถาปัตยกรรมและโครงสร้างระบบ_ฉบับสมบูรณ์.md) | คัมภีร์โครงสร้างระบบฉบับสมบูรณ์ |
+| [🧠 AI Cognitive Process](docs/01_สถาปัตยกรรมระบบ/02_เจาะลึกกระบวนการคิดของAI.md) | เจาะลึก Dual-Brain, Intent Filter, RAG Pipeline |
+| [⚙️ Backend Services](docs/01_สถาปัตยกรรมระบบ/02_เจาะลึกบริการหลังบ้าน.md) | News Scheduler, Redis Queue, Background Workers |
+| [🎭 Frontend & Avatar](docs/01_สถาปัตยกรรมระบบ/03_เจาะลึกระบบหน้าบ้านและอวตาร.md) | Frontend Director, Avatar Engine, State Management |
+| [📱 LINE OA System](docs/01_สถาปัตยกรรมระบบ/04_ระบบเชื่อมต่อ_LINE_OA_ฉบับสมบูรณ์.md) | LINE Messaging API integration |
+| [🔧 Maintenance Guide](docs/01_สถาปัตยกรรมระบบ/05_คู่มือการดูแลและกู้คืนระบบ.md) | การดูแลและกู้คืนระบบ |
+
+### 🏅 Hall of Fame
+
+| Document | Description |
+|:---|:---|
+| [🏆 Awards & Showcase](docs/07_รางวัลและผลงาน/PROJECT_SHOWCASE.md) | รางวัลและเกียรติบัตรจากการแข่งขัน |
+| [📝 Post-Mortem](docs/07_รางวัลและผลงาน/POST_MORTEM.md) | บทเรียนและสิ่งที่เรียนรู้จากการทำงาน |
 
 ---
-*Developed with ❤️ by MikeDev Team - Pushing the boundaries of Local AI*
+
+## 🏆 Awards & Achievements
+
+โครงการนี้ได้รับรางวัลจากการแข่งขันระดับประเทศ:
+
+📄 ดูเกียรติบัตรทั้งหมดได้ที่ [Project Showcase](docs/07_รางวัลและผลงาน/PROJECT_SHOWCASE.md)
+
+---
+
+## 🗺️ Roadmap
+
+### Q1 2026 — Production Scale
+
+| Phase | Objective | Strategy |
+|:---|:---|:---|
+| **Deployment** | Container Orchestration | Docker Compose → Kubernetes (K8s) on GKE/EKS |
+| **Observability** | Deep Monitoring | Prometheus + Grafana (latency, error rates, token usage) |
+| **Quality** | Rigorous Testing | CI/CD + Pytest (>80% coverage) + E2E testing |
+| **Scale** | High Concurrency | 1,000+ concurrent users, Nginx LB, Redis Cluster |
+
+### Future Vision
+
+- 🗺️ **Graph-based Relation** — เชื่อมโยงความสัมพันธ์ระหว่างสถานที่ (Knowledge Graph)
+- 📸 **Vision AI** — วิเคราะห์ภาพสถานที่จากกล้องหุ่นยนต์
+- 🎙️ **Emotion Detection** — ตรวจจับอารมณ์จากเสียงผู้ใช้
+- 🌍 **Multi-Province** — ขยายไปรองรับจังหวัดอื่นๆ
+
+---
+
+## 👨‍💻 Credits
+
+Developed with ❤️ by **MikeDev Team**
+
+*Pushing the boundaries of Local AI for Thai Tourism*
+
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/Mike0165115321/AI-Robot-Guide-)
+
+---
+
+## 📄 License
+
+This project is developed for educational and research purposes as part of the Nan Province AI Tourism initiative.
